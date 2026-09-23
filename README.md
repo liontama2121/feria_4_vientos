@@ -49,7 +49,7 @@ npx wrangler d1 create feria-4-vientos
 npx wrangler r2 bucket create feria-4-vientos-media
 
 # Proyecto de Pages (una sola vez)
-npx wrangler pages project create feria-4-vientos --production-branch main
+npx wrangler pages project create feria-4-vientos --production-branch pro/feria4vientos
 
 # Build + deploy (usa los bindings DB y MEDIA de wrangler.jsonc)
 npm run deploy
