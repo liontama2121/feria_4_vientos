@@ -1,0 +1,36 @@
+---
+import Molinete from './Molinete.astro';
+import { urlCerrarSesion } from '../lib/auth';
+
+interface Props {
+  seccion: string;
+  nombre?: string;
+  detalle?: string;
+  iniciales?: string;
+}
+const { seccion, nombre, detalle, iniciales } = Astro.props;
+---
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="brand" title="Ir a la landing">
+      <Molinete size={36} />
+      <div>Feria 4 Vientos<span>· {seccion}</span></div>
+    </a>
+    <div class="top-actions">
+      <slot />
+      {
+        nombre && (
+          <div class="user-chip">
+            <div class="avatar" id="userAvatar">{iniciales}</div>
+            <div>
+              <span class="n" id="userName">{nombre}</span>
+              <span class="t" id="userApto">{detalle}</span>
+            </div>
+          </div>
+        )
+      }
+      <a class="top-btn" href={urlCerrarSesion()}>Cerrar sesión</a>
+    </div>
+  </div>
+</header>

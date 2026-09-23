@@ -1,0 +1,110 @@
+---
+// El corazón narrativo: el terminalito, kiosco cerrado por años que la asamblea recuperó.
+---
+
+<section class="historia-section" id="historia">
+  <div class="wrap historia">
+    <div class="historia-copy">
+      <span class="kicker-inline">Nuestra historia</span>
+      <h2>Recuperamos <span class="serif">el terminalito</span> para la comunidad.</h2>
+      <p>
+        Durante años, el kiosco del terminalito estuvo cerrado. Era la portería auxiliar del conjunto: una esquina olvidada que muchos pasábamos de largo sin
+        mirar.
+      </p>
+      <p>
+        La asamblea decidió devolvérselo a los vecinos. Hoy es el punto de encuentro donde se muestra lo que se hace con las manos, lo que se cocina con cariño y
+        los servicios que ofrecen quienes viven aquí.
+      </p>
+      <p>La Feria 4 Vientos nace de ese acuerdo: convertir un espacio en desuso en un lugar de la comunidad, para la comunidad.</p>
+      <span class="firma">— Junta directiva · Conjunto 4 Vientos</span>
+    </div>
+
+    <figure class="historia-visual">
+      <div class="marcador"><span class="pulso"></span> El terminalito · Antes portería auxiliar</div>
+      <svg viewBox="0 0 400 420" role="img" aria-label="Ilustración del terminalito convertido en feria, con banderines de los cuatro colores">
+        <!-- sol -->
+        <circle cx="318" cy="92" r="38" fill="#FFF7EA" opacity=".85"></circle>
+        <!-- banderines -->
+        <path d="M30 118 Q200 170 370 118" fill="none" stroke="#1A1633" stroke-width="2" opacity=".5"></path>
+        <g>
+          <path d="M58 126 l14 30 l14 -26z" fill="#1E9C8C"></path>
+          <path d="M104 140 l13 30 l15 -25z" fill="#E8641B"></path>
+          <path d="M152 150 l13 30 l15 -27z" fill="#E3287A"></path>
+          <path d="M200 153 l14 30 l14 -30z" fill="#7B3FE4"></path>
+          <path d="M248 150 l13 29 l15 -27z" fill="#1E9C8C"></path>
+          <path d="M296 140 l13 28 l15 -26z" fill="#E8641B"></path>
+          <path d="M340 126 l12 28 l14 -26z" fill="#E3287A"></path>
+        </g>
+        <!-- kiosco -->
+        <rect x="92" y="222" width="216" height="150" rx="10" fill="#FFF7EA"></rect>
+        <path d="M70 226 L200 176 L330 226 Z" fill="#1A1633"></path>
+        <g>
+          <rect x="84" y="222" width="29" height="26" fill="#1E9C8C"></rect>
+          <rect x="113" y="222" width="29" height="26" fill="#FFF7EA"></rect>
+          <rect x="142" y="222" width="29" height="26" fill="#E8641B"></rect>
+          <rect x="171" y="222" width="29" height="26" fill="#FFF7EA"></rect>
+          <rect x="200" y="222" width="29" height="26" fill="#E3287A"></rect>
+          <rect x="229" y="222" width="29" height="26" fill="#FFF7EA"></rect>
+          <rect x="258" y="222" width="29" height="26" fill="#7B3FE4"></rect>
+          <rect x="287" y="222" width="29" height="26" fill="#FFF7EA"></rect>
+        </g>
+        <rect x="116" y="266" width="168" height="62" rx="8" fill="#1A1633" opacity=".08"></rect>
+        <text x="200" y="304" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="19" fill="#1A1633">EL TERMINALITO</text>
+        <rect x="104" y="340" width="192" height="14" rx="4" fill="#1A1633" opacity=".85"></rect>
+        <!-- puestos -->
+        <text x="130" y="336" font-size="22">🧁</text>
+        <text x="186" y="336" font-size="22">☕</text>
+        <text x="242" y="336" font-size="22">🧶</text>
+        <!-- piso -->
+        <rect x="0" y="372" width="400" height="48" fill="#1A1633" opacity=".08"></rect>
+        <!-- molinete -->
+        <g transform="translate(46 262) scale(.36)">
+          <path d="M100 100 C100 40 130 20 160 20 C140 50 130 80 100 100Z" fill="#1E9C8C"></path>
+          <path d="M100 100 C160 100 180 130 180 160 C150 140 120 130 100 100Z" fill="#E8641B"></path>
+          <path d="M100 100 C100 160 70 180 40 180 C60 150 70 120 100 100Z" fill="#E3287A"></path>
+          <path d="M100 100 C40 100 20 70 20 40 C50 60 80 70 100 100Z" fill="#7B3FE4"></path>
+          <circle cx="100" cy="100" r="10" fill="#1A1633"></circle>
+        </g>
+        <rect x="80" y="298" width="4" height="76" fill="#1A1633"></rect>
+      </svg>
+    </figure>
+  </div>
+</section>
+
+<style>
+  .historia-section {
+    position: relative; overflow: hidden;
+    padding: 100px 0;
+    background: linear-gradient(160deg, var(--gregal-claro) 0%, var(--austro-claro) 100%);
+  }
+  .historia-section::before {
+    content: ''; position: absolute; top: -100px; left: -100px;
+    width: 400px; height: 400px; border-radius: 50%;
+    background: var(--gregal-medio); filter: blur(80px); opacity: .5;
+    pointer-events: none;
+  }
+  .historia { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  @media (max-width: 900px) { .historia { grid-template-columns: 1fr; } }
+  h2 { font-size: clamp(34px, 4.2vw, 56px); letter-spacing: -.035em; margin: 16px 0 22px; }
+  h2 .serif { color: var(--austro); }
+  p { color: var(--tinta-media); font-size: 17px; margin-bottom: 16px; }
+  .firma { display: inline-block; margin-top: 16px; font-family: var(--display); font-size: 12.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--tinta-suave); font-weight: 700; }
+
+  .historia-visual {
+    position: relative; overflow: hidden;
+    aspect-ratio: 4 / 4.4;
+    border-radius: var(--radio);
+    background: linear-gradient(160deg, var(--gregal-medio), var(--austro-medio) 55%, var(--cierzo-medio));
+    box-shadow: 0 24px 60px rgba(227, 40, 122, .25);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .historia-visual svg { width: 100%; height: auto; }
+  .marcador {
+    position: absolute; top: 20px; left: 20px; z-index: 1;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; border-radius: 999px; background: #fff;
+    font-size: 12.5px; font-weight: 700;
+    box-shadow: 0 6px 20px rgba(26, 22, 51, .15);
+  }
+  .pulso { width: 8px; height: 8px; border-radius: 50%; background: var(--gregal); box-shadow: 0 0 10px var(--gregal); animation: latido 1.8s ease-in-out infinite; }
+</style>

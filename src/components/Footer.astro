@@ -1,0 +1,68 @@
+---
+import Molinete from './Molinete.astro';
+import type { Torre } from '../lib/db';
+import { MENSAJES, SITIO, linkWhatsApp } from '../lib/sitio';
+
+interface Props {
+  torres: Torre[];
+}
+const { torres } = Astro.props;
+const anio = 2026;
+---
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-col">
+        <div class="foot-marca"><Molinete size={36} /> Feria 4 Vientos</div>
+        <p>
+          Feria de emprendimientos de los residentes del {SITIO.conjunto}. {torres.map((t) => t.nombre).join(', ')} — un espacio recuperado por y para la comunidad.
+        </p>
+      </div>
+      <div class="foot-col">
+        <h5>Las 4 torres</h5>
+        <ul>
+          {
+            torres.map((t) => (
+              <li>
+                <a href={`/#${t.id}`}>
+                  {t.nombre} · {t.rumbo.replace(/^Torre\s+/i, '').replace(/^./, (c) => c.toUpperCase())}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h5>Contacto</h5>
+        <ul>
+          <li><a href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">WhatsApp del comité</a></li>
+          <li><a href={`https://instagram.com/${SITIO.instagram}`} target="_blank" rel="noopener">Instagram @{SITIO.instagram}</a></li>
+          <li><a href="/admin">Panel del vecino</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <div>© {anio} Feria 4 Vientos · Con el respaldo de la Alcaldía Local</div>
+      <div class="hecho">Sitio web hecho con amor por JuanCode</div>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer { padding: 60px 0 40px; background: linear-gradient(180deg, var(--crema) 0%, var(--gregal-claro) 100%); border-top: 1px solid var(--linea); }
+  .foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+  @media (max-width: 720px) { .foot-grid { grid-template-columns: 1fr; gap: 28px; } }
+  .foot-marca { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-family: var(--display); font-weight: 800; }
+  .foot-col p, .foot-col a { font-size: 14px; color: var(--tinta-media); }
+  .foot-col a:hover { color: var(--tinta); }
+  .foot-col h5 { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--tinta-suave); margin-bottom: 12px; }
+  .foot-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .foot-bottom {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    padding-top: 24px; border-top: 1px solid var(--linea);
+    font-size: 13.5px; color: var(--tinta-suave); font-weight: 600;
+  }
+  .hecho { background: var(--grad-juancode); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
+  @media (max-width: 500px) { .foot-bottom { padding-right: 70px; } }
+</style>

@@ -1,0 +1,100 @@
+---
+import type { Fecha } from '../lib/db';
+import { diaMes, diaSemana, rangoHoras } from '../lib/fechas';
+import { MENSAJES, SITIO, linkWhatsApp } from '../lib/sitio';
+
+interface Props {
+  fechas: Fecha[];
+}
+const { fechas } = Astro.props;
+---
+
+<section class="ubicacion-section" id="ubicacion">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker" style="color: var(--gregal)">Dónde y cuándo</span>
+      <h2>El terminalito, <span class="serif">ese</span> que quedaba en la esquina.</h2>
+    </div>
+    <div class="ubicacion-grid">
+      <div class="info-card">
+        <div class="label">Ubicación</div>
+        <h3>El terminalito del conjunto</h3>
+        <div class="meta">{SITIO.conjunto} · {SITIO.ciudad}</div>
+        <p>Al lado de la portería secundaria, con entrada por la peatonal. Si es tu primera vez, cualquier vecino te indica.</p>
+        <ul class="extras">
+          <li><span>🐶</span> Vacunación para mascotas</li>
+          <li><span>💉</span> Vacunación para niños</li>
+          <li><span>⚽</span> Actividades deportivas</li>
+          <li><span>🎶</span> Música y talleres de la Casa de Cultura</li>
+        </ul>
+        <a class="como-llegar" href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">¿Dudas? Escríbele al comité →</a>
+      </div>
+
+      <div class="info-card">
+        <div class="label">Próximas fechas</div>
+        {
+          fechas.length === 0 ? (
+            <p>El comité está definiendo la próxima fecha. Síguenos en Instagram @{SITIO.instagram} para enterarte primero.</p>
+          ) : (
+            fechas.map((f, i) => {
+              const { dd, mm } = diaMes(f.fecha);
+              return (
+                <div class:list={['fecha-item', { proxima: i === 0 }]}>
+                  <div class="dia">
+                    <div class="dd">{dd}</div>
+                    <div class="mm">{mm}</div>
+                  </div>
+                  <div class="desc">
+                    <h4>
+                      {f.titulo}
+                      {i === 0 && <span class="chip-proxima">Próxima</span>}
+                    </h4>
+                    <span class="hora">
+                      {diaSemana(f.fecha)} · {rangoHoras(f)}
+                    </span>
+                    {f.descripcion && <p>{f.descripcion}</p>}
+                  </div>
+                </div>
+              );
+            })
+          )
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .ubicacion-section { padding: 100px 0; background: linear-gradient(180deg, var(--crema) 0%, var(--gregal-claro) 100%); }
+  .section-head { margin-bottom: 44px; max-width: 760px; }
+  .section-head h2 { font-size: clamp(34px, 4.2vw, 52px); letter-spacing: -.035em; }
+  .section-head h2 .serif { color: var(--gregal); }
+
+  .ubicacion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 800px) { .ubicacion-grid { grid-template-columns: 1fr; } }
+  .info-card { background: #fff; border-radius: var(--radio); padding: 32px; box-shadow: 0 12px 32px rgba(26, 22, 51, .08); }
+  .label { font-family: var(--display); font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: var(--gregal); margin-bottom: 14px; font-weight: 800; }
+  .info-card h3 { font-size: 24px; margin-bottom: 6px; }
+  .meta { color: var(--tinta-suave); font-size: 14.5px; font-weight: 700; margin-bottom: 14px; }
+  .info-card p { color: var(--tinta-media); font-size: 14.5px; }
+  .extras { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+  @media (max-width: 460px) { .extras { grid-template-columns: 1fr; } }
+  .extras li { display: flex; gap: 10px; align-items: center; font-size: 14px; font-weight: 700; background: var(--crema); border-radius: 12px; padding: 10px 12px; }
+  .como-llegar { font-family: var(--display); font-weight: 700; font-size: 14px; color: var(--gregal); }
+
+  .fecha-item { display: flex; align-items: flex-start; gap: 16px; padding: 16px 0; border-top: 1px solid var(--linea); }
+  .fecha-item:first-of-type { border-top: none; padding-top: 0; }
+  .dia {
+    flex: 0 0 auto; width: 64px; text-align: center; padding: 10px 0;
+    background: var(--gregal-claro); border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--gregal) 20%, transparent);
+  }
+  .proxima .dia { background: var(--gregal); border-color: var(--gregal); }
+  .proxima .dd, .proxima .mm { color: #fff; }
+  .dd { font-family: var(--display); font-size: 24px; font-weight: 800; line-height: 1; color: var(--gregal); }
+  .mm { font-size: 10px; color: var(--tinta-suave); letter-spacing: .18em; margin-top: 4px; font-weight: 800; }
+  .desc h4 { font-size: 16px; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .chip-proxima { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; background: var(--gregal-claro); color: var(--gregal); padding: 3px 8px; border-radius: 999px; }
+  .hora { font-size: 13.5px; color: var(--tinta-suave); font-weight: 700; }
+  .desc p { font-size: 13.5px; margin-top: 4px; }
+</style>

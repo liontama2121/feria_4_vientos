@@ -1,0 +1,73 @@
+---
+import { MENSAJES, linkWhatsApp } from '../lib/sitio';
+
+const pasos = [
+  { t: 'Solicita acceso al panel', d: 'Escríbele al comité por WhatsApp con tu nombre, torre y número de apartamento.', c: 'var(--mistral)' },
+  { t: 'Entra con tu cuenta de Google', d: 'El comité te habilita y te manda el enlace. Entras con tu correo, sin contraseñas nuevas.', c: 'var(--gregal)' },
+  { t: 'Sube tus datos y fotos', d: 'Desde tu panel cargas tu emprendimiento, hasta 6 fotos y tus redes. Ves en vivo cómo va a quedar.', c: 'var(--austro)' },
+  { t: 'Nos vemos en la feria', d: 'Apareces en la sección de tu torre y el día del evento tienes tu puesto en el terminalito.', c: 'var(--cierzo)' },
+];
+---
+
+<section class="participar-section" id="participar">
+  <div class="wrap">
+    <div class="participar">
+      <div class="participar-copy">
+        <span class="kicker-inline" style="--k: var(--cierzo)">¿Eres residente?</span>
+        <h2>Únete a la <span class="serif">próxima feria</span>.</h2>
+        <p>
+          Si tienes un emprendimiento y vives en el conjunto, puedes registrarte gratis. Sin costo de inscripción, sin comisiones. Solo llenas tus datos y subes
+          tus fotos.
+        </p>
+        <div class="acciones">
+          <a href={linkWhatsApp(MENSAJES.participar)} class="btn btn-primary" target="_blank" rel="noopener">Registrar mi emprendimiento</a>
+          <a href="/admin" class="btn btn-ghost">Ya tengo cuenta</a>
+        </div>
+      </div>
+      <ol class="pasos">
+        {
+          pasos.map((p, i) => (
+            <li class="paso">
+              <div class="num" style={`background:${p.c}`}>{i + 1}</div>
+              <div>
+                <h4>{p.t}</h4>
+                <p>{p.d}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </div>
+</section>
+
+<style>
+  .participar-section {
+    padding: 100px 0;
+    background:
+      radial-gradient(circle at 20% 20%, var(--mistral-claro) 0%, transparent 40%),
+      radial-gradient(circle at 80% 20%, var(--gregal-claro) 0%, transparent 40%),
+      radial-gradient(circle at 30% 80%, var(--austro-claro) 0%, transparent 40%),
+      radial-gradient(circle at 80% 80%, var(--cierzo-claro) 0%, transparent 40%),
+      var(--crema);
+  }
+  .participar {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+    background: #fff; border-radius: var(--radio); padding: 60px;
+    box-shadow: 0 30px 70px rgba(26, 22, 51, .1);
+  }
+  @media (max-width: 900px) { .participar { grid-template-columns: 1fr; padding: 40px 26px; gap: 40px; } }
+  h2 { font-size: clamp(32px, 3.8vw, 46px); letter-spacing: -.03em; margin: 16px 0; }
+  h2 .serif { color: var(--austro); }
+  .participar-copy p { color: var(--tinta-media); font-size: 16px; margin-bottom: 26px; }
+  .acciones { display: flex; flex-wrap: wrap; gap: 12px; }
+  .pasos { list-style: none; display: flex; flex-direction: column; gap: 20px; }
+  .paso { display: flex; gap: 16px; align-items: flex-start; }
+  .num {
+    flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display); font-weight: 800; color: #fff; font-size: 16px;
+  }
+  .paso h4 { font-size: 16.5px; margin-bottom: 4px; }
+  .paso p { font-size: 14.5px; color: var(--tinta-media); }
+</style>

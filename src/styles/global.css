@@ -1,0 +1,116 @@
+@import "tailwindcss";
+@config "../../tailwind.config.mjs";
+
+/* ══════════════════════════════════════════════════════════════
+   Identidad Feria 4 Vientos — tokens consolidados del promo
+   (video-feria-4-vientos.html gana sobre los mockups).
+   Regla: la base es crema. Ninguna sección lleva fondo negro/oscuro.
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --crema: #FFF7EA;
+  --crema-alt: #FBEEDB;
+  --tinta: #1A1633;
+  --tinta-media: #45405F;
+  --tinta-suave: #6B6880;
+  --linea: rgba(26, 22, 51, .08);
+  --linea-fuerte: rgba(26, 22, 51, .16);
+
+  --mistral: #1E9C8C;  --mistral-claro: #BFF0E6;  --mistral-medio: #7FD6C8;
+  --gregal: #E8641B;   --gregal-claro: #FFE1C7;   --gregal-medio: #F6A56F;
+  --austro: #E3287A;   --austro-claro: #FFD3E6;   --austro-medio: #F287B6;
+  --cierzo: #7B3FE4;   --cierzo-claro: #E1D4FF;   --cierzo-medio: #B394F2;
+
+  --grad-vientos: linear-gradient(120deg, var(--mistral) 0%, var(--gregal) 35%, var(--austro) 68%, var(--cierzo) 100%);
+  --grad-juancode: linear-gradient(120deg, #06B6D4 0%, #D946EF 55%, #8B5CF6 100%);
+  --whatsapp: #25D366;
+
+  --display: 'Plus Jakarta Sans', 'Manrope', system-ui, sans-serif;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --body: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+
+  --radio: 24px;
+  --radio-sm: 14px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--body);
+  font-weight: 500;
+  background: var(--crema);
+  color: var(--tinta);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+h1, h2, h3, h4, h5 {
+  font-family: var(--display);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  color: var(--tinta);
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; }
+
+/* Palabras clave en itálica serif — solo en títulos clave */
+.serif {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-synthesis: none;
+}
+.grad-text {
+  background: var(--grad-vientos);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding-right: .06em; /* la itálica no se corta al recortar el gradiente */
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 28px;
+  border-radius: 999px;
+  font-family: var(--display); font-weight: 700; font-size: 15px;
+  border: 1px solid transparent;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  white-space: nowrap;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn-primary { background: var(--grad-vientos); color: #fff; box-shadow: 0 12px 36px rgba(123, 63, 228, .3); }
+.btn-primary:hover { box-shadow: 0 18px 44px rgba(227, 40, 122, .38); }
+.btn-ghost { background: #fff; border-color: var(--linea-fuerte); color: var(--tinta); }
+.btn-ghost:hover { background: var(--gregal-claro); border-color: var(--gregal-medio); }
+
+.kicker {
+  display: block;
+  font-family: var(--display); font-size: 12px; font-weight: 700;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--tinta-suave);
+  margin-bottom: 10px;
+}
+.kicker-inline {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--display); font-size: 12px; font-weight: 700;
+  letter-spacing: .2em; text-transform: uppercase;
+  color: var(--k, var(--gregal));
+}
+.kicker-inline::before { content: ''; width: 28px; height: 2px; background: currentColor; border-radius: 2px; }
+
+:focus-visible { outline: 3px solid var(--foco, var(--cierzo)); outline-offset: 3px; border-radius: 6px; }
+
+.sr-only-f4v {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes latido { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

@@ -1,0 +1,97 @@
+---
+// 3 cards: el patrocinador oficial (Alcaldía) va destacado y más grande con acento Cierzo;
+// comunitario con acento Mistral; cultural con acento Austro.
+import type { Patrocinador } from '../lib/db';
+
+interface Props {
+  patrocinadores: Patrocinador[];
+}
+const { patrocinadores } = Astro.props;
+
+const ACENTO: Record<Patrocinador['tipo'], { c: string; claro: string }> = {
+  oficial: { c: 'var(--cierzo)', claro: 'var(--cierzo-claro)' },
+  comunitario: { c: 'var(--mistral)', claro: 'var(--mistral-claro)' },
+  cultural: { c: 'var(--austro)', claro: 'var(--austro-claro)' },
+};
+---
+
+<section class="respaldo-section" id="respaldo">
+  <div class="wrap">
+    <div class="respaldo-head">
+      <span class="kicker">Con el respaldo de</span>
+      <h2>Una feria hecha entre <span class="serif">todos</span>.</h2>
+      <p>La Feria 4 Vientos existe gracias al trabajo conjunto entre la comunidad, las instituciones y los aliados que creen en el emprendimiento del barrio.</p>
+    </div>
+
+    <div class="respaldo-grid">
+      {
+        patrocinadores.map((p) => (
+          <div class:list={['respaldo-card', { principal: p.destacado }]} style={`--a:${ACENTO[p.tipo].c};--a-claro:${ACENTO[p.tipo].claro}`}>
+            <span class="badge">{p.etiqueta}</span>
+            {p.logo ? (
+              <img class="logo-real" src={p.logo} alt={`Logo de ${p.nombre}`} loading="lazy" />
+            ) : (
+              <div class="logo" aria-hidden="true">
+                {p.emoji}
+              </div>
+            )}
+            <h3>{p.nombre}</h3>
+            <p>{p.descripcion}</p>
+            <div class="rol">{p.rol_corto}</div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .respaldo-section { position: relative; overflow: hidden; padding: 100px 0; background: #fff; }
+  .respaldo-section::before {
+    content: ''; position: absolute; top: -10%; right: -5%;
+    width: 400px; height: 400px; border-radius: 50%;
+    background: var(--cierzo-medio); filter: blur(120px); opacity: .35;
+    pointer-events: none;
+  }
+  .respaldo-head { text-align: center; margin-bottom: 48px; }
+  .respaldo-head h2 { font-size: clamp(32px, 4.2vw, 50px); letter-spacing: -.035em; }
+  .respaldo-head h2 .serif { color: var(--cierzo); }
+  .respaldo-head p { color: var(--tinta-media); font-size: 16px; margin: 12px auto 0; max-width: 560px; }
+
+  .respaldo-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 20px; align-items: stretch; }
+  @media (max-width: 900px) { .respaldo-grid { grid-template-columns: 1fr; } }
+
+  .respaldo-card {
+    display: flex; flex-direction: column;
+    background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+    padding: 32px;
+    box-shadow: 0 8px 24px rgba(26, 22, 51, .05);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .respaldo-card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(26, 22, 51, .1); }
+  .respaldo-card.principal {
+    background: linear-gradient(160deg, var(--a-claro) 0%, #fff 62%);
+    border-color: color-mix(in srgb, var(--a) 35%, transparent);
+    box-shadow: 0 14px 36px color-mix(in srgb, var(--a) 18%, transparent);
+  }
+  .badge {
+    align-self: flex-start; margin-bottom: 20px;
+    padding: 6px 12px; border-radius: 999px;
+    font-family: var(--display); font-size: 10.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    background: var(--a-claro); color: var(--a);
+  }
+  .principal .badge { background: var(--a); color: #fff; }
+  .logo {
+    width: 72px; height: 72px; border-radius: 18px; margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: center; font-size: 40px;
+    border: 1px dashed var(--linea-fuerte); background: rgba(255, 255, 255, .7);
+  }
+  .logo-real { height: 92px; width: auto; max-width: 100%; align-self: flex-start; object-fit: contain; border-radius: 16px; margin-bottom: 18px; box-shadow: 0 10px 24px rgba(26, 22, 51, .14); }
+  .respaldo-card h3 { font-size: 22px; margin-bottom: 8px; }
+  .principal h3 { font-size: 27px; }
+  .respaldo-card p { color: var(--tinta-media); font-size: 14.5px; margin-bottom: 20px; flex: 1; }
+  .rol {
+    font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    padding-top: 16px; border-top: 1px solid var(--linea); color: var(--tinta-suave);
+  }
+</style>

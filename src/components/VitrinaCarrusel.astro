@@ -1,0 +1,252 @@
+---
+// Vitrina: el ÚNICO lugar donde se mezclan las 4 torres. Muestra los destacados.
+// Autoplay 4.5 s, pausa al pasar el mouse, botones circulares y dots del color de la torre activa.
+import { categoria } from '../lib/constantes';
+import type { EmprendedorPublico, Torre } from '../lib/db';
+
+interface Props {
+  emprendedores: EmprendedorPublico[];
+  torres: Torre[];
+}
+const { emprendedores, torres } = Astro.props;
+const torreDe = (id: string) => torres.find((t) => t.id === id) ?? torres[0];
+
+// Intercala torres para que el carrusel alterne colores (Austro, Mistral, Gregal, Cierzo, …).
+const porTorre = torres.map((t) => emprendedores.filter((e) => e.torre === t.id));
+const slides: EmprendedorPublico[] = [];
+for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] && slides.push(l[i]));
+---
+
+{
+  slides.length > 0 && (
+    <section class="vitrina-section" aria-roledescription="carrusel" aria-label="Vitrina de emprendimientos">
+      <div class="wrap">
+        <div class="vitrina-head">
+          <span class="kicker">Vitrina · la feria de un vistazo</span>
+          <h2>
+            Lo que trae <span class="serif grad-text">cada viento</span>.
+          </h2>
+        </div>
+      </div>
+
+      <div class="wrap vitrina-wrap" data-vitrina>
+        <button class="vitrina-btn prev" type="button" data-prev aria-label="Anterior">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <button class="vitrina-btn next" type="button" data-next aria-label="Siguiente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+
+        <div class="vitrina-track" data-track>
+          {slides.map((e, i) => {
+            const t = torreDe(e.torre);
+            const cat = categoria(e.categoria);
+            return (
+              <article
+                class="vitrina-slide"
+                style={`--t:${t.color_hex};--t-claro:${t.color_claro}`}
+                data-color={t.color_hex}
+                aria-roledescription="diapositiva"
+                aria-label={`${i + 1} de ${slides.length}: ${e.nombre_emprendimiento}`}
+              >
+                <div class="vitrina-img">
+                  <span class="vitrina-tag">
+                    <span class="dot" /> {t.nombre.toUpperCase()}
+                  </span>
+                  {e.foto_principal ? (
+                    <img src={e.foto_principal} alt={`Foto de ${e.nombre_emprendimiento}`} loading="lazy" decoding="async" />
+                  ) : (
+                    <span class="emoji" aria-hidden="true">
+                      {e.emoji_placeholder || cat.emoji}
+                    </span>
+                  )}
+                </div>
+                <div class="vitrina-info">
+                  <span class="cat">
+                    {cat.label} · {t.rumbo}
+                  </span>
+                  <h3>{e.nombre_emprendimiento}</h3>
+                  <p>{e.descripcion_corta}</p>
+                  <button type="button" class="vitrina-mas" data-detalle={e.slug}>
+                    Ver más →
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div class="vitrina-dots" data-dots />
+      </div>
+    </section>
+  )
+}
+
+<script>
+  const AUTOPLAY_MS = 4500;
+
+  document.querySelectorAll<HTMLElement>('[data-vitrina]').forEach((wrap) => {
+    const track = wrap.querySelector<HTMLElement>('[data-track]')!;
+    const dotsWrap = wrap.querySelector<HTMLElement>('[data-dots]')!;
+    const slides = Array.from(track.querySelectorAll<HTMLElement>('.vitrina-slide'));
+    const total = slides.length;
+    const reducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let actual = 0;
+    let timer: number | undefined;
+
+    const dots = slides.map((slide, i) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'vitrina-dot';
+      dot.setAttribute('aria-label', `Ir al emprendimiento ${i + 1}`);
+      dot.style.setProperty('--c', slide.dataset.color ?? '#1A1633');
+      dot.addEventListener('click', () => {
+        detener();
+        ir(i);
+      });
+      dotsWrap.appendChild(dot);
+      return dot;
+    });
+
+    function pintarDots(i: number) {
+      dots.forEach((d, j) => {
+        d.classList.toggle('activo', j === i);
+        d.setAttribute('aria-current', String(j === i));
+      });
+    }
+
+    function ir(i: number) {
+      actual = (i + total) % total;
+      const s = slides[actual];
+      track.scrollTo({ left: s.offsetLeft - track.clientWidth / 2 + s.clientWidth / 2, behavior: reducido ? 'auto' : 'smooth' });
+      pintarDots(actual);
+    }
+
+    // Scroll manual (dedo o trackpad): el dot sigue al slide más centrado.
+    let t: number | undefined;
+    track.addEventListener('scroll', () => {
+      clearTimeout(t);
+      t = window.setTimeout(() => {
+        const centro = track.scrollLeft + track.clientWidth / 2;
+        let cercano = 0;
+        let min = Infinity;
+        slides.forEach((s, i) => {
+          const d = Math.abs(centro - (s.offsetLeft + s.clientWidth / 2));
+          if (d < min) {
+            min = d;
+            cercano = i;
+          }
+        });
+        actual = cercano;
+        pintarDots(actual);
+      }, 100);
+    });
+
+    function iniciar() {
+      if (reducido || timer) return;
+      timer = window.setInterval(() => ir(actual + 1), AUTOPLAY_MS);
+    }
+    function detener() {
+      clearInterval(timer);
+      timer = undefined;
+    }
+
+    wrap.querySelector('[data-prev]')!.addEventListener('click', () => { detener(); ir(actual - 1); });
+    wrap.querySelector('[data-next]')!.addEventListener('click', () => { detener(); ir(actual + 1); });
+    wrap.addEventListener('mouseenter', detener);
+    wrap.addEventListener('mouseleave', iniciar);
+    wrap.addEventListener('focusin', detener);
+    document.addEventListener('visibilitychange', () => (document.hidden ? detener() : iniciar()));
+
+    pintarDots(0);
+    iniciar();
+  });
+</script>
+
+<style>
+  .vitrina-section { position: relative; overflow: hidden; padding: 90px 0; background: #fff; }
+  .vitrina-section::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 1200px; height: 400px; border-radius: 50%;
+    background:
+      radial-gradient(circle at 20% 50%, var(--mistral-medio) 0%, transparent 40%),
+      radial-gradient(circle at 45% 50%, var(--gregal-medio) 0%, transparent 40%),
+      radial-gradient(circle at 65% 50%, var(--austro-medio) 0%, transparent 40%),
+      radial-gradient(circle at 85% 50%, var(--cierzo-medio) 0%, transparent 40%);
+    filter: blur(80px); opacity: .4;
+    pointer-events: none;
+  }
+  .vitrina-head { text-align: center; margin-bottom: 40px; }
+  .vitrina-head h2 { font-size: clamp(30px, 4vw, 48px); letter-spacing: -.03em; }
+
+  .vitrina-wrap { position: relative; }
+  .vitrina-track {
+    display: flex; gap: 20px;
+    overflow-x: auto; scroll-snap-type: x mandatory;
+    padding: 20px 24px 30px; margin: 0 -24px;
+    scrollbar-width: none;
+  }
+  .vitrina-track::-webkit-scrollbar { display: none; }
+
+  .vitrina-slide {
+    flex: 0 0 360px; scroll-snap-align: center;
+    display: flex; flex-direction: column;
+    border-radius: var(--radio); overflow: hidden; background: #fff;
+    box-shadow: 0 12px 36px rgba(26, 22, 51, .08);
+    transition: transform .3s ease, box-shadow .3s ease;
+  }
+  .vitrina-slide:hover { transform: translateY(-4px); box-shadow: 0 20px 44px rgba(26, 22, 51, .15); }
+  @media (max-width: 500px) { .vitrina-slide { flex: 0 0 290px; } }
+
+  .vitrina-img {
+    position: relative; aspect-ratio: 4 / 5;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--t) 45%, var(--t-claro)), var(--t-claro) 60%, #fff);
+  }
+  .vitrina-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .vitrina-img::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(26, 22, 51, .22) 100%); pointer-events: none; }
+  .emoji { font-size: 130px; }
+
+  .vitrina-tag {
+    position: absolute; top: 16px; left: 16px; z-index: 2;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255, 255, 255, .95);
+    font-family: var(--display); font-size: 11px; font-weight: 800; letter-spacing: .08em;
+    color: var(--t);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+  }
+  .vitrina-tag .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--t); }
+
+  .vitrina-info { padding: 22px 22px 24px; display: flex; flex-direction: column; flex: 1; }
+  .cat { font-family: var(--display); font-size: 10.5px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--tinta-suave); margin-bottom: 6px; }
+  .vitrina-info h3 { font-size: 22px; margin-bottom: 4px; }
+  .vitrina-info p { font-size: 14px; color: var(--tinta-media); flex: 1; }
+  .vitrina-mas { align-self: flex-start; margin-top: 14px; background: none; border: none; padding: 0; font-family: var(--display); font-weight: 700; font-size: 13.5px; color: var(--t); }
+
+  .vitrina-btn {
+    position: absolute; top: 45%; transform: translateY(-50%); z-index: 3;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: #fff; border: 1px solid var(--linea); color: var(--tinta);
+    box-shadow: 0 8px 24px rgba(26, 22, 51, .15);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s ease, background .15s ease;
+  }
+  .vitrina-btn:hover { transform: translateY(-50%) scale(1.08); background: var(--crema); }
+  .vitrina-btn svg { width: 20px; height: 20px; }
+  .vitrina-btn.prev { left: -8px; }
+  .vitrina-btn.next { right: -8px; }
+  @media (max-width: 720px) { .vitrina-btn.prev { left: 8px; } .vitrina-btn.next { right: 8px; } }
+
+  .vitrina-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+  .vitrina-dots :global(.vitrina-dot) {
+    width: 8px; height: 8px; border-radius: 999px; border: none; padding: 0;
+    background: rgba(26, 22, 51, .15);
+    transition: background .2s ease, width .2s ease;
+  }
+  .vitrina-dots :global(.vitrina-dot.activo) { width: 28px; background: var(--c); }
+</style>

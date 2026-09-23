@@ -1,0 +1,52 @@
+---
+// Landing pública. Lee todo de D1 en cada request: lo que un vecino publica
+// (y el comité aprobó) aparece aquí al instante, dentro de la sección de su torre.
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+import Hero from '../components/Hero.astro';
+import IndiceTorres from '../components/IndiceTorres.astro';
+import VitrinaCarrusel from '../components/VitrinaCarrusel.astro';
+import Historia from '../components/Historia.astro';
+import TorreSection from '../components/TorreSection.astro';
+import ComoParticipar from '../components/ComoParticipar.astro';
+import UbicacionFechas from '../components/UbicacionFechas.astro';
+import ConElRespaldoDe from '../components/ConElRespaldoDe.astro';
+import PatrocinadorJuanCode from '../components/PatrocinadorJuanCode.astro';
+import Footer from '../components/Footer.astro';
+import DetalleModal from '../components/DetalleModal.astro';
+import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres } from '../lib/db';
+import { proximas } from '../lib/fechas';
+
+const db = Astro.locals.runtime.env.DB;
+const [torres, emprendedores, patrocinadores, todasLasFechas] = await Promise.all([
+  listarTorres(db),
+  listarPublicos(db),
+  listarPatrocinadores(db),
+  listarFechas(db),
+]);
+
+const porTorre = Object.fromEntries(torres.map((t) => [t.id, emprendedores.filter((e) => e.torre === t.id)]));
+const conteo = Object.fromEntries(torres.map((t) => [t.id, porTorre[t.id].length]));
+const destacados = emprendedores.filter((e) => e.destacado);
+const fechas = proximas(todasLasFechas);
+
+// Cache corto en el edge: el público ve cambios en menos de un minuto.
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=30, stale-while-revalidate=60');
+---
+
+<Layout>
+  <Nav torres={torres} />
+  <main>
+    <Hero proxima={fechas[0]} torres={torres} />
+    <IndiceTorres torres={torres} conteo={conteo} />
+    <VitrinaCarrusel emprendedores={destacados.length ? destacados : emprendedores} torres={torres} />
+    <Historia />
+    {torres.map((t) => <TorreSection torre={t} emprendedores={porTorre[t.id]} />)}
+    <ComoParticipar />
+    <UbicacionFechas fechas={fechas} />
+    <ConElRespaldoDe patrocinadores={patrocinadores} />
+    <PatrocinadorJuanCode />
+  </main>
+  <Footer torres={torres} />
+  <DetalleModal emprendedores={emprendedores} torres={torres} />
+</Layout>

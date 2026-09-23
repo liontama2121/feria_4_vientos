@@ -1,0 +1,71 @@
+---
+// La ÚNICA sección con degradado eléctrico fuerte. Es la firma del sitio web,
+// no la nota dominante: JuanCode patrocina SOLO el sitio, no el evento.
+import Molinete from './Molinete.astro';
+import { SITIO } from '../lib/sitio';
+---
+
+<section class="patrocinador-section" aria-labelledby="juancode-titulo">
+  <div class="wrap">
+    <div class="patrocinador">
+      <div>
+        <div class="label">Sitio web · patrocinado por</div>
+        <h2 id="juancode-titulo">JuanCode le puso la web a la feria.</h2>
+        <p>
+          La organización y el espacio los aportan la Alcaldía Local y la Junta del conjunto. El sitio que estás viendo, con el panel donde cada vecino administra
+          su emprendimiento, es cortesía de JuanCode, para que cada emprendedor tenga su vitrina en línea.
+        </p>
+        {
+          SITIO.juancodeUrl && (
+            <a href={SITIO.juancodeUrl} class="btn btn-blanco" target="_blank" rel="noopener">
+              Conocer JuanCode →
+            </a>
+          )
+        }
+      </div>
+      <div class="firma" aria-hidden="true">
+        <Molinete size={120} spin />
+        <div class="firma-texto">Hecho con <span class="corazon">❤</span> por</div>
+        <div class="firma-nombre">JuanCode</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .patrocinador-section { padding: 100px 0; background: var(--crema); }
+  .patrocinador {
+    position: relative; overflow: hidden;
+    display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center;
+    background: var(--grad-juancode);
+    border-radius: var(--radio);
+    padding: 60px;
+    box-shadow: 0 40px 80px rgba(217, 70, 239, .35);
+  }
+  @media (max-width: 900px) { .patrocinador { grid-template-columns: 1fr; padding: 40px 26px; text-align: center; } }
+  .patrocinador::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, .18) 1px, transparent 1px);
+    background-size: 20px 20px; opacity: .35;
+    pointer-events: none;
+  }
+  .patrocinador > * { position: relative; z-index: 1; }
+  .label { font-family: var(--display); font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: rgba(255, 255, 255, .85); margin-bottom: 16px; font-weight: 800; }
+  h2 { font-size: clamp(32px, 4vw, 50px); letter-spacing: -.035em; margin-bottom: 16px; color: #fff; }
+  p { color: rgba(255, 255, 255, .94); font-size: 17px; margin-bottom: 24px; }
+  .btn-blanco { background: #fff; color: var(--tinta); box-shadow: 0 10px 30px rgba(26, 22, 51, .25); }
+
+  .firma {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    aspect-ratio: 1; max-width: 320px; width: 100%; margin: 0 auto;
+    background: rgba(255, 255, 255, .16);
+    border: 2px solid rgba(255, 255, 255, .35);
+    border-radius: var(--radio);
+    backdrop-filter: blur(10px);
+    color: #fff; text-align: center;
+  }
+  .firma :global(.molinete) { margin-bottom: 14px; filter: drop-shadow(0 10px 24px rgba(26, 22, 51, .25)); }
+  .firma-texto { font-size: 13px; letter-spacing: .18em; text-transform: uppercase; font-weight: 800; opacity: .9; }
+  .firma-nombre { font-family: var(--display); font-weight: 800; font-size: 40px; letter-spacing: -.03em; line-height: 1; }
+  .corazon { display: inline-block; animation: latido 1.2s ease-in-out infinite; }
+</style>

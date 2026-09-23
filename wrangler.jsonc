@@ -1,0 +1,32 @@
+{
+  // Configuración de Cloudflare Pages. `npm run dev` también la usa
+  // (platformProxy) para crear D1 y R2 locales en .wrangler/state.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "feria-4-vientos",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "pages_build_output_dir": "./dist",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "feria-4-vientos",
+      // Pega aquí el id que devuelve `npx wrangler d1 create feria-4-vientos`.
+      // En local cualquier valor funciona.
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "feria-4-vientos-media"
+    }
+  ],
+  "vars": {
+    // Dominio del equipo de Zero Trust, p. ej. "feria4vientos.cloudflareaccess.com"
+    "CF_ACCESS_TEAM_DOMAIN": "",
+    // AUD tag(s) de las aplicaciones de Access (panel y comité), separados por coma
+    "CF_ACCESS_AUD": "",
+    // Correos con rol admin (comité), separados por coma
+    "ADMIN_EMAILS": ""
+  }
+}

@@ -1,0 +1,5 @@
+# Copia este archivo como .dev.vars solo si quieres probar la sincronización
+# automática con Zero Trust desde local. No es necesario para `npm run dev`.
+CF_API_TOKEN=
+CF_ACCOUNT_ID=
+CF_ACCESS_GROUP_VECINOS=

@@ -1,0 +1,365 @@
+---
+// Vista del comité (rol admin): emprendedores con filtros, aprobación, destacados,
+// exportación CSV, alta de cuentas y edición de torres, patrocinadores y fechas.
+// La lógica vive en src/scripts/comite.ts.
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import PanelTopbar from '../../components/PanelTopbar.astro';
+import PanelSinAcceso from '../../components/PanelSinAcceso.astro';
+import { CATEGORIAS, iniciales } from '../../lib/constantes';
+import { filaComite, listarFechas, listarPatrocinadores, listarRegistros, listarTorres, listarUsuarios } from '../../lib/db';
+
+const { usuario, email } = Astro.locals;
+const db = Astro.locals.runtime.env.DB;
+const esAdmin = usuario?.rol === 'admin';
+
+let datosJson = '';
+if (esAdmin) {
+  const [registros, usuarios, torres, patrocinadores, fechas] = await Promise.all([
+    listarRegistros(db),
+    listarUsuarios(db),
+    listarTorres(db),
+    listarPatrocinadores(db),
+    listarFechas(db),
+  ]);
+  datosJson = JSON.stringify({
+    filas: registros.map(filaComite),
+    usuarios,
+    torres,
+    patrocinadores,
+    fechas,
+    categorias: CATEGORIAS,
+    yo: usuario!.email,
+  }).replace(/</g, '\\u003c');
+}
+
+const TABS = [
+  { id: 'emprendedores', label: 'Emprendedores', icono: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' },
+  { id: 'cuentas', label: 'Cuentas de vecinos', icono: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>' },
+  { id: 'torres', label: 'Torres', icono: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>' },
+  { id: 'patrocinadores', label: 'Patrocinadores', icono: '<path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/>' },
+  { id: 'fechas', label: 'Fechas', icono: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>' },
+];
+---
+
+<Layout title="Comité · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel comite">
+  {
+    !esAdmin ? (
+      <>
+        <PanelTopbar seccion="Comité" />
+        <PanelSinAcceso motivo={!email ? 'sin-sesion' : !usuario ? 'sin-cuenta' : 'solo-comite'} email={email} />
+      </>
+    ) : (
+      <>
+        <PanelTopbar seccion="Comité" nombre={usuario!.nombre || 'Comité'} detalle="· Admin" iniciales={iniciales(usuario!.nombre || 'Comité')}>
+          <a class="top-btn" href="/" target="_blank">
+            Ver landing ↗
+          </a>
+        </PanelTopbar>
+
+        <div class="layout comite-layout">
+          <aside class="sidebar">
+            <div class="sidebar-card">
+              <div class="sidebar-title">COMITÉ</div>
+              <nav class="sidebar-nav" aria-label="Secciones del comité">
+                {TABS.map((t, i) => (
+                  <a href={`#${t.id}`} data-tab={t.id} class:list={{ active: i === 0 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" set:html={t.icono} />
+                    {t.label}
+                    <span class="badge" data-badge={t.id} />
+                  </a>
+                ))}
+              </nav>
+            </div>
+            <div class="sidebar-help">
+              <h4>Flujo de un vecino nuevo</h4>
+              <p>1. Crea su cuenta en “Cuentas”. 2. Agrega su correo en Zero Trust (si no está automático). 3. Mándale el enlace /admin. 4. Aprueba cuando publique.</p>
+            </div>
+          </aside>
+
+          <main>
+            {/* ═══ Emprendedores ═══ */}
+            <section data-tab-panel="emprendedores">
+              <div class="page-head">
+                <div>
+                  <div class="title-eyebrow">COMITÉ · EMPRENDEDORES</div>
+                  <h1>
+                    Toda la feria, <span class="serif">de un vistazo</span>.
+                  </h1>
+                  <p class="desc">Aprueba registros nuevos, destaca en la vitrina y exporta la lista para organizar los puestos del terminalito.</p>
+                </div>
+                <div class="page-actions">
+                  <a class="btn btn-primary" id="btnExportar" href="/api/comite/export.csv">
+                    ⬇ Exportar CSV
+                  </a>
+                </div>
+              </div>
+
+              <div class="stats" id="stats" />
+
+              <div class="card filtros">
+                <div class="field">
+                  <label for="fBuscar">Buscar</label>
+                  <input id="fBuscar" type="search" placeholder="Nombre, vecino o apto" />
+                </div>
+                <div class="field">
+                  <label for="fTorre">Torre</label>
+                  <select id="fTorre" ></select>
+                </div>
+                <div class="field">
+                  <label for="fCategoria">Categoría</label>
+                  <select id="fCategoria" ></select>
+                </div>
+                <div class="field">
+                  <label for="fEstado">Estado</label>
+                  <select id="fEstado">
+                    <option value="">Todos</option>
+                    <option value="pendiente">Pendientes de aprobación</option>
+                    <option value="publicado">Publicados</option>
+                    <option value="borrador">Borradores</option>
+                    <option value="oculto">Ocultos por el vecino</option>
+                    <option value="rechazado">Rechazados</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="lista" id="listaEmprendedores" />
+            </section>
+
+            {/* ═══ Cuentas ═══ */}
+            <section data-tab-panel="cuentas" hidden>
+              <div class="page-head">
+                <div>
+                  <div class="title-eyebrow">COMITÉ · CUENTAS</div>
+                  <h1>
+                    Abre la puerta a <span class="serif">un vecino</span>.
+                  </h1>
+                  <p class="desc">
+                    Crea la cuenta con el correo de Google del vecino. Se le crea su emprendimiento en borrador y entra por /admin con ese correo.
+                  </p>
+                </div>
+              </div>
+
+              <form class="card" id="formCuenta" novalidate>
+                <div class="card-head">
+                  <div>
+                    <h2>Nueva cuenta</h2>
+                    <p>El vecino te pidió acceso por WhatsApp: con estos datos queda listo.</p>
+                  </div>
+                </div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label for="cEmail">
+                      Correo de Google <span class="req">●</span>
+                    </label>
+                    <input id="cEmail" name="email" type="email" required placeholder="vecino@gmail.com" autocomplete="off" />
+                  </div>
+                  <div class="field">
+                    <label for="cNombre">Nombre completo</label>
+                    <input id="cNombre" name="nombre" type="text" placeholder="Aleida Rodríguez" />
+                  </div>
+                  <div class="field">
+                    <label for="cRol">Rol</label>
+                    <select id="cRol" name="rol">
+                      <option value="vecino">Vecino emprendedor</option>
+                      <option value="admin">Comité (admin)</option>
+                    </select>
+                  </div>
+                  <div class="field" data-solo-vecino>
+                    <label for="cTorre">
+                      Torre <span class="req">●</span>
+                    </label>
+                    <select id="cTorre" name="torre" ></select>
+                  </div>
+                  <div class="field" data-solo-vecino>
+                    <label for="cApto">
+                      Apartamento <span class="req">●</span>
+                    </label>
+                    <input id="cApto" name="apartamento" type="text" placeholder="402" />
+                  </div>
+                  <div class="field" data-solo-vecino>
+                    <label for="cSlug">
+                      Emprendimiento <span class="opt">Opcional</span>
+                    </label>
+                    <select id="cSlug" name="slug" ></select>
+                    <span class="hint">Úsalo si el emprendimiento ya está en la landing (p. ej. los de ejemplo).</span>
+                  </div>
+                </div>
+                <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                  <button class="btn btn-primary" type="submit">
+                    Crear cuenta
+                  </button>
+                  <span class="hint" id="cuentaResultado" />
+                </div>
+              </form>
+
+              <div class="lista" id="listaCuentas" />
+            </section>
+
+            {/* ═══ Torres ═══ */}
+            <section data-tab-panel="torres" hidden>
+              <div class="page-head">
+                <div>
+                  <div class="title-eyebrow">COMITÉ · TORRES</div>
+                  <h1>
+                    Los cuatro <span class="serif">vientos</span>.
+                  </h1>
+                  <p class="desc">Nombre, rumbo, frase y color de cada torre. Se aplican en la landing y en el panel de los vecinos.</p>
+                </div>
+              </div>
+              <div id="listaTorres" class="grid-2" />
+            </section>
+
+            {/* ═══ Patrocinadores ═══ */}
+            <section data-tab-panel="patrocinadores" hidden>
+              <div class="page-head">
+                <div>
+                  <div class="title-eyebrow">COMITÉ · PATROCINADORES</div>
+                  <h1>
+                    Con el respaldo de <span class="serif">todos</span>.
+                  </h1>
+                  <p class="desc">La card destacada sale más grande en la landing. Sube el logo real cuando lo tengas; mientras tanto se usa el emoji.</p>
+                </div>
+                <div class="page-actions">
+                  <button type="button" class="btn btn-primary" id="btnNuevoPatro">
+                    + Agregar patrocinador
+                  </button>
+                </div>
+              </div>
+              <div id="listaPatrocinadores" class="grid-2" />
+            </section>
+
+            {/* ═══ Fechas ═══ */}
+            <section data-tab-panel="fechas" hidden>
+              <div class="page-head">
+                <div>
+                  <div class="title-eyebrow">COMITÉ · FECHAS</div>
+                  <h1>
+                    La <span class="serif">próxima feria</span>.
+                  </h1>
+                  <p class="desc">La primera fecha futura aparece en el hero de la landing. Las fechas pasadas se ocultan solas.</p>
+                </div>
+                <div class="page-actions">
+                  <button type="button" class="btn btn-primary" id="btnNuevaFecha">
+                    + Agregar fecha
+                  </button>
+                </div>
+              </div>
+              <div id="listaFechas" />
+            </section>
+
+            <div class="footer-meta">
+              Comité · Feria 4 Vientos · <span class="hecho">Hecho por JuanCode</span>
+            </div>
+          </main>
+        </div>
+
+        <dialog class="dialogo" id="dlgRechazo" aria-labelledby="dlgRechazoTitulo">
+          <form class="dialogo-body" method="dialog">
+            <h3 id="dlgRechazoTitulo">Pedir cambios</h3>
+            <p>
+              El vecino verá este mensaje en su panel. Sé concreto: qué falta o qué debe corregir en <b id="rechazoNombre"></b>.
+            </p>
+            <div class="field">
+              <textarea id="rechazoMotivo" rows="4" maxlength="400" placeholder="Ej: La foto principal está muy oscura, ¿puedes subir otra con luz natural?"></textarea>
+            </div>
+            <div class="acciones">
+              <button class="btn btn-ghost" value="cancelar">
+                Cancelar
+              </button>
+              <button class="btn btn-primary" value="ok">
+                Enviar al vecino
+              </button>
+            </div>
+          </form>
+        </dialog>
+
+        <dialog class="dialogo" id="dlgConfirmar" aria-labelledby="dlgConfirmarTitulo">
+          <form class="dialogo-body" method="dialog">
+            <h3 id="dlgConfirmarTitulo">¿Seguro?</h3>
+            <p id="confirmarTexto" />
+            <div class="acciones">
+              <button class="btn btn-ghost" value="cancelar">
+                Cancelar
+              </button>
+              <button class="btn btn-peligro" value="ok">
+                Sí, eliminar
+              </button>
+            </div>
+          </form>
+        </dialog>
+
+        <div class="toasts" id="toasts" role="status" aria-live="polite" />
+        <script type="application/json" id="comite-datos" set:html={datosJson} />
+      </>
+    )
+  }
+</Layout>
+
+<script>
+  import { iniciarComite } from '../../scripts/comite';
+  iniciarComite();
+</script>
+
+<style is:global>
+  .comite-layout { grid-template-columns: 240px minmax(0, 1fr); }
+  @media (max-width: 860px) { .comite-layout { grid-template-columns: 1fr; } }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: #fff; border: 1px solid var(--linea); border-radius: 16px; padding: 14px 16px; }
+  .stat b { display: block; font-family: var(--display); font-size: 28px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+  .stat span { font-size: 12px; color: var(--tinta-suave); font-weight: 700; }
+  .stat.naranja b { color: var(--gregal); }
+  .stat.verde b { color: var(--mistral); }
+  .stat.morado b { color: var(--cierzo); }
+
+  .filtros { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 12px; padding: 18px; }
+  @media (max-width: 900px) { .filtros { grid-template-columns: 1fr 1fr; } }
+
+  .lista { display: flex; flex-direction: column; gap: 10px; }
+  .fila {
+    display: grid; grid-template-columns: 56px minmax(0, 1.6fr) minmax(0, 1fr) auto; gap: 14px; align-items: center;
+    background: #fff; border: 1px solid var(--linea); border-radius: 16px; padding: 12px 14px;
+  }
+  @media (max-width: 760px) { .fila { grid-template-columns: 48px minmax(0, 1fr); } .fila .fila-acciones { grid-column: 1 / -1; justify-content: flex-start; } }
+  .fila .mini-foto {
+    width: 56px; height: 56px; border-radius: 12px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+    background: linear-gradient(140deg, color-mix(in srgb, var(--t) 45%, var(--t-claro)), var(--t-claro));
+  }
+  @media (max-width: 760px) { .fila .mini-foto { width: 48px; height: 48px; } }
+  .fila .mini-foto img { width: 100%; height: 100%; object-fit: cover; }
+  .fila h3 { font-size: 15.5px; margin-bottom: 2px; overflow-wrap: anywhere; }
+  .fila .sub { font-size: 12.5px; color: var(--tinta-suave); font-weight: 600; }
+  .fila .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .pill-t { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; font-family: var(--display); background: var(--t-claro); color: var(--t); }
+  .pill-estado { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; font-family: var(--display); }
+  .pill-estado.publicado { background: var(--mistral-claro); color: #0F6B5F; }
+  .pill-estado.pendiente { background: var(--gregal-claro); color: #A8440C; }
+  .pill-estado.borrador, .pill-estado.oculto { background: var(--crema-alt); color: var(--tinta-suave); }
+  .pill-estado.rechazado { background: #FEE4E2; color: #B42318; }
+  .pill-cambios { font-size: 11px; color: var(--cierzo); font-weight: 800; }
+  .fila-acciones { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .estrella { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--linea-fuerte); background: #fff; font-size: 16px; color: var(--tinta-suave); }
+  .estrella[aria-pressed='true'] { background: #FFF4CC; border-color: #F5C542; color: #B7791F; }
+  .vacio-lista { text-align: center; padding: 40px 20px; color: var(--tinta-suave); font-weight: 700; background: #fff; border-radius: 16px; border: 1px dashed var(--linea-fuerte); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
+  .grid-2 .card { margin-bottom: 0; }
+  .editor-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .editor-head .swatch { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: var(--t-claro); border: 2px solid var(--t); }
+  .editor-head h2 { font-size: 18px; }
+  .color-row { display: flex; gap: 8px; align-items: center; }
+  .color-row input[type='color'] { width: 46px; height: 44px; padding: 3px; flex: 0 0 auto; }
+  .editor-acciones { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+  .logo-prev { width: 64px; height: 64px; border-radius: 14px; border: 1px dashed var(--linea-fuerte); display: grid; place-items: center; font-size: 32px; overflow: hidden; background: var(--crema); flex: 0 0 auto; }
+  .logo-prev img { width: 100%; height: 100%; object-fit: contain; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: var(--tinta-media); }
+  .check input { width: 18px; height: 18px; accent-color: var(--cierzo); }
+  .fecha-fila { display: grid; grid-template-columns: 1.3fr 150px 110px 110px auto; gap: 10px; align-items: end; }
+  @media (max-width: 900px) { .fecha-fila { grid-template-columns: 1fr 1fr; } }
+  .fecha-fila .field.full { grid-column: 1 / -1; }
+  .fecha-card.pasada { opacity: .6; }
+</style>

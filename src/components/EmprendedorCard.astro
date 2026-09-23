@@ -1,0 +1,96 @@
+---
+import { ICONOS, categoria, enlacesRedes } from '../lib/constantes';
+import type { EmprendedorPublico, Torre } from '../lib/db';
+
+interface Props {
+  e: EmprendedorPublico;
+  torre: Torre;
+}
+const { e, torre } = Astro.props;
+const cat = categoria(e.categoria);
+const redes = enlacesRedes(e);
+---
+
+<article class="emp-card" style={`--t:${torre.color_hex};--t-claro:${torre.color_claro}`}>
+  <div class="emp-foto">
+    {
+      e.foto_principal ? (
+        <img src={e.foto_principal} alt={`Foto de ${e.nombre_emprendimiento}`} loading="lazy" decoding="async" />
+      ) : (
+        <span class="emoji" aria-hidden="true">{e.emoji_placeholder || cat.emoji}</span>
+      )
+    }
+  </div>
+  <div class="emp-body">
+    <span class="cat">{cat.emoji} {cat.label}</span>
+    <h3>{e.nombre_emprendimiento}</h3>
+    <div class="by">{e.nombre_vecino} · Apto {e.apartamento}</div>
+    <p>{e.descripcion_corta}</p>
+    <div class="emp-foot">
+      <div class="socials">
+        {
+          redes.map((r) => (
+            <a href={r.url} target="_blank" rel="noopener" aria-label={`${r.label} de ${e.nombre_emprendimiento}`}>
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d={ICONOS[r.red]} />
+              </svg>
+            </a>
+          ))
+        }
+      </div>
+      <button type="button" class="emp-cta" data-detalle={e.slug}>Ver más</button>
+    </div>
+  </div>
+</article>
+
+<style>
+  .emp-card {
+    background: #fff;
+    border-radius: var(--radio);
+    overflow: hidden;
+    display: grid; grid-template-columns: 150px 1fr;
+    box-shadow: 0 8px 22px rgba(26, 22, 51, .06);
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .emp-card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(26, 22, 51, .12); }
+  @media (max-width: 500px) { .emp-card { grid-template-columns: 1fr; } }
+
+  .emp-foto {
+    position: relative; min-height: 170px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(140deg, color-mix(in srgb, var(--t) 45%, var(--t-claro)), var(--t-claro));
+  }
+  .emp-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .emp-foto::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(160deg, transparent 55%, color-mix(in srgb, var(--t) 30%, transparent));
+  }
+  .emoji { font-size: 64px; }
+  @media (max-width: 500px) { .emp-foto { min-height: 200px; } }
+
+  .emp-body { padding: 22px; display: flex; flex-direction: column; }
+  .cat {
+    font-family: var(--display); font-size: 10.5px; font-weight: 800; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--t); margin-bottom: 8px;
+  }
+  h3 { font-size: 21px; margin-bottom: 3px; }
+  .by { font-size: 12.5px; color: var(--tinta-suave); margin-bottom: 12px; font-weight: 600; }
+  p { font-size: 14px; color: var(--tinta-media); margin-bottom: 16px; flex: 1; }
+  .emp-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .socials { display: flex; gap: 6px; }
+  .socials a {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--t-claro); color: var(--t);
+    transition: transform .15s ease;
+  }
+  .socials a:hover { transform: translateY(-2px); }
+  .socials svg { width: 14px; height: 14px; }
+  .emp-cta {
+    font-family: var(--display); font-size: 12.5px; font-weight: 700;
+    padding: 9px 16px; border-radius: 999px; border: none;
+    background: var(--t); color: #fff;
+    transition: transform .15s ease;
+  }
+  .emp-cta:hover { transform: translateY(-1px); }
+</style>

@@ -1,0 +1,198 @@
+---
+// Modal "Ver más": descripción larga, galería y redes. Se abre desde cualquier
+// botón con [data-detalle="slug"] (cards de torre y vitrina).
+import { categoria, enlacesRedes, ICONOS } from '../lib/constantes';
+import type { EmprendedorPublico, Torre } from '../lib/db';
+
+interface Props {
+  emprendedores: EmprendedorPublico[];
+  torres: Torre[];
+}
+const { emprendedores, torres } = Astro.props;
+
+const datos = Object.fromEntries(
+  emprendedores.map((e) => {
+    const t = torres.find((x) => x.id === e.torre) ?? torres[0];
+    const cat = categoria(e.categoria);
+    return [
+      e.slug,
+      {
+        nombre: e.nombre_emprendimiento,
+        vecino: e.nombre_vecino,
+        apto: e.apartamento,
+        torre: t.nombre,
+        color: t.color_hex,
+        claro: t.color_claro,
+        cat: `${cat.emoji} ${cat.label}`,
+        emoji: e.emoji_placeholder || cat.emoji,
+        corta: e.descripcion_corta,
+        larga: e.descripcion_larga,
+        fotos: [e.foto_principal, ...e.galeria].filter(Boolean),
+        redes: enlacesRedes(e),
+        whatsapp: e.whatsapp,
+      },
+    ];
+  }),
+);
+const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
+---
+
+<dialog class="detalle" id="detalle" aria-labelledby="detalle-nombre">
+  <button type="button" class="cerrar" data-cerrar aria-label="Cerrar">✕</button>
+  <div class="detalle-media">
+    <img id="detalle-foto" alt="" hidden />
+    <span id="detalle-emoji" class="emoji" aria-hidden="true"></span>
+    <div id="detalle-miniaturas" class="miniaturas"></div>
+  </div>
+  <div class="detalle-body">
+    <span id="detalle-chip" class="chip"></span>
+    <span id="detalle-cat" class="cat"></span>
+    <h3 id="detalle-nombre"></h3>
+    <div id="detalle-by" class="by"></div>
+    <div id="detalle-texto" class="texto"></div>
+    <div id="detalle-redes" class="redes"></div>
+  </div>
+</dialog>
+
+<script type="application/json" id="detalle-datos" set:html={json} />
+
+<script>
+  type Red = { red: 'whatsapp' | 'instagram' | 'tiktok' | 'facebook'; url: string; label: string };
+  type Detalle = {
+    nombre: string; vecino: string; apto: string; torre: string; color: string; claro: string;
+    cat: string; emoji: string; corta: string; larga: string; fotos: string[]; redes: Red[]; whatsapp: string;
+  };
+
+  const { datos, iconos } = JSON.parse(document.getElementById('detalle-datos')!.textContent!) as {
+    datos: Record<string, Detalle>;
+    iconos: Record<string, string>;
+  };
+  const dialog = document.getElementById('detalle') as HTMLDialogElement;
+  const $ = (id: string) => document.getElementById(id)!;
+  const foto = $('detalle-foto') as HTMLImageElement;
+  const emoji = $('detalle-emoji');
+  const mini = $('detalle-miniaturas');
+
+  function verFoto(src: string, nombre: string) {
+    foto.src = src;
+    foto.alt = `Foto de ${nombre}`;
+    foto.hidden = false;
+    emoji.hidden = true;
+    mini.querySelectorAll('button').forEach((b) => b.classList.toggle('activa', b.dataset.src === src));
+  }
+
+  function abrir(slug: string) {
+    const d = datos[slug];
+    if (!d) return;
+    dialog.style.setProperty('--t', d.color);
+    dialog.style.setProperty('--t-claro', d.claro);
+    $('detalle-chip').textContent = d.torre.toUpperCase();
+    $('detalle-cat').textContent = d.cat;
+    $('detalle-nombre').textContent = d.nombre;
+    $('detalle-by').textContent = `${d.vecino} · ${d.torre} ${d.apto}`;
+
+    const texto = $('detalle-texto');
+    texto.replaceChildren(
+      ...(d.larga || d.corta).split(/\n{2,}/).map((p) => {
+        const el = document.createElement('p');
+        el.textContent = p.trim();
+        return el;
+      }),
+    );
+
+    mini.replaceChildren();
+    if (d.fotos.length) {
+      d.fotos.forEach((src, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.dataset.src = src;
+        b.setAttribute('aria-label', `Ver foto ${i + 1}`);
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = '';
+        b.append(img);
+        b.addEventListener('click', () => verFoto(src, d.nombre));
+        mini.append(b);
+      });
+      mini.hidden = d.fotos.length < 2;
+      verFoto(d.fotos[0], d.nombre);
+    } else {
+      foto.hidden = true;
+      emoji.hidden = false;
+      emoji.textContent = d.emoji;
+      mini.hidden = true;
+    }
+
+    const redes = $('detalle-redes');
+    redes.replaceChildren(
+      ...d.redes.map((r) => {
+        const a = document.createElement('a');
+        a.href = r.red === 'whatsapp' ? `${r.url}?text=${encodeURIComponent(`Hola ${d.vecino.split(' ')[0]} 👋 Te vi en la Feria 4 Vientos y quiero saber más de ${d.nombre}.`)}` : r.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.className = `red red-${r.red}`;
+        a.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${iconos[r.red]}"/></svg>`;
+        a.append(r.red === 'whatsapp' ? 'Escribir por WhatsApp' : r.label);
+        return a;
+      }),
+    );
+
+    dialog.showModal();
+  }
+
+  document.addEventListener('click', (ev) => {
+    const btn = (ev.target as HTMLElement).closest<HTMLElement>('[data-detalle]');
+    if (btn) abrir(btn.dataset.detalle!);
+  });
+  dialog.querySelector('[data-cerrar]')!.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (ev) => {
+    if (ev.target === dialog) dialog.close();
+  });
+</script>
+
+<style>
+  .detalle {
+    width: min(880px, calc(100vw - 32px)); max-height: calc(100dvh - 48px);
+    margin: auto; padding: 0; border: none; border-radius: 28px; overflow: auto;
+    background: #fff; color: var(--tinta);
+    box-shadow: 0 40px 100px rgba(26, 22, 51, .3);
+  }
+  .detalle[open] { display: grid; grid-template-columns: 1fr 1fr; }
+  .detalle::backdrop { background: rgba(26, 22, 51, .45); backdrop-filter: blur(4px); }
+  @media (max-width: 720px) { .detalle[open] { grid-template-columns: 1fr; } }
+
+  .cerrar {
+    position: absolute; top: 14px; right: 14px; z-index: 2;
+    width: 38px; height: 38px; border-radius: 50%; border: none;
+    background: rgba(255, 255, 255, .92); box-shadow: 0 4px 14px rgba(26, 22, 51, .15);
+    font-size: 15px; font-weight: 800;
+  }
+  .detalle-media {
+    position: relative; min-height: 320px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--t) 45%, var(--t-claro)), var(--t-claro));
+  }
+  .detalle-media > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .emoji { font-size: 140px; }
+  .miniaturas { position: absolute; left: 14px; right: 14px; bottom: 14px; display: flex; gap: 8px; overflow-x: auto; }
+  .miniaturas[hidden] { display: none; }
+  .miniaturas :global(button) { flex: 0 0 52px; height: 52px; padding: 0; border-radius: 12px; overflow: hidden; border: 2px solid #fff; opacity: .75; }
+  .miniaturas :global(button.activa) { opacity: 1; border-color: var(--t); }
+  .miniaturas :global(img) { width: 100%; height: 100%; object-fit: cover; }
+
+  .detalle-body { padding: 34px 30px 30px; display: flex; flex-direction: column; }
+  .chip { align-self: flex-start; padding: 5px 12px; border-radius: 999px; background: var(--t-claro); color: var(--t); font-family: var(--display); font-weight: 800; font-size: 11px; letter-spacing: .12em; margin-bottom: 14px; }
+  .cat { font-family: var(--display); font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--t); }
+  h3 { font-size: 30px; letter-spacing: -.03em; margin: 4px 0 2px; }
+  .by { color: var(--tinta-suave); font-weight: 700; font-size: 14px; margin-bottom: 16px; }
+  .texto :global(p) { color: var(--tinta-media); font-size: 15px; margin-bottom: 12px; }
+  .redes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; }
+  .redes :global(.red) {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: 999px;
+    font-family: var(--display); font-weight: 700; font-size: 13px;
+    background: var(--t-claro); color: var(--t);
+  }
+  .redes :global(.red svg) { width: 16px; height: 16px; fill: currentColor; }
+  .redes :global(.red-whatsapp) { background: var(--whatsapp); color: #fff; }
+</style>

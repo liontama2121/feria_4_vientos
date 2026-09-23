@@ -1,0 +1,23 @@
+# build
+dist/
+.astro/
+
+# dependencias
+node_modules/
+
+# estado local de wrangler (D1 y R2 de desarrollo)
+.wrangler/
+.dev.vars
+
+# logs
+npm-debug.log*
+*.log
+
+# entorno
+.env
+.env.*
+!.env.example
+
+# sistema
+.DS_Store
+Thumbs.db

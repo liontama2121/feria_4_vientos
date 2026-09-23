@@ -1,0 +1,58 @@
+---
+import Molinete from './Molinete.astro';
+import type { Torre } from '../lib/db';
+
+interface Props {
+  torres: Torre[];
+}
+const { torres } = Astro.props;
+---
+
+<nav class="nav" aria-label="Principal">
+  <div class="wrap nav-inner">
+    <a href="/" class="nav-marca">
+      <Molinete size={34} />
+      Feria 4 Vientos
+    </a>
+    <div class="nav-torres">
+      {
+        torres.map((t) => (
+          <a href={`#${t.id}`} class="nav-torre" style={`--t:${t.color_hex};--t-claro:${t.color_claro}`}>
+            <span class="dot" />
+            {t.nombre}
+          </a>
+        ))
+      }
+    </div>
+    <a href="/admin" class="nav-panel">Panel del vecino</a>
+  </div>
+</nav>
+
+<style>
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255, 247, 234, .82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--linea);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 14px; padding-bottom: 14px; }
+  .nav-marca { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; letter-spacing: -.01em; }
+  .nav-torres { display: flex; gap: 10px; }
+  .nav-torre {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 999px;
+    font-family: var(--display); font-size: 12.5px; font-weight: 700;
+    background: var(--t-claro); color: var(--t);
+    transition: transform .15s ease;
+  }
+  .nav-torre:hover { transform: translateY(-1px); }
+  .nav-torre .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--t); }
+  .nav-panel {
+    font-family: var(--display); font-size: 13px; font-weight: 700;
+    padding: 8px 16px; border-radius: 999px;
+    background: #fff; border: 1px solid var(--linea-fuerte);
+  }
+  .nav-panel:hover { background: var(--crema-alt); }
+  @media (max-width: 900px) { .nav-torres { display: none; } }
+</style>

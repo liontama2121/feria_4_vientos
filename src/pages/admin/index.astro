@@ -1,0 +1,505 @@
+---
+// Panel del vecino. Réplica de panel-registro.html: 5 vistas, formulario de 5 pasos,
+// selector de torre que tiñe toda la UI, fotos con drag & drop, vista previa en vivo
+// y auto-save cada 30 s. La lógica vive en src/scripts/panel.ts.
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import PanelTopbar from '../../components/PanelTopbar.astro';
+import PanelSinAcceso from '../../components/PanelSinAcceso.astro';
+import { slugEditable } from '../../lib/api';
+import { CATEGORIAS, ICONOS, LIMITES, iniciales } from '../../lib/constantes';
+import { listarTorres, obtenerRegistro, resumenPanel, USUARIOS_DEV } from '../../lib/db';
+import { MENSAJES, linkWhatsApp } from '../../lib/sitio';
+
+const { usuario, email } = Astro.locals;
+const db = Astro.locals.runtime.env.DB;
+const slugPedido = Astro.url.searchParams.get('slug');
+
+if (usuario?.rol === 'admin' && !slugPedido && !usuario.slug) return Astro.redirect('/admin/comite');
+
+const slug = slugEditable(Astro.locals, slugPedido);
+const registro = slug ? await obtenerRegistro(db, slug) : null;
+const motivo = !email ? 'sin-sesion' : !usuario ? 'sin-cuenta' : !registro ? 'sin-emprendimiento' : null;
+
+const torres = await listarTorres(db);
+const resumen = registro ? resumenPanel(registro) : null;
+const d = resumen?.borrador;
+const torreActual = torres.find((t) => t.id === d?.torre) ?? torres[0];
+const editandoComoComite = !!registro && usuario?.rol === 'admin' && usuario.slug !== registro.slug;
+
+const datosJson = JSON.stringify({
+  resumen,
+  torres,
+  categorias: CATEGORIAS,
+  cuenta: usuario && { email: usuario.email, rol: usuario.rol, nombre: usuario.nombre, email_avisos: usuario.email_avisos },
+  editandoComoComite,
+  limites: LIMITES,
+  iconos: ICONOS,
+}).replace(/</g, '\\u003c');
+
+const VISTAS = [
+  { id: 'emprendimiento', label: 'Mi emprendimiento', icono: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' },
+  { id: 'fotos', label: 'Fotos', icono: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>' },
+  { id: 'redes', label: 'Redes sociales', icono: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>' },
+  { id: 'publicacion', label: 'Publicación', icono: '<path d="M22 12A10 10 0 1 1 12 2v10z"/>' },
+  {
+    id: 'configuracion',
+    label: 'Configuración',
+    icono: '<circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>',
+  },
+];
+const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0;
+---
+
+<Layout title="Panel · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel" torre={d?.torre}>
+  {
+    motivo || !d || !resumen ? (
+      <>
+        <PanelTopbar seccion="Panel" />
+        <PanelSinAcceso motivo={motivo ?? 'sin-emprendimiento'} email={email} />
+      </>
+    ) : (
+      <>
+        <PanelTopbar
+          seccion={editandoComoComite ? 'Comité' : 'Panel'}
+          nombre={editandoComoComite ? usuario!.nombre || 'Comité' : d.nombre_vecino || usuario!.nombre}
+          detalle={editandoComoComite ? '· editando' : `· ${torreActual.nombre} ${d.apartamento}`}
+          iniciales={iniciales(editandoComoComite ? usuario!.nombre || 'Comité' : d.nombre_vecino || usuario!.nombre)}
+        >
+          {usuario!.rol === 'admin' && (
+            <a class="top-btn" href="/admin/comite">
+              ← Comité
+            </a>
+          )}
+        </PanelTopbar>
+
+        <div class="layout">
+          {/* ═══ Sidebar ═══ */}
+          <aside class="sidebar">
+            <div class="sidebar-card">
+              <div class="sidebar-title">MI PANEL</div>
+              <nav class="sidebar-nav" aria-label="Secciones del panel">
+                {VISTAS.map((v, i) => (
+                  <a href={`#${v.id}`} data-ir={v.id} class:list={{ active: i === 0 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" set:html={v.icono} />
+                    {v.label}
+                    {v.id === 'fotos' && (
+                      <span class="badge" id="fotosBadge">
+                        {numFotos}
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </nav>
+            </div>
+            <div class="sidebar-help">
+              <h4>¿Necesitas ayuda?</h4>
+              <p>Escríbele al comité de la feria. Te respondemos el mismo día.</p>
+              <a href={linkWhatsApp(MENSAJES.ayudaPanel)} class="wsp" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
+                  <path d={ICONOS.whatsapp} />
+                </svg>
+                WhatsApp
+              </a>
+            </div>
+          </aside>
+
+          {/* ═══ Main ═══ */}
+          <main id="panelMain">
+            <div class="page-head">
+              <div>
+                <div class="title-eyebrow" id="pageEyebrow">MI EMPRENDIMIENTO</div>
+                <h1 id="pageTitle">
+                  Cuenta tu <span class="serif">historia</span>.
+                </h1>
+                <p class="desc" id="pageDesc">
+                  Completa tus datos para que aparezcas en la landing de la feria. Puedes editar cualquier cosa cuando quieras.
+                </p>
+              </div>
+              <div class="page-actions">
+                <button type="button" class="btn btn-ghost" id="btnVistaPrevia">
+                  👁 Vista previa
+                </button>
+                <button type="button" class="btn btn-primary" id="btnGuardarHead">
+                  Guardar cambios
+                </button>
+              </div>
+            </div>
+
+            {editandoComoComite && (
+              <div class="estado comite">
+                <span class="ico">🛠️</span>
+                <div>
+                  <strong>Estás editando como comité</strong>
+                  Los cambios que publiques aparecen con el nombre del vecino. <a href="/admin/comite">Volver a la lista</a>
+                </div>
+              </div>
+            )}
+            <div class="estado" id="estado" hidden />
+
+            {/* ── Paso 1 · Sobre ti ── */}
+            <section class="card" data-vistas="emprendimiento" data-paso="1">
+              <div class="card-head">
+                <div>
+                  <h2>Sobre ti</h2>
+                  <p>Estos datos aparecen debajo del nombre de tu emprendimiento.</p>
+                </div>
+                <div class="step">1</div>
+              </div>
+              <div class="field-grid">
+                <div class="field" data-field="nombre_vecino">
+                  <label for="inpNombre">
+                    Nombre completo <span class="req">●</span>
+                  </label>
+                  <input id="inpNombre" type="text" data-campo="nombre_vecino" value={d.nombre_vecino} maxlength="80" autocomplete="name" />
+                  <span class="error-msg">Escribe tu nombre completo</span>
+                </div>
+                <div class="field" data-field="apartamento">
+                  <label for="inpApto">
+                    Apartamento <span class="req">●</span>
+                  </label>
+                  <input id="inpApto" type="text" data-campo="apartamento" value={d.apartamento} maxlength="10" inputmode="numeric" />
+                  <span class="error-msg">Escribe tu apartamento</span>
+                </div>
+                <div class="field full" data-field="torre">
+                  <span class="label" id="lblTorre">
+                    Tu torre <span class="req">●</span> <span class="opt">Elige tu viento</span>
+                  </span>
+                  <div class="torre-picker" id="torrePicker" role="radiogroup" aria-labelledby="lblTorre">
+                    {torres.map((t) => (
+                      <button
+                        type="button"
+                        class="torre-opt"
+                        role="radio"
+                        aria-checked={(t.id === d.torre) ? 'true' : 'false'}
+                        data-torre={t.id}
+                        style={`--t:${t.color_hex};--t-claro:${t.color_claro}`}
+                      >
+                        <span class="ico">{t.emoji_simbolo}</span>
+                        <span class="n">{t.nombre}</span>
+                        <span class="r">{t.rumbo}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ── Paso 2 · Emprendimiento ── */}
+            <section class="card" data-vistas="emprendimiento" data-paso="2">
+              <div class="card-head">
+                <div>
+                  <h2>Tu emprendimiento</h2>
+                  <p>Nombre, categoría y descripción de lo que ofreces.</p>
+                </div>
+                <div class="step">2</div>
+              </div>
+              <div class="field-grid">
+                <div class="field full" data-field="nombre_emprendimiento">
+                  <label for="inpEmp">
+                    Nombre del emprendimiento <span class="req">●</span>
+                  </label>
+                  <input id="inpEmp" type="text" data-campo="nombre_emprendimiento" value={d.nombre_emprendimiento} maxlength="80" placeholder="Ej: Dulces Aleida" />
+                  <span class="error-msg">Ponle nombre a tu emprendimiento</span>
+                </div>
+                <div class="field full" data-field="categoria">
+                  <span class="label" id="lblCat">
+                    Categoría <span class="req">●</span>
+                  </span>
+                  <div class="chips" id="chipsCategoria" role="radiogroup" aria-labelledby="lblCat">
+                    {CATEGORIAS.map((c) => (
+                      <button type="button" class="chip" role="radio" aria-checked={(c.id === d.categoria) ? 'true' : 'false'} data-categoria={c.id}>
+                        <span class="em">{c.emoji}</span> {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div class="field full" data-field="descripcion_corta">
+                  <label for="inpDescCorta">
+                    Descripción corta <span class="req">●</span> <span class="opt">Aparece en la card</span>
+                  </label>
+                  <textarea id="inpDescCorta" data-campo="descripcion_corta" maxlength={LIMITES.descripcionCorta} rows="3" placeholder="En una o dos frases: qué ofreces y qué te hace especial.">{d.descripcion_corta}</textarea>
+                  <div class="counter" id="cntCortaWrap">
+                    <span id="cntCorta">{d.descripcion_corta.length}</span> / {LIMITES.descripcionCorta}
+                  </div>
+                  <span class="error-msg">Escribe la descripción corta</span>
+                </div>
+                <div class="field full">
+                  <label for="inpDescLarga">
+                    Descripción larga <span class="opt">Aparece al abrir tu perfil</span>
+                  </label>
+                  <textarea
+                    id="inpDescLarga"
+                    data-campo="descripcion_larga"
+                    maxlength={LIMITES.descripcionLarga}
+                    rows="5"
+                    placeholder="Cuenta un poco más: cómo empezaste, qué te hace diferente, precios de referencia, formas de pago, tiempos de entrega…"
+                  >{d.descripcion_larga}</textarea>
+                </div>
+              </div>
+            </section>
+
+            {/* ── Paso 3 · Fotos ── */}
+            <section class="card" data-vistas="emprendimiento fotos" data-paso="3">
+              <div class="card-head">
+                <div>
+                  <h2>Fotos de tu emprendimiento</h2>
+                  <p>
+                    La primera es la principal y aparece grande. Hasta {LIMITES.galeria + 1} fotos JPG, PNG o WEBP de máximo 5 MB. Arrastra para cambiar el orden.
+                  </p>
+                </div>
+                <div class="step">3</div>
+              </div>
+              <div class="field" data-field="foto_principal">
+                <div class="photo-grid" id="photoGrid" aria-live="polite" />
+                <span class="error-msg">Sube la foto principal</span>
+              </div>
+              <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple hidden />
+              <div class="upload-tips">
+                <svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4M12 8h.01" />
+                </svg>
+                <div>
+                  <strong>Tips para buenas fotos:</strong> luz natural, fondo neutro, enfoca el producto o servicio en el centro. Si es un servicio (plomería, yoga,
+                  belleza), muestra tu trabajo en acción. Las fotos se optimizan solas al subirlas.
+                </div>
+              </div>
+            </section>
+
+            {/* ── Paso 4 · Redes ── */}
+            <section class="card" data-vistas="emprendimiento redes" data-paso="4">
+              <div class="card-head">
+                <div>
+                  <h2>Redes sociales y contacto</h2>
+                  <p>El WhatsApp es obligatorio, el resto es opcional.</p>
+                </div>
+                <div class="step">4</div>
+              </div>
+              <div class="redes">
+                <div class="red-row">
+                  <div class="ico wsp">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d={ICONOS.whatsapp} />
+                    </svg>
+                  </div>
+                  <div class="field" data-field="whatsapp">
+                    <div class="input-prefix">
+                      <div class="pre">+57</div>
+                      <input type="tel" data-campo="whatsapp" value={d.whatsapp} placeholder="300 123 4567" aria-label="WhatsApp" inputmode="numeric" maxlength="14" />
+                    </div>
+                    <span class="error-msg">El WhatsApp debe tener 10 dígitos</span>
+                  </div>
+                  <span class="tag">Obligatorio</span>
+                </div>
+                <div class="red-row">
+                  <div class="ico ig">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d={ICONOS.instagram} />
+                    </svg>
+                  </div>
+                  <div class="field">
+                    <div class="input-prefix">
+                      <div class="pre">@</div>
+                      <input type="text" data-campo="instagram" value={d.instagram} placeholder="usuario" aria-label="Instagram" autocapitalize="off" />
+                    </div>
+                  </div>
+                  <span class="tag opt">Opcional</span>
+                </div>
+                <div class="red-row">
+                  <div class="ico tt">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d={ICONOS.tiktok} />
+                    </svg>
+                  </div>
+                  <div class="field">
+                    <div class="input-prefix">
+                      <div class="pre">@</div>
+                      <input type="text" data-campo="tiktok" value={d.tiktok} placeholder="usuario" aria-label="TikTok" autocapitalize="off" />
+                    </div>
+                  </div>
+                  <span class="tag opt">Opcional</span>
+                </div>
+                <div class="red-row">
+                  <div class="ico fb">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d={ICONOS.facebook} />
+                    </svg>
+                  </div>
+                  <div class="field">
+                    <div class="input-prefix">
+                      <div class="pre">facebook.com/</div>
+                      <input type="text" data-campo="facebook" value={d.facebook} placeholder="tu página" aria-label="Facebook" autocapitalize="off" />
+                    </div>
+                  </div>
+                  <span class="tag opt">Opcional</span>
+                </div>
+              </div>
+            </section>
+
+            {/* ── Paso 5 · Publicación ── */}
+            <section class="card" data-vistas="emprendimiento publicacion" data-paso="5">
+              <div class="card-head">
+                <div>
+                  <h2>Publicación</h2>
+                  <p>Controla cuándo aparece tu emprendimiento y si lo mostramos como destacado.</p>
+                </div>
+                <div class="step">5</div>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <h4 id="lblPub">Publicar en la landing</h4>
+                  <p>Si está apagado, tu emprendimiento no aparece en la página pública.</p>
+                </div>
+                <button type="button" class="toggle" role="switch" aria-checked={(d.publicado) ? 'true' : 'false'} aria-labelledby="lblPub" data-campo="publicado" />
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <h4 id="lblDest">Destacar en la vitrina</h4>
+                  <p>Los emprendedores destacados aparecen en el carrusel principal de la portada.</p>
+                </div>
+                <button type="button" class="toggle" role="switch" aria-checked={(d.destacado) ? 'true' : 'false'} aria-labelledby="lblDest" data-campo="destacado" />
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <h4 id="lblAvisos">Recibir mensajes del comité</h4>
+                  <p>Te avisamos por WhatsApp de las próximas ferias y novedades.</p>
+                </div>
+                <button type="button" class="toggle" role="switch" aria-checked={(d.recibir_avisos) ? 'true' : 'false'} aria-labelledby="lblAvisos" data-campo="recibir_avisos" />
+              </div>
+            </section>
+
+            {/* ── Configuración ── */}
+            <section class="card" data-vistas="configuracion" hidden>
+              <div class="card-head">
+                <div>
+                  <h2>Datos de tu cuenta</h2>
+                  <p>Con este correo entras al panel usando tu cuenta de Google.</p>
+                </div>
+              </div>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="cfgEmail">Correo de acceso</label>
+                  <input id="cfgEmail" type="email" value={usuario!.email} readonly />
+                  <span class="hint">Para cambiarlo, pídeselo al comité: se cambia en Cloudflare Zero Trust.</span>
+                </div>
+                <div class="field">
+                  <label for="cfgRol">Tipo de cuenta</label>
+                  <input id="cfgRol" type="text" value={usuario!.rol === 'admin' ? 'Comité (administrador)' : 'Vecino emprendedor'} readonly />
+                </div>
+                <div class="field full">
+                  <label for="cfgAvisos">
+                    Correo para notificaciones <span class="opt">Avisos de ferias y del comité</span>
+                  </label>
+                  <div style="display:flex;gap:10px;flex-wrap:wrap">
+                    <input id="cfgAvisos" type="email" value={usuario!.email_avisos || usuario!.email} style="flex:1;min-width:220px" autocomplete="email" />
+                    <button type="button" class="btn btn-ghost" id="btnGuardarCuenta">
+                      Guardar correo
+                    </button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="cfgSlug">Código de tu emprendimiento</label>
+                  <input id="cfgSlug" type="text" value={resumen.slug} readonly />
+                </div>
+              </div>
+            </section>
+            <section class="card" data-vistas="configuracion" hidden>
+              <div class="card-head">
+                <div>
+                  <h2>Sesión</h2>
+                  <p>Si usas un computador compartido, cierra sesión al terminar.</p>
+                </div>
+              </div>
+              <a class="btn btn-ghost" href={import.meta.env.DEV ? '/api/dev/login?salir=1' : '/cdn-cgi/access/logout'}>
+                Cerrar sesión
+              </a>
+              {import.meta.env.DEV && (
+                <div class="dev-caja">
+                  <b>Modo desarrollo</b> · cambiar de usuario de prueba:
+                  <ul>
+                    {USUARIOS_DEV.map((u) => (
+                      <li>
+                        <a href={`/api/dev/login?as=${u.email}`}>{u.email}</a> — {u.rol === 'admin' ? 'comité' : `vecino ${u.torre} ${u.apartamento}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </section>
+
+            {/* ── Barra inferior ── */}
+            <div class="bottom-bar">
+              <div class="status" id="status" aria-live="polite">
+                <span class="dot" />
+                <span id="statusText">Cargando…</span>
+              </div>
+              <div class="actions">
+                <button type="button" class="btn btn-ghost" id="btnBorrador">
+                  Guardar borrador
+                </button>
+                <button type="button" class="btn btn-primary" id="btnPublicar">
+                  Publicar cambios
+                </button>
+              </div>
+            </div>
+
+            <div class="footer-meta">
+              Panel · Feria 4 Vientos · <span class="hecho">Hecho por JuanCode</span>
+            </div>
+          </main>
+
+          {/* ═══ Vista previa ═══ */}
+          <aside class="preview-col" aria-label="Vista previa">
+            <div class="preview-title">
+              VISTA PREVIA
+              <span class="live">
+                <span class="dot" /> EN VIVO
+              </span>
+            </div>
+            <div class="preview-card" id="previewCard">
+              <div class="photo" id="prevFoto" />
+              <div class="body">
+                <span class="cat" id="prevCat" />
+                <h3 id="prevNombre" />
+                <div class="by" id="prevBy" />
+                <p id="prevDesc" />
+                <div class="foot">
+                  <div class="socials" id="prevRedes" />
+                  <span class="cta">Ver más</span>
+                </div>
+              </div>
+            </div>
+            <div class="preview-note">
+              <strong>Así te verá el vecino</strong>
+              <br />
+              Esta es una miniatura. En la landing aparece dentro de la sección <strong class="torre-nombre" id="prevTorre">{torreActual.nombre}</strong>, junto a
+              los otros emprendedores de tu torre.
+            </div>
+          </aside>
+        </div>
+
+        <dialog class="dialogo" id="dlgPreview" aria-labelledby="dlgPreviewTitulo">
+          <div class="dialogo-body">
+            <h3 id="dlgPreviewTitulo">Vista previa</h3>
+            <p>Así aparece tu card en la sección de tu torre. Al tocar “Ver más” se abre con la descripción larga y todas las fotos.</p>
+            <div id="dlgPreviewCard" />
+            <div class="acciones">
+              <button type="button" class="btn btn-ghost" data-cerrar>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </dialog>
+
+        <div class="toasts" id="toasts" role="status" aria-live="polite" />
+        <script type="application/json" id="panel-datos" set:html={datosJson} />
+      </>
+    )
+  }
+</Layout>
+
+<script>
+  import { iniciarPanel } from '../../scripts/panel';
+  iniciarPanel();
+</script>

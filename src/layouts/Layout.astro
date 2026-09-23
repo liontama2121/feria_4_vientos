@@ -1,0 +1,61 @@
+---
+import '../styles/global.css';
+import FloatingWhatsApp from '../components/FloatingWhatsApp.astro';
+import { SITIO } from '../lib/sitio';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Botón flotante de WhatsApp (en el panel se oculta para no tapar la barra de acciones). */
+  whatsapp?: boolean;
+  /** Evita que buscadores indexen (panel y comité). */
+  noindex?: boolean;
+  bodyClass?: string;
+  torre?: string;
+}
+
+const {
+  title = `${SITIO.nombre} · Emprendedores del conjunto`,
+  description = SITIO.descripcion,
+  whatsapp = true,
+  noindex = false,
+  bodyClass,
+  torre,
+} = Astro.props;
+const og = new URL('/og.jpg', Astro.site ?? Astro.url).toString();
+const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url).toString();
+---
+
+<!doctype html>
+<html lang="es-CO">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#FFF7EA" />
+    {noindex ? <meta name="robots" content="noindex, nofollow" /> : <link rel="canonical" href={canonical} />}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_CO" />
+    <meta property="og:site_name" content={SITIO.nombre} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={og} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Instrument+Serif:ital@1&family=Manrope:wght@500;600;700&display=swap"
+    />
+  </head>
+  <body class={bodyClass} data-torre={torre}>
+    <slot />
+    {whatsapp && <FloatingWhatsApp />}
+  </body>
+</html>

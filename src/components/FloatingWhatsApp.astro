@@ -1,0 +1,22 @@
+---
+import { ICONOS } from '../lib/constantes';
+import { MENSAJES, linkWhatsApp } from '../lib/sitio';
+---
+
+<a href={linkWhatsApp(MENSAJES.general)} class="whatsapp-flotante" target="_blank" rel="noopener" aria-label="Escríbele al comité por WhatsApp">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONOS.whatsapp}></path></svg>
+</a>
+
+<style>
+  .whatsapp-flotante {
+    position: fixed; bottom: 24px; right: 24px; z-index: 60;
+    width: 58px; height: 58px; border-radius: 50%;
+    background: var(--whatsapp);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 12px 30px rgba(37, 211, 102, .5);
+    transition: transform .2s ease;
+  }
+  .whatsapp-flotante:hover { transform: scale(1.1); }
+  .whatsapp-flotante svg { width: 30px; height: 30px; fill: #fff; }
+  @media (max-width: 500px) { .whatsapp-flotante { bottom: 16px; right: 16px; } }
+</style>

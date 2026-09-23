@@ -1,0 +1,27 @@
+{
+  "name": "feria-4-vientos",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sitio y panel de la Feria 4 Vientos · Conjunto Residencial 4 Vientos, Bogotá",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro build && wrangler pages dev ./dist",
+    "check": "astro check",
+    "deploy": "astro build && wrangler pages deploy ./dist"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^12.6.13",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^5.18.2",
+    "jose": "^6.2.12",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@cloudflare/workers-types": "^5.20260923.1",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.137.0"
+  }
+}
