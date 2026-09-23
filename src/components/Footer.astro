@@ -44,7 +44,16 @@ const anio = 2026;
     </div>
     <div class="foot-bottom">
       <div>© {anio} Feria 4 Vientos · Con el respaldo de la Alcaldía Local</div>
-      <div class="hecho">Sitio web hecho con amor por JuanCode</div>
+      <div class="firma-jc">
+        <span class="hecho">Sitio web hecho con amor por JuanCode</span>
+        {
+          SITIO.juancodeUrl && (
+            <a class="cotiza" href={SITIO.juancodeUrl} target="_blank" rel="noopener">
+              Cotiza tu página web con JuanCode →
+            </a>
+          )
+        }
+      </div>
     </div>
   </div>
 </footer>
@@ -63,6 +72,10 @@ const anio = 2026;
     padding-top: 24px; border-top: 1px solid var(--linea);
     font-size: 13.5px; color: var(--tinta-suave); font-weight: 600;
   }
+  .firma-jc { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  @media (max-width: 720px) { .firma-jc { align-items: flex-start; } }
+  .cotiza { font-family: var(--display); font-weight: 800; font-size: 13.5px; color: #D946EF; }
+  .cotiza:hover { text-decoration: underline; }
   .hecho { background: var(--grad-juancode); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
   @media (max-width: 500px) { .foot-bottom { padding-right: 70px; } }
 </style>

@@ -9,8 +9,8 @@ export const SITIO = {
   /** WhatsApp del comité, formato internacional sin "+" (57 + celular). */
   comiteWhatsapp: '573046452629',
   instagram: 'feria4vientos',
-  /** Enlace del botón "Conocer JuanCode". Si queda vacío, el botón no se muestra. */
-  juancodeUrl: '',
+  /** Enlace del botón "Cotiza tu página web con JuanCode" (sección JuanCode y footer). Si queda vacío, no se muestra. */
+  juancodeUrl: 'https://el-libro-juancode-python-desde-0.pages.dev/web/',
 } as const;
 
 export function linkWhatsApp(mensaje: string, numero: string = SITIO.comiteWhatsapp) {
