@@ -1,15 +1,15 @@
 # CLAUDE.md — Feria 4 Vientos
 
-Sitio + panel de la feria de emprendimientos del **Conjunto Residencial 4 Vientos** (Bogotá).
-Landing pública agrupada por torre y panel del comité en `/admin` (un solo usuario y contraseña, en variables de entorno). Lo publicado se ve al instante en la landing (sin caché).
+Sitio + panel de la feria de emprendimientos de los **Conjuntos Residenciales 4 Vientos** (Bogotá).
+Landing pública agrupada por conjunto y panel del comité en `/admin` (un solo usuario y contraseña, en variables de entorno). Lo publicado se ve al instante en la landing (sin caché).
 Todo en español (es-CO). Sitio web patrocinado por **JuanCode** (solo el sitio, no el evento).
 
 ---
 
 ## Contexto del negocio
 
-- **4 torres = 4 vientos**, cada una con su color:
-  | Torre | Rumbo | Color | Claro | Emoji | Tagline |
+- **4 conjuntos = 4 vientos**: Mistral, Gregal, Austro y Cierzo NO son torres, son cuatro conjuntos residenciales; juntos forman "4 Vientos". En el código el campo/colección se sigue llamando `torre`/`torres` (no se renombró para no migrar datos), pero TODO texto visible dice "conjunto".
+  | Conjunto | Rumbo | Color | Claro | Emoji | Tagline |
   |---|---|---|---|---|---|
   | Mistral | Norte | `#1E9C8C` | `#BFF0E6` | ❄️ | Manos que crean con calma… |
   | Gregal | Nororiente | `#E8641B` | `#FFE1C7` | 🌅 | El primer aire de la mañana… |
@@ -17,7 +17,7 @@ Todo en español (es-CO). Sitio web patrocinado por **JuanCode** (solo el sitio,
   | Cierzo | Noroccidente | `#7B3FE4` | `#E1D4FF` | ⚡ | Oficios que resuelven… |
 - **El terminalito**: kiosco/portería auxiliar cerrado por años; la asamblea lo recuperó y ahí se hace la feria. Es el corazón narrativo (sección Historia).
 - **Patrocinadores**: Alcaldía Local de Fontibón (oficial: espacio y logística, logo real en `public/logos/`), Consejo del Conjunto / Junta directiva (gestión interna), Casa de Cultura Local (aliado cultural). **JuanCode** solo patrocina el sitio web → sección propia + footer "Sitio web hecho con amor por JuanCode".
-- Próxima feria sembrada: sábado 26 de septiembre de 2026, 9 a.m. a 1 p.m. (con vacunación de mascotas y niños y deporte, según el promo).
+- Única fecha cargada: sábado 26 de septiembre de 2026, 9 a.m. a 1 p.m. (vacunación de mascotas y niños, deporte). Debajo de las fechas siempre sale "Pronto vendrán más ferias". Nuevas fechas se agregan en `/admin/comite#fechas`.
 
 ## Identidad (fuente de verdad: `video-feria-4-vientos.html`, gana sobre los mockups)
 
@@ -33,7 +33,7 @@ Display: Plus Jakarta Sans 600/700/800 · Serif acento: Instrument Serif itálic
 
 Reglas de diseño que NO se rompen:
 1. **Nada de fondos negros/oscuros.** Base crema.
-2. **Cada torre es su propia sección** con su color pleno. Los emprendedores NO se mezclan salvo en la vitrina.
+2. **Cada conjunto (viento) es su propia sección** con su color pleno. Los emprendedores NO se mezclan salvo en la vitrina.
 3. **Vitrina (carrusel)**: mezcla las 4 torres (intercaladas), solo destacados; autoplay 4.5 s, pausa al hover/foco, botones circulares, dot activo del color de la torre.
 4. **Itálica serif** solo en palabras clave de títulos: *viento(s)*, *cada viento*, *el terminalito*, *próxima feria*, *todos*… (clase `.serif`).
 5. **JuanCode** es la ÚNICA sección con degradado eléctrico fuerte.

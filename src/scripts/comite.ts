@@ -101,7 +101,7 @@ export function iniciarComite() {
   const fCategoria = $<HTMLSelectElement>('fCategoria');
   const fEstado = $<HTMLSelectElement>('fEstado');
 
-  fTorre.append(h('option', { value: '', text: 'Todas' }), ...D.torres.map((t) => h('option', { value: t.id, text: `${t.emoji_simbolo} ${t.nombre}` })));
+  fTorre.append(h('option', { value: '', text: 'Todos' }), ...D.torres.map((t) => h('option', { value: t.id, text: `${t.emoji_simbolo} ${t.nombre}` })));
   fCategoria.append(h('option', { value: '', text: 'Todas' }), ...D.categorias.map((c) => h('option', { value: c.id, text: `${c.emoji} ${c.label}` })));
 
   function filtros() {
@@ -299,7 +299,7 @@ export function iniciarComite() {
         const guardar = h('button', {
           type: 'button',
           class: 'btn btn-primary btn-sm',
-          text: 'Guardar torre',
+          text: 'Guardar conjunto',
           on: {
             click: async () => {
               try {

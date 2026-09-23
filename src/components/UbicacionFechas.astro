@@ -18,7 +18,7 @@ const { fechas } = Astro.props;
     <div class="ubicacion-grid">
       <div class="info-card">
         <div class="label">Ubicación</div>
-        <h3>El terminalito del conjunto</h3>
+        <h3>El terminalito</h3>
         <div class="meta">{SITIO.conjunto} · {SITIO.ciudad}</div>
         <p>Al lado de la portería secundaria, con entrada por la peatonal. Si es tu primera vez, cualquier vecino te indica.</p>
         <ul class="extras">
@@ -31,10 +31,10 @@ const { fechas } = Astro.props;
       </div>
 
       <div class="info-card">
-        <div class="label">Próximas fechas</div>
+        <div class="label">{fechas.length > 1 ? 'Próximas fechas' : 'Próxima feria'}</div>
         {
           fechas.length === 0 ? (
-            <p>El comité está definiendo la próxima fecha. Síguenos en Instagram @{SITIO.instagram} para enterarte primero.</p>
+            <p>El comité está definiendo la próxima fecha.</p>
           ) : (
             fechas.map((f, i) => {
               const { dd, mm } = diaMes(f.fecha);
@@ -59,6 +59,16 @@ const { fechas } = Astro.props;
             })
           )
         }
+        <div class="pronto">
+          <span class="pronto-ico" aria-hidden="true">✨</span>
+          <div>
+            <strong>Pronto vendrán más ferias</strong>
+            <span>
+              Estamos organizando las próximas. Síguenos en <a href={`https://instagram.com/${SITIO.instagram}`} target="_blank" rel="noopener">@{SITIO.instagram}</a> o
+              escríbele al comité para enterarte primero.
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -97,4 +107,13 @@ const { fechas } = Astro.props;
   .chip-proxima { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; background: var(--gregal-claro); color: var(--gregal); padding: 3px 8px; border-radius: 999px; }
   .hora { font-size: 13.5px; color: var(--tinta-suave); font-weight: 700; }
   .desc p { font-size: 13.5px; margin-top: 4px; }
+  .pronto {
+    display: flex; gap: 14px; align-items: flex-start;
+    margin-top: 18px; padding: 16px 18px; border-radius: 16px;
+    background: linear-gradient(120deg, var(--mistral-claro), var(--gregal-claro) 40%, var(--austro-claro) 70%, var(--cierzo-claro));
+  }
+  .pronto-ico { font-size: 22px; line-height: 1; }
+  .pronto strong { display: block; font-family: var(--display); font-size: 15.5px; margin-bottom: 2px; }
+  .pronto span { font-size: 13.5px; color: var(--tinta-media); }
+  .pronto a { color: var(--cierzo); font-weight: 800; }
 </style>

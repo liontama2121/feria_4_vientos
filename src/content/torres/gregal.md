@@ -1,6 +1,6 @@
 ---
 nombre: Gregal
-rumbo: Torre nororiente
+rumbo: Conjunto nororiente
 caracter: Amanecer
 color_hex: "#E8641B"
 color_claro: "#FFE1C7"

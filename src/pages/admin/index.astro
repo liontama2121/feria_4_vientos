@@ -149,7 +149,7 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                 </div>
                 <div class="field full" data-field="torre">
                   <span class="label" id="lblTorre">
-                    Tu torre <span class="req">●</span> <span class="opt">Elige tu viento</span>
+                    Tu conjunto <span class="req">●</span> <span class="opt">Elige tu viento</span>
                   </span>
                   <div class="torre-picker" id="torrePicker" role="radiogroup" aria-labelledby="lblTorre">
                     {torres.map((t) => (
@@ -454,7 +454,7 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
               <strong>Así te verá el vecino</strong>
               <br />
               Esta es una miniatura. En la landing aparece dentro de la sección <strong class="torre-nombre" id="prevTorre">{torreActual.nombre}</strong>, junto a
-              los otros emprendedores de tu torre.
+              los otros emprendedores de tu conjunto.
             </div>
           </aside>
         </div>
@@ -462,7 +462,7 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
         <dialog class="dialogo" id="dlgPreview" aria-labelledby="dlgPreviewTitulo">
           <div class="dialogo-body">
             <h3 id="dlgPreviewTitulo">Vista previa</h3>
-            <p>Así aparece tu card en la sección de tu torre. Al tocar “Ver más” se abre con la descripción larga y todas las fotos.</p>
+            <p>Así aparece tu card en la sección de tu conjunto. Al tocar “Ver más” se abre con la descripción larga y todas las fotos.</p>
             <div id="dlgPreviewCard" />
             <div class="acciones">
               <button type="button" class="btn btn-ghost" data-cerrar>

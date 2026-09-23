@@ -1,6 +1,6 @@
 ---
 nombre: Mistral
-rumbo: Torre norte
+rumbo: Conjunto norte
 caracter: Viento frío
 color_hex: "#1E9C8C"
 color_claro: "#BFF0E6"

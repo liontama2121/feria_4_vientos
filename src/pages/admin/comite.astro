@@ -22,7 +22,7 @@ const datosJson = JSON.stringify({
 
 const TABS = [
   { id: 'emprendedores', label: 'Emprendedores', icono: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' },
-  { id: 'torres', label: 'Torres', icono: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>' },
+  { id: 'torres', label: 'Conjuntos', icono: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>' },
   { id: 'patrocinadores', label: 'Patrocinadores', icono: '<path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/>' },
   { id: 'fechas', label: 'Fechas', icono: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>' },
 ];
@@ -52,7 +52,7 @@ const TABS = [
             </div>
             <div class="sidebar-help">
               <h4>Agregar un vecino</h4>
-              <p>1. El vecino te escribe por WhatsApp. 2. “+ Nuevo emprendimiento” con su torre y apto. 3. Llenas sus datos y fotos y le das “Publicar”: sale al instante en la landing.</p>
+              <p>1. El vecino te escribe por WhatsApp. 2. “+ Nuevo emprendimiento” con su conjunto y apto. 3. Llenas sus datos y fotos y le das “Publicar”: sale al instante en la landing.</p>
             </div>
           </aside>
 
@@ -85,7 +85,7 @@ const TABS = [
                   <input id="fBuscar" type="search" placeholder="Nombre, vecino o apto" />
                 </div>
                 <div class="field">
-                  <label for="fTorre">Torre</label>
+                  <label for="fTorre">Conjunto</label>
                   <select id="fTorre" ></select>
                 </div>
                 <div class="field">
@@ -112,11 +112,11 @@ const TABS = [
             <section data-tab-panel="torres" hidden>
               <div class="page-head">
                 <div>
-                  <div class="title-eyebrow">COMITÉ · TORRES</div>
+                  <div class="title-eyebrow">COMITÉ · CONJUNTOS</div>
                   <h1>
                     Los cuatro <span class="serif">vientos</span>.
                   </h1>
-                  <p class="desc">Nombre, rumbo, frase y color de cada torre. Se aplican en la landing y en el panel de los vecinos.</p>
+                  <p class="desc">Nombre, rumbo, frase y color de cada conjunto. Se aplican en la landing y en el panel.</p>
                 </div>
               </div>
               <div id="listaTorres" class="grid-2" />
@@ -180,7 +180,7 @@ const TABS = [
                 <input id="nVecino" name="nombre_vecino" type="text" maxlength="80" placeholder="Aleida Rodríguez" />
               </div>
               <div class="field">
-                <label for="nTorre">Torre <span class="req">●</span></label>
+                <label for="nTorre">Conjunto <span class="req">●</span></label>
                 <select id="nTorre" name="torre">
                   {torres.map((t) => <option value={t.id}>{t.emoji_simbolo} {t.nombre}</option>)}
                 </select>

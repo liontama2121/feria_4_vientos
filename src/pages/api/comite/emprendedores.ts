@@ -12,7 +12,7 @@ export const GET: APIRoute = async ({ locals }) => {
 /** Crea un emprendimiento vacío; el comité lo completa en /admin?slug=… */
 export const POST: APIRoute = async ({ locals, request }) => {
   const body = await leerJson<{ nombre_vecino?: string; torre?: string; apartamento?: string; nombre_emprendimiento?: string }>(request);
-  if (!body || !esTorre(body.torre)) return error('Elige la torre.');
+  if (!body || !esTorre(body.torre)) return error('Elige el conjunto.');
   const apartamento = texto(body.apartamento, 10);
   if (!apartamento) return error('Escribe el apartamento.');
   const slug = await crearEmprendimiento(locals.runtime.env.DB, {

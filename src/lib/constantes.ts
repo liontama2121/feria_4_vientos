@@ -4,12 +4,12 @@
 export const TORRE_IDS = ['mistral', 'gregal', 'austro', 'cierzo'] as const;
 export type TorreId = (typeof TORRE_IDS)[number];
 
-/** Valores por defecto de cada torre. Los colores y textos reales viven en D1 (editables por el comité). */
+/** Valores por defecto de cada viento (conjunto; en código se llama "torre"). Los colores y textos reales viven en D1 (editables por el comité). */
 export const TORRES_BASE: Record<TorreId, { nombre: string; rumbo: string; emoji: string; color: string; claro: string }> = {
-  mistral: { nombre: 'Mistral', rumbo: 'Torre norte', emoji: '❄️', color: '#1E9C8C', claro: '#BFF0E6' },
-  gregal: { nombre: 'Gregal', rumbo: 'Torre nororiente', emoji: '🌅', color: '#E8641B', claro: '#FFE1C7' },
-  austro: { nombre: 'Austro', rumbo: 'Torre sur', emoji: '🌸', color: '#E3287A', claro: '#FFD3E6' },
-  cierzo: { nombre: 'Cierzo', rumbo: 'Torre noroccidente', emoji: '⚡', color: '#7B3FE4', claro: '#E1D4FF' },
+  mistral: { nombre: 'Mistral', rumbo: 'Conjunto norte', emoji: '❄️', color: '#1E9C8C', claro: '#BFF0E6' },
+  gregal: { nombre: 'Gregal', rumbo: 'Conjunto nororiente', emoji: '🌅', color: '#E8641B', claro: '#FFE1C7' },
+  austro: { nombre: 'Austro', rumbo: 'Conjunto sur', emoji: '🌸', color: '#E3287A', claro: '#FFD3E6' },
+  cierzo: { nombre: 'Cierzo', rumbo: 'Conjunto noroccidente', emoji: '⚡', color: '#7B3FE4', claro: '#E1D4FF' },
 };
 
 export const CATEGORIAS = [

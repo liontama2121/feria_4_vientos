@@ -1,6 +1,6 @@
 ---
-// Una sección por torre, con su color pleno. Los emprendedores NO se mezclan:
-// cada uno aparece en la sección de la torre que eligió en su panel.
+// Una sección por viento (conjunto), con su color pleno. Los emprendedores NO se mezclan:
+// cada uno aparece en la sección de su conjunto.
 import EmprendedorCard from './EmprendedorCard.astro';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 import { MENSAJES, linkWhatsApp } from '../lib/sitio';
@@ -39,7 +39,7 @@ const n = emprendedores.length;
           <span class="vacio-emoji">{torre.emoji_simbolo}</span>
           <div>
             <h3>{torre.nombre} está esperando su primer emprendimiento</h3>
-            <p>¿Vives en {torre.nombre} y tienes un negocio? Escríbele al comité y te abrimos tu panel.</p>
+            <p>¿Vives en {torre.nombre} y tienes un negocio? Escríbele al comité y te publicamos.</p>
           </div>
           <a class="vacio-cta" href={linkWhatsApp(MENSAJES.participar)} target="_blank" rel="noopener">
             Quiero estar aquí

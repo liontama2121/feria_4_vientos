@@ -1,6 +1,6 @@
 # Feria 4 Vientos
 
-Sitio de la feria de emprendimientos del **Conjunto Residencial 4 Vientos** (Bogotá): landing pública agrupada por torre (Mistral, Gregal, Austro, Cierzo) y **panel del comité** en `/admin` (protegido con usuario y contraseña). Lo que se publica en el panel se ve en la landing al instante.
+Sitio de la feria de emprendimientos de los **Conjuntos Residenciales 4 Vientos** (Bogotá): landing pública agrupada por conjunto (Mistral, Gregal, Austro, Cierzo) y **panel del comité** en `/admin` (protegido con usuario y contraseña). Lo que se publica en el panel se ve en la landing al instante.
 
 Astro 5 · Tailwind v4 · Cloudflare Pages + D1 + R2.
 Sitio web hecho con amor por JuanCode.
@@ -16,7 +16,7 @@ npm install
 npm run dev          # http://localhost:4321
 ```
 
-No necesitas cuenta de Cloudflare para desarrollar: wrangler crea D1 y R2 locales en `.wrangler/state/` y la base se siembra sola con el contenido de `src/content/` (8 emprendedores, 4 torres, 3 patrocinadores, 4 fechas).
+No necesitas cuenta de Cloudflare para desarrollar: wrangler crea D1 y R2 locales en `.wrangler/state/` y la base se siembra sola con el contenido de `src/content/` (8 emprendedores, 4 conjuntos, 3 patrocinadores, 1 fecha).
 
 **Entrar al panel en local:** http://localhost:4321/admin → usuario `comite`, contraseña `feria4vientos` (valores por defecto solo en `npm run dev`). Para usar otros, crea un archivo `.dev.vars` (no se sube a git):
 
@@ -78,9 +78,9 @@ Nunca pongas la contraseña en `wrangler.jsonc`: ese archivo está en git. Cambi
 
 ## 5. Agregar un vecino
 
-1. El vecino escribe por WhatsApp al comité: nombre, torre, apartamento, qué ofrece, fotos y redes.
-2. En `/admin` → **+ Nuevo emprendimiento** (torre y apto).
-3. Llena sus datos, sube las fotos y dale **Publicar cambios**: aparece al instante en la sección de su torre.
+1. El vecino escribe por WhatsApp al comité: nombre, conjunto, apartamento, qué ofrece, fotos y redes.
+2. En `/admin` → **+ Nuevo emprendimiento** (conjunto y apto).
+3. Llena sus datos, sube las fotos y dale **Publicar cambios**: aparece al instante en la sección de su conjunto.
 4. Para quitarlo sin borrarlo: **Ocultar** en la lista (o apaga "Publicar en la landing").
 
 ## 6. Qué hay dónde

@@ -43,7 +43,7 @@ export const PUT: APIRoute = async ({ locals, request }) => {
   const db = locals.runtime.env.DB;
 
   if (body.coleccion === 'torres') {
-    if (!esTorre(i.id)) return error('Torre desconocida.');
+    if (!esTorre(i.id)) return error('Conjunto desconocido.');
     const color = texto(i.color_hex, 7);
     const claro = texto(i.color_claro, 7);
     if (!HEX.test(color) || !HEX.test(claro)) return error('Los colores deben ser hexadecimales tipo #1E9C8C.');

@@ -1,6 +1,6 @@
 ---
 nombre: Austro
-rumbo: Torre sur
+rumbo: Conjunto sur
 caracter: Viento cálido
 color_hex: "#E3287A"
 color_claro: "#FFD3E6"

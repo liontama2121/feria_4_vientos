@@ -16,17 +16,17 @@ const anio = 2026;
       <div class="foot-col">
         <div class="foot-marca"><Molinete size={36} /> Feria 4 Vientos</div>
         <p>
-          Feria de emprendimientos de los residentes del {SITIO.conjunto}. {torres.map((t) => t.nombre).join(', ')} — un espacio recuperado por y para la comunidad.
+          Feria de emprendimientos de los residentes de los {SITIO.conjunto}. {torres.map((t) => t.nombre).join(', ')} — un espacio recuperado por y para la comunidad.
         </p>
       </div>
       <div class="foot-col">
-        <h5>Las 4 torres</h5>
+        <h5>Los 4 conjuntos</h5>
         <ul>
           {
             torres.map((t) => (
               <li>
                 <a href={`/#${t.id}`}>
-                  {t.nombre} · {t.rumbo.replace(/^Torre\s+/i, '').replace(/^./, (c) => c.toUpperCase())}
+                  {t.nombre} · {t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace(/^./, (c) => c.toUpperCase())}
                 </a>
               </li>
             ))
