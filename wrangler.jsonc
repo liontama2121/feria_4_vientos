@@ -19,12 +19,7 @@
       "bucket_name": "feria-4-vientos-media"
     }
   ],
-  "vars": {
-    // Dominio del equipo de Zero Trust, p. ej. "feria4vientos.cloudflareaccess.com"
-    "CF_ACCESS_TEAM_DOMAIN": "",
-    // AUD tag(s) de las aplicaciones de Access (panel y comité), separados por coma
-    "CF_ACCESS_AUD": "",
-    // Correos con rol admin (comité), separados por coma
-    "ADMIN_EMAILS": ""
-  }
+  // ADMIN_USER, ADMIN_PASSWORD (y opcional SESSION_SECRET) NO van aquí: se crean como
+  // *secrets* en Cloudflare Pages → Settings → Variables and Secrets.
+  "vars": {}
 }

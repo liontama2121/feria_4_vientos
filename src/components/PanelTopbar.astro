@@ -1,6 +1,5 @@
 ---
 import Molinete from './Molinete.astro';
-import { urlCerrarSesion } from '../lib/auth';
 
 interface Props {
   seccion: string;
@@ -30,7 +29,7 @@ const { seccion, nombre, detalle, iniciales } = Astro.props;
           </div>
         )
       }
-      <a class="top-btn" href={urlCerrarSesion()}>Cerrar sesión</a>
+      <a class="top-btn" href="/api/logout">Cerrar sesión</a>
     </div>
   </div>
 </header>

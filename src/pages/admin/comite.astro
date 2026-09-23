@@ -1,41 +1,27 @@
 ---
 // Vista del comité (rol admin): emprendedores con filtros, aprobación, destacados,
-// exportación CSV, alta de cuentas y edición de torres, patrocinadores y fechas.
+// exportación CSV y edición de torres, patrocinadores y fechas.
 // La lógica vive en src/scripts/comite.ts.
 import '../../styles/panel.css';
 import Layout from '../../layouts/Layout.astro';
 import PanelTopbar from '../../components/PanelTopbar.astro';
-import PanelSinAcceso from '../../components/PanelSinAcceso.astro';
 import { CATEGORIAS, iniciales } from '../../lib/constantes';
-import { filaComite, listarFechas, listarPatrocinadores, listarRegistros, listarTorres, listarUsuarios } from '../../lib/db';
+import { filaComite, listarFechas, listarPatrocinadores, listarRegistros, listarTorres } from '../../lib/db';
 
-const { usuario, email } = Astro.locals;
+const usuario = Astro.locals.usuario!;
 const db = Astro.locals.runtime.env.DB;
-const esAdmin = usuario?.rol === 'admin';
 
-let datosJson = '';
-if (esAdmin) {
-  const [registros, usuarios, torres, patrocinadores, fechas] = await Promise.all([
-    listarRegistros(db),
-    listarUsuarios(db),
-    listarTorres(db),
-    listarPatrocinadores(db),
-    listarFechas(db),
-  ]);
-  datosJson = JSON.stringify({
-    filas: registros.map(filaComite),
-    usuarios,
-    torres,
-    patrocinadores,
-    fechas,
-    categorias: CATEGORIAS,
-    yo: usuario!.email,
-  }).replace(/</g, '\\u003c');
-}
+const [registros, torres, patrocinadores, fechas] = await Promise.all([listarRegistros(db), listarTorres(db), listarPatrocinadores(db), listarFechas(db)]);
+const datosJson = JSON.stringify({
+  filas: registros.map(filaComite),
+  torres,
+  patrocinadores,
+  fechas,
+  categorias: CATEGORIAS,
+}).replace(/</g, '\\u003c');
 
 const TABS = [
   { id: 'emprendedores', label: 'Emprendedores', icono: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' },
-  { id: 'cuentas', label: 'Cuentas de vecinos', icono: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>' },
   { id: 'torres', label: 'Torres', icono: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>' },
   { id: 'patrocinadores', label: 'Patrocinadores', icono: '<path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/>' },
   { id: 'fechas', label: 'Fechas', icono: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>' },
@@ -43,15 +29,8 @@ const TABS = [
 ---
 
 <Layout title="Comité · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel comite">
-  {
-    !esAdmin ? (
-      <>
-        <PanelTopbar seccion="Comité" />
-        <PanelSinAcceso motivo={!email ? 'sin-sesion' : !usuario ? 'sin-cuenta' : 'solo-comite'} email={email} />
-      </>
-    ) : (
-      <>
-        <PanelTopbar seccion="Comité" nombre={usuario!.nombre || 'Comité'} detalle="· Admin" iniciales={iniciales(usuario!.nombre || 'Comité')}>
+  <>
+        <PanelTopbar seccion="Comité" nombre={usuario.nombre} detalle={`· ${usuario.email}`} iniciales={iniciales(usuario.nombre)}>
           <a class="top-btn" href="/" target="_blank">
             Ver landing ↗
           </a>
@@ -72,8 +51,8 @@ const TABS = [
               </nav>
             </div>
             <div class="sidebar-help">
-              <h4>Flujo de un vecino nuevo</h4>
-              <p>1. Crea su cuenta en “Cuentas”. 2. Agrega su correo en Zero Trust (si no está automático). 3. Mándale el enlace /admin. 4. Aprueba cuando publique.</p>
+              <h4>Agregar un vecino</h4>
+              <p>1. El vecino te escribe por WhatsApp. 2. “+ Nuevo emprendimiento” con su torre y apto. 3. Llenas sus datos y fotos y le das “Publicar”: sale al instante en la landing.</p>
             </div>
           </aside>
 
@@ -86,10 +65,13 @@ const TABS = [
                   <h1>
                     Toda la feria, <span class="serif">de un vistazo</span>.
                   </h1>
-                  <p class="desc">Aprueba registros nuevos, destaca en la vitrina y exporta la lista para organizar los puestos del terminalito.</p>
+                  <p class="desc">Agrega y edita emprendimientos, destaca en la vitrina y exporta la lista para organizar los puestos del terminalito. Todo se ve al instante en la landing.</p>
                 </div>
                 <div class="page-actions">
-                  <a class="btn btn-primary" id="btnExportar" href="/api/comite/export.csv">
+                  <button type="button" class="btn btn-primary" id="btnNuevoEmp">
+                  + Nuevo emprendimiento
+                </button>
+                <a class="btn btn-ghost" id="btnExportar" href="/api/comite/export.csv">
                     ⬇ Exportar CSV
                   </a>
                 </div>
@@ -114,86 +96,16 @@ const TABS = [
                   <label for="fEstado">Estado</label>
                   <select id="fEstado">
                     <option value="">Todos</option>
-                    <option value="pendiente">Pendientes de aprobación</option>
+                    <option value="pendiente">Pendientes</option>
                     <option value="publicado">Publicados</option>
                     <option value="borrador">Borradores</option>
                     <option value="oculto">Ocultos por el vecino</option>
-                    <option value="rechazado">Rechazados</option>
+                    <option value="rechazado">Ocultos por el comité</option>
                   </select>
                 </div>
               </div>
 
               <div class="lista" id="listaEmprendedores" />
-            </section>
-
-            {/* ═══ Cuentas ═══ */}
-            <section data-tab-panel="cuentas" hidden>
-              <div class="page-head">
-                <div>
-                  <div class="title-eyebrow">COMITÉ · CUENTAS</div>
-                  <h1>
-                    Abre la puerta a <span class="serif">un vecino</span>.
-                  </h1>
-                  <p class="desc">
-                    Crea la cuenta con el correo de Google del vecino. Se le crea su emprendimiento en borrador y entra por /admin con ese correo.
-                  </p>
-                </div>
-              </div>
-
-              <form class="card" id="formCuenta" novalidate>
-                <div class="card-head">
-                  <div>
-                    <h2>Nueva cuenta</h2>
-                    <p>El vecino te pidió acceso por WhatsApp: con estos datos queda listo.</p>
-                  </div>
-                </div>
-                <div class="field-grid">
-                  <div class="field">
-                    <label for="cEmail">
-                      Correo de Google <span class="req">●</span>
-                    </label>
-                    <input id="cEmail" name="email" type="email" required placeholder="vecino@gmail.com" autocomplete="off" />
-                  </div>
-                  <div class="field">
-                    <label for="cNombre">Nombre completo</label>
-                    <input id="cNombre" name="nombre" type="text" placeholder="Aleida Rodríguez" />
-                  </div>
-                  <div class="field">
-                    <label for="cRol">Rol</label>
-                    <select id="cRol" name="rol">
-                      <option value="vecino">Vecino emprendedor</option>
-                      <option value="admin">Comité (admin)</option>
-                    </select>
-                  </div>
-                  <div class="field" data-solo-vecino>
-                    <label for="cTorre">
-                      Torre <span class="req">●</span>
-                    </label>
-                    <select id="cTorre" name="torre" ></select>
-                  </div>
-                  <div class="field" data-solo-vecino>
-                    <label for="cApto">
-                      Apartamento <span class="req">●</span>
-                    </label>
-                    <input id="cApto" name="apartamento" type="text" placeholder="402" />
-                  </div>
-                  <div class="field" data-solo-vecino>
-                    <label for="cSlug">
-                      Emprendimiento <span class="opt">Opcional</span>
-                    </label>
-                    <select id="cSlug" name="slug" ></select>
-                    <span class="hint">Úsalo si el emprendimiento ya está en la landing (p. ej. los de ejemplo).</span>
-                  </div>
-                </div>
-                <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-                  <button class="btn btn-primary" type="submit">
-                    Crear cuenta
-                  </button>
-                  <span class="hint" id="cuentaResultado" />
-                </div>
-              </form>
-
-              <div class="lista" id="listaCuentas" />
             </section>
 
             {/* ═══ Torres ═══ */}
@@ -254,22 +166,33 @@ const TABS = [
           </main>
         </div>
 
-        <dialog class="dialogo" id="dlgRechazo" aria-labelledby="dlgRechazoTitulo">
-          <form class="dialogo-body" method="dialog">
-            <h3 id="dlgRechazoTitulo">Pedir cambios</h3>
-            <p>
-              El vecino verá este mensaje en su panel. Sé concreto: qué falta o qué debe corregir en <b id="rechazoNombre"></b>.
-            </p>
-            <div class="field">
-              <textarea id="rechazoMotivo" rows="4" maxlength="400" placeholder="Ej: La foto principal está muy oscura, ¿puedes subir otra con luz natural?"></textarea>
+        <dialog class="dialogo" id="dlgNuevo" aria-labelledby="dlgNuevoTitulo">
+          <form class="dialogo-body" id="formNuevo" novalidate>
+            <h3 id="dlgNuevoTitulo">Nuevo emprendimiento</h3>
+            <p>Lo creamos vacío y te llevamos a su panel para llenar datos, fotos y redes.</p>
+            <div class="field-grid">
+              <div class="field full">
+                <label for="nEmp">Nombre del emprendimiento <span class="opt">Opcional</span></label>
+                <input id="nEmp" name="nombre_emprendimiento" type="text" maxlength="80" placeholder="Dulces Aleida" />
+              </div>
+              <div class="field full">
+                <label for="nVecino">Nombre del vecino</label>
+                <input id="nVecino" name="nombre_vecino" type="text" maxlength="80" placeholder="Aleida Rodríguez" />
+              </div>
+              <div class="field">
+                <label for="nTorre">Torre <span class="req">●</span></label>
+                <select id="nTorre" name="torre">
+                  {torres.map((t) => <option value={t.id}>{t.emoji_simbolo} {t.nombre}</option>)}
+                </select>
+              </div>
+              <div class="field">
+                <label for="nApto">Apartamento <span class="req">●</span></label>
+                <input id="nApto" name="apartamento" type="text" maxlength="10" required placeholder="402" />
+              </div>
             </div>
             <div class="acciones">
-              <button class="btn btn-ghost" value="cancelar">
-                Cancelar
-              </button>
-              <button class="btn btn-primary" value="ok">
-                Enviar al vecino
-              </button>
+              <button class="btn btn-ghost" type="button" data-cerrar>Cancelar</button>
+              <button class="btn btn-primary" type="submit">Crear y editar</button>
             </div>
           </form>
         </dialog>
@@ -291,9 +214,7 @@ const TABS = [
 
         <div class="toasts" id="toasts" role="status" aria-live="polite" />
         <script type="application/json" id="comite-datos" set:html={datosJson} />
-      </>
-    )
-  }
+  </>
 </Layout>
 
 <script>

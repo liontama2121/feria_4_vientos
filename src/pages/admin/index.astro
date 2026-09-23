@@ -8,31 +8,28 @@ import PanelTopbar from '../../components/PanelTopbar.astro';
 import PanelSinAcceso from '../../components/PanelSinAcceso.astro';
 import { slugEditable } from '../../lib/api';
 import { CATEGORIAS, ICONOS, LIMITES, iniciales } from '../../lib/constantes';
-import { listarTorres, obtenerRegistro, resumenPanel, USUARIOS_DEV } from '../../lib/db';
+import { listarTorres, obtenerRegistro, resumenPanel } from '../../lib/db';
 import { MENSAJES, linkWhatsApp } from '../../lib/sitio';
 
-const { usuario, email } = Astro.locals;
+const { usuario } = Astro.locals;
 const db = Astro.locals.runtime.env.DB;
 const slugPedido = Astro.url.searchParams.get('slug');
 
-if (usuario?.rol === 'admin' && !slugPedido && !usuario.slug) return Astro.redirect('/admin/comite');
+// El panel siempre edita un emprendimiento concreto; sin ?slug= se va a la lista del comité.
+if (!slugPedido) return Astro.redirect('/admin/comite');
 
 const slug = slugEditable(Astro.locals, slugPedido);
 const registro = slug ? await obtenerRegistro(db, slug) : null;
-const motivo = !email ? 'sin-sesion' : !usuario ? 'sin-cuenta' : !registro ? 'sin-emprendimiento' : null;
 
 const torres = await listarTorres(db);
 const resumen = registro ? resumenPanel(registro) : null;
 const d = resumen?.borrador;
 const torreActual = torres.find((t) => t.id === d?.torre) ?? torres[0];
-const editandoComoComite = !!registro && usuario?.rol === 'admin' && usuario.slug !== registro.slug;
 
 const datosJson = JSON.stringify({
   resumen,
   torres,
   categorias: CATEGORIAS,
-  cuenta: usuario && { email: usuario.email, rol: usuario.rol, nombre: usuario.nombre, email_avisos: usuario.email_avisos },
-  editandoComoComite,
   limites: LIMITES,
   iconos: ICONOS,
 }).replace(/</g, '\\u003c');
@@ -53,24 +50,22 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
 
 <Layout title="Panel · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel" torre={d?.torre}>
   {
-    motivo || !d || !resumen ? (
+    !d || !resumen ? (
       <>
         <PanelTopbar seccion="Panel" />
-        <PanelSinAcceso motivo={motivo ?? 'sin-emprendimiento'} email={email} />
+        <PanelSinAcceso />
       </>
     ) : (
       <>
         <PanelTopbar
-          seccion={editandoComoComite ? 'Comité' : 'Panel'}
-          nombre={editandoComoComite ? usuario!.nombre || 'Comité' : d.nombre_vecino || usuario!.nombre}
-          detalle={editandoComoComite ? '· editando' : `· ${torreActual.nombre} ${d.apartamento}`}
-          iniciales={iniciales(editandoComoComite ? usuario!.nombre || 'Comité' : d.nombre_vecino || usuario!.nombre)}
+          seccion="Panel"
+          nombre={d.nombre_vecino || 'Vecino sin nombre'}
+          detalle={`· ${torreActual.nombre} ${d.apartamento}`}
+          iniciales={iniciales(d.nombre_vecino || '?')}
         >
-          {usuario!.rol === 'admin' && (
-            <a class="top-btn" href="/admin/comite">
-              ← Comité
-            </a>
-          )}
+          <a class="top-btn" href="/admin/comite">
+            ← Comité
+          </a>
         </PanelTopbar>
 
         <div class="layout">
@@ -126,15 +121,6 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
               </div>
             </div>
 
-            {editandoComoComite && (
-              <div class="estado comite">
-                <span class="ico">🛠️</span>
-                <div>
-                  <strong>Estás editando como comité</strong>
-                  Los cambios que publiques aparecen con el nombre del vecino. <a href="/admin/comite">Volver a la lista</a>
-                </div>
-              </div>
-            )}
             <div class="estado" id="estado" hidden />
 
             {/* ── Paso 1 · Sobre ti ── */}
@@ -373,59 +359,31 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
             <section class="card" data-vistas="configuracion" hidden>
               <div class="card-head">
                 <div>
-                  <h2>Datos de tu cuenta</h2>
-                  <p>Con este correo entras al panel usando tu cuenta de Google.</p>
+                  <h2>Acceso al panel</h2>
+                  <p>El panel tiene un solo usuario: el del comité.</p>
                 </div>
               </div>
               <div class="field-grid">
                 <div class="field">
-                  <label for="cfgEmail">Correo de acceso</label>
-                  <input id="cfgEmail" type="email" value={usuario!.email} readonly />
-                  <span class="hint">Para cambiarlo, pídeselo al comité: se cambia en Cloudflare Zero Trust.</span>
+                  <label for="cfgUsuario">Usuario</label>
+                  <input id="cfgUsuario" type="text" value={usuario!.email} readonly />
                 </div>
                 <div class="field">
-                  <label for="cfgRol">Tipo de cuenta</label>
-                  <input id="cfgRol" type="text" value={usuario!.rol === 'admin' ? 'Comité (administrador)' : 'Vecino emprendedor'} readonly />
-                </div>
-                <div class="field full">
-                  <label for="cfgAvisos">
-                    Correo para notificaciones <span class="opt">Avisos de ferias y del comité</span>
-                  </label>
-                  <div style="display:flex;gap:10px;flex-wrap:wrap">
-                    <input id="cfgAvisos" type="email" value={usuario!.email_avisos || usuario!.email} style="flex:1;min-width:220px" autocomplete="email" />
-                    <button type="button" class="btn btn-ghost" id="btnGuardarCuenta">
-                      Guardar correo
-                    </button>
-                  </div>
-                </div>
-                <div class="field">
-                  <label for="cfgSlug">Código de tu emprendimiento</label>
+                  <label for="cfgSlug">Código del emprendimiento</label>
                   <input id="cfgSlug" type="text" value={resumen.slug} readonly />
                 </div>
-              </div>
-            </section>
-            <section class="card" data-vistas="configuracion" hidden>
-              <div class="card-head">
-                <div>
-                  <h2>Sesión</h2>
-                  <p>Si usas un computador compartido, cierra sesión al terminar.</p>
+                <div class="field full">
+                  <span class="hint">
+                    Para cambiar el usuario o la contraseña, edita ADMIN_USER y ADMIN_PASSWORD en Cloudflare Pages → Settings → Variables and Secrets y
+                    vuelve a desplegar. Al cambiar la contraseña se cierran todas las sesiones abiertas.
+                  </span>
                 </div>
               </div>
-              <a class="btn btn-ghost" href={import.meta.env.DEV ? '/api/dev/login?salir=1' : '/cdn-cgi/access/logout'}>
-                Cerrar sesión
-              </a>
-              {import.meta.env.DEV && (
-                <div class="dev-caja">
-                  <b>Modo desarrollo</b> · cambiar de usuario de prueba:
-                  <ul>
-                    {USUARIOS_DEV.map((u) => (
-                      <li>
-                        <a href={`/api/dev/login?as=${u.email}`}>{u.email}</a> — {u.rol === 'admin' ? 'comité' : `vecino ${u.torre} ${u.apartamento}`}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <div style="margin-top:18px">
+                <a class="btn btn-ghost" href="/api/logout">
+                  Cerrar sesión
+                </a>
+              </div>
             </section>
 
             {/* ── Barra inferior ── */}

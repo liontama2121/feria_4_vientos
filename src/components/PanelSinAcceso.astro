@@ -1,68 +1,16 @@
 ---
-// Pantalla cuando no hay sesión, la cuenta no existe o no tiene permisos.
+// Pantalla cuando se abre /admin sin un emprendimiento válido para editar.
 import Molinete from './Molinete.astro';
-import { USUARIOS_DEV } from '../lib/db';
-import { MENSAJES, linkWhatsApp } from '../lib/sitio';
-
-interface Props {
-  motivo: 'sin-sesion' | 'sin-cuenta' | 'sin-emprendimiento' | 'solo-comite';
-  email?: string | null;
-}
-const { motivo, email } = Astro.props;
-
-const TEXTOS = {
-  'sin-sesion': {
-    titulo: 'No pudimos verificar tu sesión',
-    texto: 'Entra de nuevo con tu cuenta de Google. Si el problema sigue, escríbele al comité.',
-  },
-  'sin-cuenta': {
-    titulo: 'Tu cuenta aún no está activa',
-    texto: `Entraste como ${email ?? 'un correo'} pero el comité todavía no ha creado tu panel. Escríbeles por WhatsApp con tu nombre, torre y apartamento.`,
-  },
-  'sin-emprendimiento': {
-    titulo: 'No tienes un emprendimiento asignado',
-    texto: 'Tu cuenta existe pero no está conectada a ningún emprendimiento. El comité lo puede arreglar en un minuto.',
-  },
-  'solo-comite': {
-    titulo: 'Esta sección es solo para el comité',
-    texto: 'Tu cuenta es de vecino. Desde tu panel puedes editar tu emprendimiento.',
-  },
-} as const;
-const t = TEXTOS[motivo];
 ---
 
 <div class="sin-acceso">
   <div class="card">
     <Molinete size={72} spin />
-    <h1>{t.titulo}</h1>
-    <p>{t.texto}</p>
+    <h1>No encontramos ese emprendimiento</h1>
+    <p>Puede que lo hayan eliminado o que el enlace esté incompleto. Elígelo desde la lista del comité.</p>
     <div class="acciones">
-      {
-        motivo === 'solo-comite' ? (
-          <a class="btn btn-primary" href="/admin">
-            Ir a mi panel
-          </a>
-        ) : (
-          <a class="btn btn-primary" href={linkWhatsApp(MENSAJES.ayudaPanel)} target="_blank" rel="noopener">
-            Escribir al comité
-          </a>
-        )
-      }
+      <a class="btn btn-primary" href="/admin/comite">Ir al comité</a>
       <a class="btn btn-ghost" href="/">Volver a la feria</a>
     </div>
-    {
-      import.meta.env.DEV && (
-        <div class="dev-caja">
-          <b>Modo desarrollo</b> · entra con un usuario de prueba:
-          <ul>
-            {USUARIOS_DEV.map((u) => (
-              <li>
-                <a href={`/api/dev/login?as=${u.email}`}>{u.email}</a> — {u.rol === 'admin' ? 'comité' : `vecino ${u.torre} ${u.apartamento}`}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )
-    }
   </div>
 </div>

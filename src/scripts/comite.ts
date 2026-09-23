@@ -1,18 +1,16 @@
 // Lógica de /admin/comite. Todo se pinta desde los datos en memoria y cada acción
 // llama a /api/comite/* y actualiza solo lo que cambió.
-import type { Fecha, FilaComite, Patrocinador, Torre, Usuario } from '../lib/db';
+import type { Fecha, FilaComite, Patrocinador, Torre } from '../lib/db';
 
 interface DatosComite {
   filas: FilaComite[];
-  usuarios: Usuario[];
   torres: Torre[];
   patrocinadores: Patrocinador[];
   fechas: Fecha[];
   categorias: { id: string; label: string; emoji: string }[];
-  yo: string;
 }
 
-type Tab = 'emprendedores' | 'cuentas' | 'torres' | 'patrocinadores' | 'fechas';
+type Tab = 'emprendedores' | 'torres' | 'patrocinadores' | 'fechas';
 type Attrs = Record<string, unknown> & { class?: string; text?: string | number; on?: Record<string, (ev: Event) => void>; style?: string };
 
 /** Crea elementos sin innerHTML: todo texto de usuario entra como textContent. */
@@ -36,7 +34,7 @@ const ETIQUETA: Record<FilaComite['estado_visible'], string> = {
   pendiente: 'Pendiente',
   borrador: 'Borrador',
   oculto: 'Oculto',
-  rechazado: 'Rechazado',
+  rechazado: 'Oculto',
 };
 
 export function iniciarComite() {
@@ -72,16 +70,6 @@ export function iniciarComite() {
     return new Promise((r) => dlg.addEventListener('close', () => r(dlg.returnValue === 'ok'), { once: true }));
   }
 
-  function pedirMotivo(nombre: string): Promise<string | null> {
-    const dlg = $<HTMLDialogElement>('dlgRechazo');
-    $('rechazoNombre').textContent = nombre;
-    const ta = $<HTMLTextAreaElement>('rechazoMotivo');
-    ta.value = '';
-    dlg.returnValue = '';
-    dlg.showModal();
-    return new Promise((r) => dlg.addEventListener('close', () => r(dlg.returnValue === 'ok' ? ta.value.trim() : null), { once: true }));
-  }
-
   // ───────────────────────── Tabs ─────────────────────────
   function irA(tab: Tab) {
     document.querySelectorAll<HTMLElement>('[data-tab]').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
@@ -101,8 +89,7 @@ export function iniciarComite() {
       const b = document.querySelector<HTMLElement>(`[data-badge="${tab}"]`);
       if (b) b.textContent = v;
     };
-    set('emprendedores', pendientes ? `${pendientes} nuevo${pendientes > 1 ? 's' : ''}` : String(D.filas.length));
-    set('cuentas', String(D.usuarios.length));
+    set('emprendedores', pendientes ? `${pendientes} por aprobar` : String(D.filas.length));
     set('torres', String(D.torres.length));
     set('patrocinadores', String(D.patrocinadores.length));
     set('fechas', String(D.fechas.length));
@@ -174,33 +161,21 @@ export function iniciarComite() {
         on: { click: () => accion(r.slug, { accion: 'destacar', valor: !r.destacado }, r.destacado ? 'Quitado de la vitrina' : 'Destacado en la vitrina ★') },
       }),
     );
-    if (r.estado !== 'aprobado') {
-      acciones.append(
-        h('button', {
-          type: 'button',
-          class: 'btn btn-primary btn-sm',
-          text: 'Aprobar',
-          disabled: r.estado_visible === 'borrador',
-          title: r.estado_visible === 'borrador' ? 'El vecino aún no ha publicado' : undefined,
-          on: { click: () => accion(r.slug, { accion: 'aprobar' }, `${r.nombre || 'Emprendimiento'} aprobado ✓`) },
-        }),
-      );
-    }
-    if (r.estado !== 'rechazado') {
-      acciones.append(
-        h('button', {
-          type: 'button',
-          class: 'btn btn-ghost btn-sm',
-          text: r.estado === 'aprobado' ? 'Pedir cambios' : 'Rechazar',
-          on: {
-            click: async () => {
-              const motivo = await pedirMotivo(r.nombre || r.slug);
-              if (motivo !== null) accion(r.slug, { accion: 'rechazar', motivo }, 'Mensaje enviado al panel del vecino');
-            },
-          },
-        }),
-      );
-    }
+    const visible = r.estado === 'aprobado';
+    acciones.append(
+      h('button', {
+        type: 'button',
+        class: `btn ${visible ? 'btn-ghost' : 'btn-primary'} btn-sm`,
+        text: visible ? 'Ocultar' : 'Mostrar',
+        title: visible ? 'Quitarlo de la landing sin borrarlo' : 'Volver a mostrarlo en la landing',
+        on: {
+          click: () =>
+            visible
+              ? accion(r.slug, { accion: 'rechazar', motivo: 'Oculto por el comité' }, `${r.nombre || 'Emprendimiento'} oculto de la landing`)
+              : accion(r.slug, { accion: 'aprobar' }, `${r.nombre || 'Emprendimiento'} visible en la landing ✓`),
+        },
+      }),
+    );
     acciones.append(
       h('a', { class: 'btn btn-ghost btn-sm', href: `/admin?slug=${encodeURIComponent(r.slug)}`, text: 'Editar' }),
       h('button', {
@@ -213,10 +188,8 @@ export function iniciarComite() {
             try {
               await api('/api/comite/emprendedores', 'DELETE', { slug: r.slug });
               D.filas = D.filas.filter((f) => f.slug !== r.slug);
-              D.usuarios = D.usuarios.map((u) => (u.slug === r.slug ? { ...u, slug: null } : u));
               toast('Emprendimiento eliminado', 'ok');
               renderEmprendedores();
-              renderCuentas();
             } catch (e) {
               toast((e as Error).message, 'error');
             }
@@ -234,7 +207,6 @@ export function iniciarComite() {
         {},
         h('h3', { text: r.nombre || 'Sin nombre todavía' }),
         h('div', { class: 'sub', text: `${r.vecino || 'Vecino sin nombre'} · ${t.nombre} ${r.apartamento}${r.whatsapp ? ` · +57 ${r.whatsapp}` : ''}` }),
-        r.motivo && r.estado === 'rechazado' ? h('div', { class: 'sub', text: `Motivo: ${r.motivo}` }) : null,
       ),
       h(
         'div',
@@ -261,105 +233,26 @@ export function iniciarComite() {
   }
   [fBuscar, fTorre, fCategoria, fEstado].forEach((el) => el.addEventListener('input', renderEmprendedores));
 
-  // ───────────────────────── Cuentas ─────────────────────────
-  const form = $<HTMLFormElement>('formCuenta');
-  const cRol = $<HTMLSelectElement>('cRol');
-  const cTorre = $<HTMLSelectElement>('cTorre');
-  const cSlug = $<HTMLSelectElement>('cSlug');
-  cTorre.append(...D.torres.map((t) => h('option', { value: t.id, text: `${t.emoji_simbolo} ${t.nombre} · ${t.rumbo}` })));
-  cRol.addEventListener('change', () => document.querySelectorAll<HTMLElement>('[data-solo-vecino]').forEach((el) => (el.hidden = cRol.value !== 'vecino')));
-
-  function opcionesSlug() {
-    const libres = D.filas.filter((f) => !f.owner_email);
-    cSlug.replaceChildren(
-      h('option', { value: '', text: 'Crear uno nuevo en borrador' }),
-      ...libres.map((f) => h('option', { value: f.slug, text: `${f.nombre} · ${torreDe(f.torre).nombre} ${f.apartamento}` })),
-    );
-  }
-  cSlug.addEventListener('change', () => {
-    const f = D.filas.find((x) => x.slug === cSlug.value);
-    if (!f) return;
-    cTorre.value = f.torre;
-    $<HTMLInputElement>('cApto').value = f.apartamento;
-    const nombre = $<HTMLInputElement>('cNombre');
-    if (!nombre.value) nombre.value = f.vecino;
+  // ───────────────────────── Nuevo emprendimiento ─────────────────────────
+  const dlgNuevo = $<HTMLDialogElement>('dlgNuevo');
+  const formNuevo = $<HTMLFormElement>('formNuevo');
+  $('btnNuevoEmp').addEventListener('click', () => {
+    formNuevo.reset();
+    dlgNuevo.showModal();
   });
-
-  form.addEventListener('submit', async (ev) => {
+  dlgNuevo.querySelector('[data-cerrar]')!.addEventListener('click', () => dlgNuevo.close());
+  formNuevo.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const datos = Object.fromEntries(new FormData(form)) as Record<string, string>;
-    const boton = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const boton = formNuevo.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     boton.disabled = true;
     try {
-      const r = await api<{ usuario: Usuario; zerotrust: { sincronizado: boolean; motivo?: string } }>('/api/comite/cuentas', 'POST', datos);
-      D.usuarios = [r.usuario, ...D.usuarios];
-      if (r.usuario.slug) {
-        const filas = await api<FilaComite[]>('/api/comite/emprendedores', 'GET');
-        D.filas = filas;
-      }
-      $('cuentaResultado').textContent = r.zerotrust.sincronizado
-        ? `✓ ${r.usuario.email} agregado también al grupo de Zero Trust. Mándale el enlace /admin.`
-        : `✓ Cuenta creada. ${r.zerotrust.motivo ?? ''} Luego mándale el enlace /admin.`;
-      toast('Cuenta creada ✓', 'ok');
-      form.reset();
-      cRol.dispatchEvent(new Event('change'));
-      renderCuentas();
-      renderEmprendedores();
+      const r = await api<{ slug: string }>('/api/comite/emprendedores', 'POST', Object.fromEntries(new FormData(formNuevo)));
+      location.href = `/admin?slug=${encodeURIComponent(r.slug)}`;
     } catch (e) {
       toast((e as Error).message, 'error');
-    } finally {
       boton.disabled = false;
     }
   });
-
-  function renderCuentas() {
-    opcionesSlug();
-    const filas = D.usuarios.map((u) => {
-      const t = u.torre ? torreDe(u.torre) : null;
-      const emp = D.filas.find((f) => f.slug === u.slug);
-      return h(
-        'article',
-        { class: 'fila', style: t ? `--t:${t.color_hex};--t-claro:${t.color_claro}` : '--t:var(--cierzo);--t-claro:var(--cierzo-claro)' },
-        h('div', { class: 'mini-foto', text: u.rol === 'admin' ? '🛠️' : (t?.emoji_simbolo ?? '🏠') }),
-        h('div', {}, h('h3', { text: u.nombre || u.email }), h('div', { class: 'sub', text: u.email })),
-        h(
-          'div',
-          { class: 'meta' },
-          h('span', { class: 'pill-t', text: u.rol === 'admin' ? 'Comité' : `${t?.nombre ?? ''} ${u.apartamento}` }),
-          emp ? h('span', { class: 'sub', text: emp.nombre || 'Emprendimiento en borrador' }) : null,
-        ),
-        h(
-          'div',
-          { class: 'fila-acciones' },
-          u.slug ? h('a', { class: 'btn btn-ghost btn-sm', href: `/admin?slug=${encodeURIComponent(u.slug)}`, text: 'Ver panel' }) : null,
-          u.email !== D.yo
-            ? h('button', {
-                type: 'button',
-                class: 'btn btn-peligro btn-sm',
-                text: 'Quitar acceso',
-                on: {
-                  click: async () => {
-                    if (!(await confirmar(`${u.email} ya no podrá entrar al panel. Su emprendimiento se conserva.`))) return;
-                    try {
-                      const r = await api<{ zerotrust: { sincronizado: boolean; motivo?: string } }>('/api/comite/cuentas', 'DELETE', { email: u.email });
-                      D.usuarios = D.usuarios.filter((x) => x.email !== u.email);
-                      D.filas = D.filas.map((f) => (f.owner_email === u.email ? { ...f, owner_email: null } : f));
-                      toast(r.zerotrust.sincronizado ? 'Acceso quitado (también en Zero Trust)' : 'Acceso quitado. Recuerda quitarlo en Zero Trust.', 'ok');
-                      renderCuentas();
-                      badges();
-                    } catch (e) {
-                      toast((e as Error).message, 'error');
-                    }
-                  },
-                },
-              })
-            : h('span', { class: 'sub', text: 'Tú' }),
-        ),
-      );
-    });
-    $('listaCuentas').replaceChildren(...(filas.length ? filas : [h('div', { class: 'vacio-lista', text: 'Aún no hay cuentas.' })]));
-    badges();
-  }
 
   // ───────────────────────── Editores genéricos ─────────────────────────
   function campo(label: string, input: HTMLElement, full = false) {
@@ -707,10 +600,9 @@ export function iniciarComite() {
 
   // ───────────────────────── Arranque ─────────────────────────
   renderEmprendedores();
-  renderCuentas();
   renderTorres();
   renderPatrocinadores();
   renderFechas();
   const inicial = location.hash.slice(1) as Tab;
-  irA(['emprendedores', 'cuentas', 'torres', 'patrocinadores', 'fechas'].includes(inicial) ? inicial : 'emprendedores');
+  irA(['emprendedores', 'torres', 'patrocinadores', 'fechas'].includes(inicial) ? inicial : 'emprendedores');
 }

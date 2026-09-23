@@ -1,12 +1,27 @@
-// Gestión de emprendedores por el comité: listar, aprobar, rechazar, destacar, borrar.
+// Gestión de emprendedores por el comité: listar, crear, aprobar, ocultar, destacar, borrar.
 import type { APIRoute } from 'astro';
 import { error, json, leerJson } from '../../../lib/api';
-import { borrarRegistro, cambiarEstado, filaComite, listarRegistros, marcarDestacado, obtenerRegistro } from '../../../lib/db';
-import { texto } from '../../../lib/validacion';
+import { borrarRegistro, cambiarEstado, crearEmprendimiento, filaComite, listarRegistros, marcarDestacado, obtenerRegistro } from '../../../lib/db';
+import { esTorre, texto } from '../../../lib/validacion';
 
 export const GET: APIRoute = async ({ locals }) => {
   const registros = await listarRegistros(locals.runtime.env.DB);
   return json(registros.map(filaComite));
+};
+
+/** Crea un emprendimiento vacío; el comité lo completa en /admin?slug=… */
+export const POST: APIRoute = async ({ locals, request }) => {
+  const body = await leerJson<{ nombre_vecino?: string; torre?: string; apartamento?: string; nombre_emprendimiento?: string }>(request);
+  if (!body || !esTorre(body.torre)) return error('Elige la torre.');
+  const apartamento = texto(body.apartamento, 10);
+  if (!apartamento) return error('Escribe el apartamento.');
+  const slug = await crearEmprendimiento(locals.runtime.env.DB, {
+    nombre_vecino: texto(body.nombre_vecino, 80),
+    torre: body.torre,
+    apartamento,
+    nombre_emprendimiento: texto(body.nombre_emprendimiento, 80),
+  });
+  return json({ slug }, 201);
 };
 
 type Accion = 'aprobar' | 'rechazar' | 'destacar';

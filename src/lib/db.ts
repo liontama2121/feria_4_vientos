@@ -1,7 +1,6 @@
 // Capa de datos sobre Cloudflare D1.
 // - El esquema se crea solo (CREATE TABLE IF NOT EXISTS) en el primer request de cada isolate.
 // - Si la base está vacía, se siembra con las content collections de src/content/.
-// - En `npm run dev` se crean además los usuarios de prueba (ver USUARIOS_DEV).
 import { getCollection } from 'astro:content';
 import {
   TORRES_BASE,
@@ -92,16 +91,6 @@ const ESQUEMA = [
     creado_at TEXT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_emprendedores_owner ON emprendedores(owner_email)`,
-  `CREATE TABLE IF NOT EXISTS usuarios (
-    email TEXT PRIMARY KEY,
-    nombre TEXT NOT NULL DEFAULT '',
-    rol TEXT NOT NULL DEFAULT 'vecino',
-    torre TEXT,
-    apartamento TEXT NOT NULL DEFAULT '',
-    slug TEXT,
-    email_avisos TEXT NOT NULL DEFAULT '',
-    creado_at TEXT NOT NULL
-  )`,
   `CREATE TABLE IF NOT EXISTS contenido (
     coleccion TEXT NOT NULL,
     id TEXT NOT NULL,
@@ -110,14 +99,6 @@ const ESQUEMA = [
   )`,
   `CREATE TABLE IF NOT EXISTS meta (clave TEXT PRIMARY KEY, valor TEXT NOT NULL)`,
 ];
-
-/** Usuarios de prueba creados solo en desarrollo. */
-export const USUARIOS_DEV = [
-  { email: 'aleida@dev.local', nombre: 'Aleida Rodríguez', rol: 'vecino', torre: 'austro', apartamento: '402', slug: 'dulces-aleida' },
-  { email: 'julio@dev.local', nombre: 'Julio Martínez', rol: 'vecino', torre: 'cierzo', apartamento: '301', slug: 'reparaciones-don-julio' },
-  { email: 'nuevo@dev.local', nombre: 'Camila Vecina', rol: 'vecino', torre: 'mistral', apartamento: '110', slug: null },
-  { email: 'comite@dev.local', nombre: 'Comité de la Feria', rol: 'admin', torre: null, apartamento: '', slug: null },
-] as const;
 
 const ahora = () => new Date().toISOString();
 
@@ -137,7 +118,6 @@ async function inicializar(db: D1Database) {
   await db.batch(ESQUEMA.map((s) => db.prepare(s)));
   const semilla = await db.prepare(`SELECT valor FROM meta WHERE clave = 'semilla'`).first<{ valor: string }>();
   if (!semilla) await sembrar(db);
-  if (import.meta.env.DEV) await sembrarUsuariosDev(db);
 }
 
 async function sembrar(db: D1Database) {
@@ -176,29 +156,6 @@ async function sembrar(db: D1Database) {
   }
   stmts.push(db.prepare(`INSERT OR REPLACE INTO meta (clave, valor) VALUES ('semilla', ?)`).bind(t));
   await db.batch(stmts);
-}
-
-async function sembrarUsuariosDev(db: D1Database) {
-  for (const u of USUARIOS_DEV) {
-    const existe = await obtenerUsuario(db, u.email);
-    if (existe) continue;
-    if (u.rol === 'admin') {
-      await db
-        .prepare(`INSERT OR IGNORE INTO usuarios (email, nombre, rol, torre, apartamento, slug, email_avisos, creado_at) VALUES (?, ?, 'admin', NULL, '', NULL, ?, ?)`)
-        .bind(u.email, u.nombre, u.email, ahora())
-        .run();
-      continue;
-    }
-    if (u.slug) {
-      await db
-        .prepare(`INSERT OR IGNORE INTO usuarios (email, nombre, rol, torre, apartamento, slug, email_avisos, creado_at) VALUES (?, ?, 'vecino', ?, ?, ?, ?, ?)`)
-        .bind(u.email, u.nombre, u.torre, u.apartamento, u.slug, u.email, ahora())
-        .run();
-      await db.prepare(`UPDATE emprendedores SET owner_email = ? WHERE slug = ? AND owner_email IS NULL`).bind(u.email, u.slug).run();
-    } else {
-      await crearCuenta(db, { email: u.email, nombre: u.nombre, rol: 'vecino', torre: u.torre as TorreId, apartamento: u.apartamento });
-    }
-  }
 }
 
 // ───────────────────────── Contenido (torres, patrocinadores, fechas) ─────────────────────────
@@ -325,7 +282,7 @@ export async function guardarBorrador(db: D1Database, slug: string, datos: Datos
   return t;
 }
 
-/** Copia el borrador a la versión pública. Si estaba rechazado vuelve a revisión. */
+/** Copia el borrador a la versión pública y lo deja aprobado: solo el comité publica. */
 export async function publicarRegistro(db: D1Database, slug: string, datos: DatosEmprendimiento) {
   const t = ahora();
   const json = JSON.stringify(datos);
@@ -333,8 +290,7 @@ export async function publicarRegistro(db: D1Database, slug: string, datos: Dato
     .prepare(
       `UPDATE emprendedores
          SET borrador = ?, publicado = ?, borrador_at = ?, publicado_at = ?,
-             estado = CASE WHEN estado = 'rechazado' THEN 'pendiente' ELSE estado END,
-             motivo = CASE WHEN estado = 'rechazado' THEN '' ELSE motivo END
+             estado = 'aprobado', motivo = ''
        WHERE slug = ?`,
     )
     .bind(json, json, t, t, slug)
@@ -359,22 +315,10 @@ export async function marcarDestacado(db: D1Database, slug: string, valor: boole
 }
 
 export async function borrarRegistro(db: D1Database, slug: string) {
-  await db.batch([
-    db.prepare(`DELETE FROM emprendedores WHERE slug = ?`).bind(slug),
-    db.prepare(`UPDATE usuarios SET slug = NULL WHERE slug = ?`).bind(slug),
-  ]);
+  await db.prepare(`DELETE FROM emprendedores WHERE slug = ?`).bind(slug).run();
 }
 
-// ───────────────────────── Usuarios ─────────────────────────
-
-export async function obtenerUsuario(db: D1Database, email: string): Promise<Usuario | null> {
-  return db.prepare(`SELECT * FROM usuarios WHERE email = ?`).bind(email.toLowerCase()).first<Usuario>();
-}
-
-export async function listarUsuarios(db: D1Database): Promise<Usuario[]> {
-  const { results } = await db.prepare(`SELECT * FROM usuarios ORDER BY rol, creado_at DESC`).all<Usuario>();
-  return results;
-}
+// ───────────────────────── Nuevos emprendimientos ─────────────────────────
 
 function slugify(s: string) {
   return s
@@ -391,71 +335,21 @@ async function slugLibre(db: D1Database, base: string) {
   return slug;
 }
 
-export interface NuevaCuenta {
-  email: string;
-  nombre: string;
-  rol: Rol;
-  torre: TorreId | null;
-  apartamento: string;
-  /** Asignar un emprendimiento existente (p. ej. uno sembrado) en lugar de crear uno vacío. */
-  slug?: string | null;
-}
-
-/** Crea la cuenta del vecino y su emprendimiento vacío (en borrador) listo para completar en /admin. */
-export async function crearCuenta(db: D1Database, c: NuevaCuenta): Promise<Usuario> {
-  const email = c.email.toLowerCase();
-  let slug: string | null = null;
-  if (c.rol === 'vecino') {
-    if (c.slug && (await obtenerRegistro(db, c.slug))) {
-      slug = c.slug;
-      await db.prepare(`UPDATE emprendedores SET owner_email = ? WHERE slug = ?`).bind(email, slug).run();
-    } else {
-      slug = await slugLibre(db, `${c.torre ?? 'torre'}-${c.apartamento || email.split('@')[0]}`);
-      const datos = datosVacios({ nombre_vecino: c.nombre, apartamento: c.apartamento, torre: c.torre ?? 'mistral' });
-      await db
-        .prepare(
-          `INSERT INTO emprendedores (slug, owner_email, estado, motivo, borrador, publicado, borrador_at, publicado_at, creado_at)
-           VALUES (?, ?, 'pendiente', '', ?, NULL, NULL, NULL, ?)`,
-        )
-        .bind(slug, email, JSON.stringify(datos), ahora())
-        .run();
-    }
-  }
-  const usuario: Usuario = {
-    email,
-    nombre: c.nombre,
-    rol: c.rol,
-    torre: c.torre,
-    apartamento: c.apartamento,
-    slug,
-    email_avisos: email,
-    creado_at: ahora(),
-  };
+/**
+ * El comité crea un emprendimiento vacío y lo completa en /admin?slug=…
+ * Nace aprobado: como solo el comité edita, al publicar sale directo en la landing.
+ */
+export async function crearEmprendimiento(db: D1Database, c: { nombre_vecino: string; torre: TorreId; apartamento: string; nombre_emprendimiento?: string }) {
+  const slug = await slugLibre(db, c.nombre_emprendimiento || `${c.torre}-${c.apartamento}`);
+  const datos = datosVacios({ nombre_vecino: c.nombre_vecino, apartamento: c.apartamento, torre: c.torre, nombre_emprendimiento: c.nombre_emprendimiento ?? '' });
   await db
     .prepare(
-      `INSERT OR REPLACE INTO usuarios (email, nombre, rol, torre, apartamento, slug, email_avisos, creado_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO emprendedores (slug, owner_email, estado, motivo, borrador, publicado, borrador_at, publicado_at, creado_at)
+       VALUES (?, NULL, 'aprobado', '', ?, NULL, NULL, NULL, ?)`,
     )
-    .bind(usuario.email, usuario.nombre, usuario.rol, usuario.torre, usuario.apartamento, usuario.slug, usuario.email_avisos, usuario.creado_at)
+    .bind(slug, JSON.stringify(datos), ahora())
     .run();
-  return usuario;
-}
-
-export async function borrarCuenta(db: D1Database, email: string) {
-  await db.batch([
-    db.prepare(`UPDATE emprendedores SET owner_email = NULL WHERE owner_email = ?`).bind(email),
-    db.prepare(`DELETE FROM usuarios WHERE email = ?`).bind(email),
-  ]);
-}
-
-export async function actualizarCuenta(db: D1Database, email: string, cambios: { nombre?: string; email_avisos?: string; torre?: TorreId; apartamento?: string }) {
-  const u = await obtenerUsuario(db, email);
-  if (!u) return null;
-  const nuevo = { ...u, ...cambios };
-  await db
-    .prepare(`UPDATE usuarios SET nombre = ?, email_avisos = ?, torre = ?, apartamento = ? WHERE email = ?`)
-    .bind(nuevo.nombre, nuevo.email_avisos, nuevo.torre, nuevo.apartamento, u.email)
-    .run();
-  return nuevo;
+  return slug;
 }
 
 // ───────────────────────── Vistas para panel y comité ─────────────────────────

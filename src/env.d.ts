@@ -9,25 +9,18 @@ type R2Bucket = import('@cloudflare/workers-types/index').R2Bucket;
 interface Env {
   DB: D1Database;
   MEDIA: R2Bucket;
-  /** p. ej. "feria4vientos.cloudflareaccess.com" */
-  CF_ACCESS_TEAM_DOMAIN?: string;
-  /** Application Audience (AUD) tag(s) de las apps de Access, separados por coma */
-  CF_ACCESS_AUD?: string;
-  /** Correos con rol admin, separados por coma */
-  ADMIN_EMAILS?: string;
-  /** Opcionales: sincronizar cuentas nuevas con un grupo de Zero Trust */
-  CF_API_TOKEN?: string;
-  CF_ACCOUNT_ID?: string;
-  CF_ACCESS_GROUP_VECINOS?: string;
+  /** Usuario y contraseña del panel del comité */
+  ADMIN_USER?: string;
+  ADMIN_PASSWORD?: string;
+  /** Opcional: texto largo aleatorio que refuerza la firma de la cookie de sesión */
+  SESSION_SECRET?: string;
 }
 
 type Runtime = import('@astrojs/cloudflare').Runtime<Env>;
 
 declare namespace App {
   interface Locals extends Runtime {
-    /** Email verificado (Zero Trust o usuario dev). null si no hay sesión. */
-    email: string | null;
-    /** Cuenta en D1. null si el email no tiene cuenta activa. */
+    /** El comité si hay sesión válida; null si no. */
     usuario: import('./lib/db').Usuario | null;
   }
 }

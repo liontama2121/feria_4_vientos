@@ -1,13 +1,13 @@
 import { defineMiddleware } from 'astro:middleware';
-import { identidad, resolverUsuario } from './lib/auth';
+import { COOKIE_SESION, sesionValida, usuarioComite } from './lib/auth';
 import { asegurarDb } from './lib/db';
 import { error } from './lib/api';
 
-const PRIVADO = /^\/(admin|api\/(panel|comite))(\/|$)/;
+// /admin/login queda afuera: es donde se inicia sesión.
+const PRIVADO = /^\/(admin(?!\/login)|api\/(panel|comite))(\/|$)/;
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
-  const { pathname } = ctx.url;
-  ctx.locals.email = null;
+  const { pathname, search } = ctx.url;
   ctx.locals.usuario = null;
 
   const env = ctx.locals.runtime?.env;
@@ -16,14 +16,12 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
 
   if (!PRIVADO.test(pathname)) return next();
 
-  const email = await identidad(ctx.request, env, ctx.cookies);
-  const usuario = email ? await resolverUsuario(env.DB, email, env) : null;
-  ctx.locals.email = email;
-  ctx.locals.usuario = usuario;
-
-  if (pathname.startsWith('/api/')) {
-    if (!usuario) return error('Tu sesión no es válida o tu cuenta aún no está activa.', 401);
-    if (pathname.startsWith('/api/comite') && usuario.rol !== 'admin') return error('Solo el comité puede hacer esto.', 403);
+  if (await sesionValida(env, ctx.cookies.get(COOKIE_SESION)?.value)) {
+    ctx.locals.usuario = usuarioComite(env);
+  } else if (pathname.startsWith('/api/')) {
+    return error('Tu sesión expiró. Vuelve a entrar.', 401);
+  } else {
+    return ctx.redirect(`/admin/login?next=${encodeURIComponent(pathname + search)}`);
   }
 
   const res = await next();

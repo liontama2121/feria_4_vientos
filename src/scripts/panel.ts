@@ -11,8 +11,6 @@ interface DatosPanel {
   resumen: ResumenPanel;
   torres: Torre[];
   categorias: { id: CategoriaId; label: string; emoji: string }[];
-  cuenta: { email: string; rol: 'vecino' | 'admin'; nombre: string; email_avisos: string };
-  editandoComoComite: boolean;
   limites: { descripcionCorta: number; galeria: number; fotoBytes: number; fotoLado: number; autoSaveMs: number };
   iconos: Record<Red, string>;
 }
@@ -40,8 +38,8 @@ const CABECERAS: Record<Vista, { eyebrow: string; titulo: [string, string, strin
   },
   configuracion: {
     eyebrow: 'CONFIGURACIÓN',
-    titulo: ['Tu ', 'cuenta', '.'],
-    desc: 'Datos de acceso y correo donde te llegan las novedades de la feria.',
+    titulo: ['Tu ', 'acceso', '.'],
+    desc: 'Usuario del panel y cómo cambiar la contraseña.',
   },
 };
 
@@ -138,9 +136,8 @@ export function iniciarPanel() {
   }
 
   function renderChip() {
-    if (D.editandoComoComite) return;
     const t = torreDe(estado.torre);
-    const nombre = estado.nombre_vecino || D.cuenta.nombre || 'Vecino';
+    const nombre = estado.nombre_vecino || 'Vecino sin nombre';
     $('userAvatar').textContent = iniciales(nombre);
     $('userName').textContent = nombre;
     $('userApto').textContent = `· ${t.nombre} ${estado.apartamento}`;
@@ -183,15 +180,15 @@ export function iniciarPanel() {
       pendiente: {
         cls: 'espera',
         ico: '⏳',
-        titulo: 'En revisión del comité',
-        texto: `Ya enviaste tu emprendimiento. Aparecerá en la landing cuando el comité lo apruebe, normalmente el mismo día.${pendientes}`,
+        titulo: 'Pendiente de aprobación',
+        texto: `Está publicado pero falta aprobarlo en la lista del comité.${pendientes}`,
       },
-      rechazado: { cls: 'alerta', ico: '⚠️', titulo: 'El comité pidió cambios', texto: `“${resumen.motivo}” Corrige y vuelve a publicar.` },
+      rechazado: { cls: 'alerta', ico: '🚫', titulo: 'Oculto por el comité', texto: 'No aparece en la landing. Actívalo de nuevo con “Mostrar” en la lista del comité.' },
       borrador: {
         cls: 'espera',
         ico: '✏️',
         titulo: 'Aún no has publicado',
-        texto: 'Completa los 5 pasos y dale a “Publicar cambios”. El comité revisa cada registro nuevo antes de mostrarlo.',
+        texto: 'Completa los 5 pasos y dale a “Publicar cambios”: aparece en la landing al instante.',
       },
     };
     const c = conf[resumen.estado_visible];
@@ -654,7 +651,7 @@ export function iniciarPanel() {
       const t = torreDe(estado.torre).nombre;
       const msg: Record<ResumenPanel['estado_visible'], string> = {
         publicado: `¡Publicado! Ya apareces en la sección ${t} 🎉`,
-        pendiente: 'Enviado al comité. Te avisamos cuando esté aprobado.',
+        pendiente: 'Guardado. Falta aprobarlo en la lista del comité para que salga en la landing.',
         oculto: 'Guardado. Tu emprendimiento está oculto de la landing.',
         rechazado: 'Guardado.',
         borrador: 'Guardado.',
@@ -704,18 +701,6 @@ export function iniciarPanel() {
   });
   dlg.querySelector('[data-cerrar]')!.addEventListener('click', () => dlg.close());
   dlg.addEventListener('click', (ev) => ev.target === dlg && dlg.close());
-
-  // ───────────────────────── Configuración ─────────────────────────
-  $('btnGuardarCuenta').addEventListener('click', async () => {
-    const correo = $<HTMLInputElement>('cfgAvisos').value.trim();
-    const res = await fetch('/api/panel/cuenta', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email_avisos: correo }),
-    });
-    const j = await res.json().catch(() => ({}));
-    toast(res.ok ? 'Correo de notificaciones actualizado ✓' : j.error || 'No se pudo guardar.', res.ok ? 'ok' : 'error');
-  });
 
   // ───────────────────────── Arranque ─────────────────────────
   aplicarTorre();

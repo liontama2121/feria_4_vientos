@@ -1,0 +1,67 @@
+---
+// Entrada al panel del comité (usuario y contraseña de las variables de entorno).
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import Molinete from '../../components/Molinete.astro';
+import { authConfigurada } from '../../lib/auth';
+
+const env = Astro.locals.runtime.env;
+const configurada = authConfigurada(env);
+const next = Astro.url.searchParams.get('next') ?? '/admin/comite';
+const fallo = Astro.url.searchParams.has('error');
+---
+
+<Layout title="Entrar · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel comite">
+  <div class="sin-acceso">
+    <form class="card login" method="post" action="/api/login">
+      <Molinete size={72} spin />
+      <h1>Panel de la <span class="serif">feria</span></h1>
+      <p>Entra con el usuario y la contraseña del comité.</p>
+
+      {
+        !configurada && (
+          <div class="estado alerta">
+            <span class="ico">⚠️</span>
+            <div>
+              <strong>Falta configurar el acceso</strong>
+              Agrega las variables ADMIN_USER y ADMIN_PASSWORD en Cloudflare Pages → Settings → Variables and Secrets y vuelve a desplegar.
+            </div>
+          </div>
+        )
+      }
+      {
+        fallo && (
+          <div class="estado alerta" role="alert">
+            <span class="ico">🔒</span>
+            <div>
+              <strong>Usuario o contraseña incorrectos</strong>
+              Revisa e intenta de nuevo.
+            </div>
+          </div>
+        )
+      }
+
+      <input type="hidden" name="next" value={next} />
+      <div class="field">
+        <label for="usuario">Usuario</label>
+        <input id="usuario" name="usuario" type="text" autocomplete="username" required autofocus />
+      </div>
+      <div class="field">
+        <label for="clave">Contraseña</label>
+        <input id="clave" name="clave" type="password" autocomplete="current-password" required />
+      </div>
+      <button class="btn btn-primary" type="submit" disabled={!configurada}>Entrar</button>
+      <a class="volver" href="/">← Volver a la feria</a>
+    </form>
+  </div>
+</Layout>
+
+<style>
+  .login { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; text-align: left; }
+  .login :global(.molinete) { margin: 0 auto 4px; }
+  .login h1 { text-align: center; margin-bottom: 0; }
+  .login > p { text-align: center; margin-bottom: 6px; }
+  .login .estado { margin-bottom: 0; }
+  .login .btn { margin-top: 6px; width: 100%; }
+  .volver { text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
+</style>

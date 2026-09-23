@@ -30,8 +30,8 @@ const conteo = Object.fromEntries(torres.map((t) => [t.id, porTorre[t.id].length
 const destacados = emprendedores.filter((e) => e.destacado);
 const fechas = proximas(todasLasFechas);
 
-// Cache corto en el edge: el público ve cambios en menos de un minuto.
-Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=30, stale-while-revalidate=60');
+// Sin caché: lo que el comité publica se ve apenas se recarga la página.
+Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 
 <Layout>

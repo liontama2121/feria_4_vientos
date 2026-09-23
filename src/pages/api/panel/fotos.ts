@@ -13,7 +13,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
     return error('No recibimos la foto.');
   }
   const slug = slugEditable(locals, form.get('slug'));
-  if (!slug) return error('Tu cuenta no tiene un emprendimiento asignado.', 404);
+  if (!slug) return error('Falta indicar qué emprendimiento editar.', 404);
   if (!(await obtenerRegistro(locals.runtime.env.DB, slug))) return error('No encontramos el emprendimiento.', 404);
 
   const r = await guardarImagen(locals.runtime.env.MEDIA, `emprendedores/${slug}`, form.get('foto'), locals.usuario?.email ?? '');

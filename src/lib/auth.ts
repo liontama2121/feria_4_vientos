@@ -1,79 +1,88 @@
-// Autenticación del panel.
+// Autenticación del panel: UN usuario y UNA contraseña del comité, definidos en las
+// variables de entorno ADMIN_USER y ADMIN_PASSWORD (Cloudflare Pages → Settings → Variables).
 //
-// Producción: Cloudflare Zero Trust (Access) se pone delante de /admin y /api/panel|comite
-// con login de Google. Access agrega el header `Cf-Access-Jwt-Assertion` (y la cookie
-// CF_Authorization); aquí verificamos esa firma contra las llaves públicas del equipo y
-// sacamos el email. El ROL sale de D1 (tabla usuarios) o de la variable ADMIN_EMAILS.
+// Al entrar se guarda una cookie de sesión firmada con HMAC-SHA256 (7 días). La llave sale
+// de la contraseña + SESSION_SECRET: si cambias la contraseña, todas las sesiones se cierran.
 //
-// Desarrollo (`npm run dev`): no hay Access. Se usa un usuario de prueba elegido con la
-// cookie `f4v_dev_as` (por defecto aleida@dev.local). Esto NO existe en el build de producción
-// porque `import.meta.env.DEV` es false y el bloque se elimina al compilar.
+// En `npm run dev`, si no hay variables (.dev.vars), el acceso es comite / feria4vientos.
 import type { AstroCookies } from 'astro';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { obtenerUsuario, type Usuario } from './db';
+import type { Usuario } from './db';
 
-export const COOKIE_DEV = 'f4v_dev_as';
-export const USUARIO_DEV_POR_DEFECTO = 'aleida@dev.local';
+export const COOKIE_SESION = 'f4v_sesion';
+const DURACION_S = 60 * 60 * 24 * 7;
+const enc = new TextEncoder();
 
-type JWKS = ReturnType<typeof createRemoteJWKSet>;
-const jwksPorEquipo = new Map<string, JWKS>();
-
-function jwks(equipo: string) {
-  let set = jwksPorEquipo.get(equipo);
-  if (!set) {
-    set = createRemoteJWKSet(new URL(`https://${equipo}/cdn-cgi/access/certs`));
-    jwksPorEquipo.set(equipo, set);
-  }
-  return set;
+function credenciales(env: Env) {
+  const user = env.ADMIN_USER?.trim() || (import.meta.env.DEV ? 'comite' : '');
+  const pass = env.ADMIN_PASSWORD || (import.meta.env.DEV ? 'feria4vientos' : '');
+  return { user, pass };
 }
 
-/** Email verificado de quien hace el request, o null. */
-export async function identidad(request: Request, env: Env, cookies: AstroCookies): Promise<string | null> {
-  if (import.meta.env.DEV) {
-    return (cookies.get(COOKIE_DEV)?.value || USUARIO_DEV_POR_DEFECTO).toLowerCase();
-  }
-  const equipo = env.CF_ACCESS_TEAM_DOMAIN?.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  // Puede haber varias apps de Access (panel y comité): AUDs separados por coma.
-  const aud = (env.CF_ACCESS_AUD ?? '').split(',').map((a) => a.trim()).filter(Boolean);
-  if (!equipo || !aud.length) return null;
-  const token = request.headers.get('cf-access-jwt-assertion') || cookies.get('CF_Authorization')?.value;
-  if (!token) return null;
-  try {
-    const { payload } = await jwtVerify(token, jwks(equipo), { issuer: `https://${equipo}`, audience: aud });
-    return typeof payload.email === 'string' ? payload.email.toLowerCase() : null;
-  } catch {
-    return null;
-  }
+export function authConfigurada(env: Env) {
+  const { user, pass } = credenciales(env);
+  return !!(user && pass);
 }
 
-export function esAdminPorEntorno(email: string, env: Env) {
-  return (env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-    .includes(email);
+async function hmac(env: Env, datos: string) {
+  const { user, pass } = credenciales(env);
+  const llave = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(`${user}|${pass}|${env.SESSION_SECRET ?? ''}`),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const firma = new Uint8Array(await crypto.subtle.sign('HMAC', llave, enc.encode(datos)));
+  return btoa(String.fromCharCode(...firma)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-/** Usuario de la base, con rol admin forzado si su email está en ADMIN_EMAILS. */
-export async function resolverUsuario(db: D1Database, email: string, env: Env): Promise<Usuario | null> {
-  const u = await obtenerUsuario(db, email);
-  if (esAdminPorEntorno(email, env)) {
-    return (
-      (u && { ...u, rol: 'admin' }) ?? {
-        email,
-        nombre: 'Comité',
-        rol: 'admin',
-        torre: null,
-        apartamento: '',
-        slug: null,
-        email_avisos: email,
-        creado_at: new Date().toISOString(),
-      }
-    );
-  }
-  return u;
+/** Comparación en tiempo constante (sobre los hashes, así el largo no filtra nada). */
+async function iguales(a: string, b: string) {
+  const [ha, hb] = await Promise.all([a, b].map((s) => crypto.subtle.digest('SHA-256', enc.encode(s))));
+  const x = new Uint8Array(ha);
+  const y = new Uint8Array(hb);
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
 }
 
-export function urlCerrarSesion() {
-  return import.meta.env.DEV ? '/api/dev/login?salir=1' : '/cdn-cgi/access/logout';
+export async function credencialesValidas(env: Env, user: string, pass: string) {
+  const c = credenciales(env);
+  if (!c.user || !c.pass) return false;
+  const [okUser, okPass] = await Promise.all([iguales(user.trim(), c.user), iguales(pass, c.pass)]);
+  return okUser && okPass;
+}
+
+export async function crearSesion(env: Env) {
+  const exp = Math.floor(Date.now() / 1000) + DURACION_S;
+  return `${exp}.${await hmac(env, `sesion.${exp}`)}`;
+}
+
+export async function sesionValida(env: Env, token: string | undefined) {
+  if (!token || !authConfigurada(env)) return false;
+  const [exp, firma] = token.split('.');
+  if (!exp || !firma || Number(exp) < Date.now() / 1000) return false;
+  return iguales(firma, await hmac(env, `sesion.${exp}`));
+}
+
+export function opcionesCookie(url: URL) {
+  return { path: '/', httpOnly: true, sameSite: 'lax' as const, secure: url.protocol === 'https:', maxAge: DURACION_S };
+}
+
+export function borrarSesion(cookies: AstroCookies) {
+  cookies.delete(COOKIE_SESION, { path: '/' });
+}
+
+/** El único usuario del panel: el comité. */
+export function usuarioComite(env: Env): Usuario {
+  return {
+    email: credenciales(env).user,
+    nombre: 'Comité de la Feria',
+    rol: 'admin',
+    torre: null,
+    apartamento: '',
+    slug: null,
+    email_avisos: '',
+    creado_at: '',
+  };
 }
