@@ -1,7 +1,7 @@
 // Lógica del panel del vecino (/admin).
 // Estado único en memoria (`estado`) → todo se re-pinta desde ahí: vista previa, chip del
 // usuario, contador de fotos, pasos completos y color de torre.
-import { iniciales, type CategoriaId, type DatosEmprendimiento, type TorreId } from '../lib/constantes';
+import { dominioWeb, iniciales, type CategoriaId, type DatosEmprendimiento, type TorreId } from '../lib/constantes';
 import type { ResumenPanel, Torre } from '../lib/db';
 
 type Vista = 'emprendimiento' | 'fotos' | 'redes' | 'publicacion' | 'configuracion';
@@ -121,6 +121,10 @@ export function iniciarPanel() {
     texto($('prevNombre'), estado.nombre_emprendimiento, 'Tu emprendimiento');
     texto($('prevBy'), estado.nombre_vecino ? `${estado.nombre_vecino} · ${t.nombre} ${estado.apartamento}` : '', `Tu nombre · ${t.nombre} ${estado.apartamento}`);
     texto($('prevDesc'), estado.descripcion_corta, 'Aquí va tu descripción corta: qué ofreces y qué te hace especial.');
+
+    const web = $('prevWeb');
+    web.hidden = !estado.pagina_web;
+    $('prevWebDominio').textContent = dominioWeb(estado.pagina_web);
 
     const redes = $('prevRedes');
     redes.replaceChildren(
@@ -279,6 +283,7 @@ export function iniciarPanel() {
     const campo = inp.dataset.campo as keyof DatosEmprendimiento;
     inp.value = String(estado[campo] ?? '');
     if (campo === 'whatsapp') inp.value = formatoCelular(estado.whatsapp);
+    if (campo === 'pagina_web') inp.value = estado.pagina_web.replace(/^https?:\/\//i, '').replace(/\/$/, '');
     inp.addEventListener('input', () => {
       let v = inp.value;
       if (campo === 'whatsapp') {
@@ -287,6 +292,8 @@ export function iniciarPanel() {
         v = d.slice(0, 10);
       }
       if (campo === 'instagram' || campo === 'tiktok') v = v.replace(/^@+/, '').trim();
+      // El prefijo https:// ya está pintado: si pegan la URL completa, no se duplica.
+      if (campo === 'pagina_web' && /^https?:\/\//i.test(v)) inp.value = v = v.replace(/^https?:\/\//i, '');
       (estado as unknown as Record<string, string>)[campo] = v;
       limpiarError(campo);
       marcarSucio();

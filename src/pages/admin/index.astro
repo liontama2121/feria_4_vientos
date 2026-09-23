@@ -258,7 +258,7 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
               <div class="card-head">
                 <div>
                   <h2>Redes sociales y contacto</h2>
-                  <p>El WhatsApp es obligatorio, el resto es opcional.</p>
+                  <p>El WhatsApp es obligatorio; redes y página web son opcionales.</p>
                 </div>
                 <div class="step">4</div>
               </div>
@@ -317,6 +317,21 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                       <div class="pre">facebook.com/</div>
                       <input type="text" data-campo="facebook" value={d.facebook} placeholder="tu página" aria-label="Facebook" autocapitalize="off" />
                     </div>
+                  </div>
+                  <span class="tag opt">Opcional</span>
+                </div>
+                <div class="red-row">
+                  <div class="ico web">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d={ICONOS.web} />
+                    </svg>
+                  </div>
+                  <div class="field" data-field="pagina_web">
+                    <div class="input-prefix">
+                      <div class="pre">https://</div>
+                      <input type="url" data-campo="pagina_web" value={d.pagina_web} placeholder="tupagina.com" aria-label="Página web" autocapitalize="off" inputmode="url" />
+                    </div>
+                    <span class="hint">Si tiene página web, en la landing sale un botón grande “Entra aquí”.</span>
                   </div>
                   <span class="tag opt">Opcional</span>
                 </div>
@@ -425,6 +440,13 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                 <div class="foot">
                   <div class="socials" id="prevRedes" />
                   <span class="cta">Ver más</span>
+                </div>
+                <div class="prev-web" id="prevWeb" hidden>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d={ICONOS.web} />
+                  </svg>
+                  <span>Entra aquí <small id="prevWebDominio" /></span>
+                  <span aria-hidden="true">→</span>
                 </div>
               </div>
             </div>

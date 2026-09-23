@@ -88,7 +88,7 @@ src/
 - `contenido(coleccion, id, data JSON)` para torres, patrocinadores y fechas.
 - `meta(clave, valor)` — `semilla` marca que ya se sembró.
 
-Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_emprendimiento, nombre_vecino, apartamento, torre, categoria, descripcion_corta (≤160), descripcion_larga, foto_principal, galeria (≤5 extra), whatsapp (10 dígitos, sin +57), instagram, tiktok, facebook, destacado, publicado, recibir_avisos, emoji_placeholder.
+Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_emprendimiento, nombre_vecino, apartamento, torre, categoria, descripcion_corta (≤160), descripcion_larga, foto_principal, galeria (≤5 extra), whatsapp (10 dígitos, sin +57), instagram, tiktok, facebook, pagina_web (URL https, opcional: si existe, la card y el modal muestran un botón grande "Entra aquí"), destacado, publicado, recibir_avisos, emoji_placeholder.
 
 ## Cómo se agrupan por torre en la landing
 

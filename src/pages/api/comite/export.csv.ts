@@ -41,7 +41,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
     .sort((a, b) => a.torre.localeCompare(b.torre) || a.apartamento.localeCompare(b.apartamento, 'es', { numeric: true }));
 
   const nombreTorre = (id: string) => torres.find((t) => t.id === id)?.nombre ?? id;
-  const encabezado = ['Emprendimiento', 'Vecino', 'Torre', 'Apartamento', 'Categoría', 'WhatsApp (+57)', 'Instagram (@)', 'TikTok (@)', 'Facebook', 'Estado', 'Destacado', 'Recibe avisos', 'Correo de acceso', 'Descripción corta', 'Última publicación'];
+  const encabezado = ['Emprendimiento', 'Vecino', 'Torre', 'Apartamento', 'Categoría', 'WhatsApp (+57)', 'Instagram (@)', 'TikTok (@)', 'Facebook', 'Página web', 'Estado', 'Destacado', 'Recibe avisos', 'Correo de acceso', 'Descripción corta', 'Última publicación'];
   const lineas = filas.map((r) =>
     [
       r.nombre,
@@ -53,6 +53,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
       r.instagram,
       r.tiktok,
       r.facebook ? `facebook.com/${r.facebook}` : '',
+      r.pagina_web,
       ETIQUETA_ESTADO[r.estado_visible],
       r.destacado ? 'Sí' : 'No',
       r.recibir_avisos ? 'Sí' : 'No',

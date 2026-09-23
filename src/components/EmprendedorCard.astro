@@ -1,5 +1,5 @@
 ---
-import { ICONOS, categoria, enlacesRedes } from '../lib/constantes';
+import { ICONOS, categoria, dominioWeb, enlacesRedes } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
@@ -40,6 +40,19 @@ const redes = enlacesRedes(e);
       </div>
       <button type="button" class="emp-cta" data-detalle={e.slug}>Ver más</button>
     </div>
+    {
+      e.pagina_web && (
+        <a class="emp-web" href={e.pagina_web} target="_blank" rel="noopener" aria-label={`Entrar a la página web de ${e.nombre_emprendimiento}`}>
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d={ICONOS.web} />
+          </svg>
+          <span>
+            Entra aquí <small>{dominioWeb(e.pagina_web)}</small>
+          </span>
+          <span aria-hidden="true">→</span>
+        </a>
+      )
+    }
   </div>
 </article>
 
@@ -93,4 +106,16 @@ const redes = enlacesRedes(e);
     transition: transform .15s ease;
   }
   .emp-cta:hover { transform: translateY(-1px); }
+  .emp-web {
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 16px; padding: 14px 18px; border-radius: 16px;
+    background: var(--t); color: #fff;
+    font-family: var(--display); font-weight: 800; font-size: 16px;
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--t) 35%, transparent);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .emp-web:hover { transform: translateY(-2px); box-shadow: 0 14px 30px color-mix(in srgb, var(--t) 45%, transparent); }
+  .emp-web svg { width: 22px; height: 22px; flex: 0 0 auto; }
+  .emp-web span:first-of-type { flex: 1; display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+  .emp-web small { font-family: var(--body); font-weight: 600; font-size: 12px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

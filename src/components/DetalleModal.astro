@@ -1,7 +1,7 @@
 ---
 // Modal "Ver más": descripción larga, galería y redes. Se abre desde cualquier
 // botón con [data-detalle="slug"] (cards de torre y vitrina).
-import { categoria, enlacesRedes, ICONOS } from '../lib/constantes';
+import { categoria, dominioWeb, enlacesRedes, ICONOS } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
@@ -30,6 +30,8 @@ const datos = Object.fromEntries(
         fotos: [e.foto_principal, ...e.galeria].filter(Boolean),
         redes: enlacesRedes(e),
         whatsapp: e.whatsapp,
+        web: e.pagina_web,
+        webDominio: e.pagina_web ? dominioWeb(e.pagina_web) : '',
       },
     ];
   }),
@@ -50,6 +52,11 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
     <h3 id="detalle-nombre"></h3>
     <div id="detalle-by" class="by"></div>
     <div id="detalle-texto" class="texto"></div>
+    <a id="detalle-web" class="web" target="_blank" rel="noopener" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONOS.web}></path></svg>
+      <span>Entra aquí <small id="detalle-web-dominio"></small></span>
+      <span aria-hidden="true">→</span>
+    </a>
     <div id="detalle-redes" class="redes"></div>
   </div>
 </dialog>
@@ -60,7 +67,7 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
   type Red = { red: 'whatsapp' | 'instagram' | 'tiktok' | 'facebook'; url: string; label: string };
   type Detalle = {
     nombre: string; vecino: string; apto: string; torre: string; color: string; claro: string;
-    cat: string; emoji: string; corta: string; larga: string; fotos: string[]; redes: Red[]; whatsapp: string;
+    cat: string; emoji: string; corta: string; larga: string; fotos: string[]; redes: Red[]; whatsapp: string; web: string; webDominio: string;
   };
 
   const { datos, iconos } = JSON.parse(document.getElementById('detalle-datos')!.textContent!) as {
@@ -121,6 +128,14 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
       emoji.hidden = false;
       emoji.textContent = d.emoji;
       mini.hidden = true;
+    }
+
+    const web = $('detalle-web') as HTMLAnchorElement;
+    web.hidden = !d.web;
+    if (d.web) {
+      web.href = d.web;
+      web.setAttribute('aria-label', `Entrar a la página web de ${d.nombre}`);
+      $('detalle-web-dominio').textContent = d.webDominio;
     }
 
     const redes = $('detalle-redes');
@@ -186,6 +201,19 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
   h3 { font-size: 30px; letter-spacing: -.03em; margin: 4px 0 2px; }
   .by { color: var(--tinta-suave); font-weight: 700; font-size: 14px; margin-bottom: 16px; }
   .texto :global(p) { color: var(--tinta-media); font-size: 15px; margin-bottom: 12px; }
+  .web[hidden] { display: none; }
+  .web {
+    display: flex; align-items: center; gap: 12px; margin: 6px 0 4px;
+    padding: 16px 20px; border-radius: 18px;
+    background: var(--t); color: #fff;
+    font-family: var(--display); font-weight: 800; font-size: 18px;
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--t) 35%, transparent);
+    transition: transform .15s ease;
+  }
+  .web:hover { transform: translateY(-2px); }
+  .web svg { width: 24px; height: 24px; fill: currentColor; flex: 0 0 auto; }
+  .web span:first-of-type { flex: 1; display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+  .web small { font-family: var(--body); font-weight: 600; font-size: 12.5px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .redes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; }
   .redes :global(.red) {
     display: inline-flex; align-items: center; gap: 8px;

@@ -383,6 +383,7 @@ export function filaComite(r: Registro) {
     instagram: d.instagram,
     tiktok: d.tiktok,
     facebook: d.facebook,
+    pagina_web: d.pagina_web,
     foto: d.foto_principal,
     emoji: d.emoji_placeholder,
     destacado: d.destacado,

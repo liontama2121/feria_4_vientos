@@ -27,6 +27,7 @@ const emprendedores = defineCollection({
     instagram: usuario,
     tiktok: usuario,
     facebook: usuario,
+    pagina_web: z.string().url().or(z.literal('')).default(''),
     destacado: z.boolean().default(false),
     publicado: z.boolean().default(true),
     emoji_placeholder: z.string().default('✨'),

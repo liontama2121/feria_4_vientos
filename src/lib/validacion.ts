@@ -45,6 +45,19 @@ export function paginaFacebook(v: unknown): string {
     .slice(0, 80);
 }
 
+/** Página web del emprendimiento: siempre http(s), con dominio real. Sin esquema se asume https. */
+export function paginaWeb(v: unknown): string {
+  const s = texto(v, 200).replace(/\s+/g, '');
+  if (!s) return '';
+  try {
+    const url = new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`);
+    if (!/^https?:$/.test(url.protocol) || !url.hostname.includes('.') || url.username || url.password) return '';
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
 export function esTorre(v: unknown): v is TorreId {
   return typeof v === 'string' && (TORRE_IDS as readonly string[]).includes(v);
 }
@@ -75,6 +88,7 @@ export function sanearDatos(input: unknown, base: DatosEmprendimiento = datosVac
     instagram: usuarioRed(i.instagram),
     tiktok: usuarioRed(i.tiktok),
     facebook: paginaFacebook(i.facebook),
+    pagina_web: paginaWeb(i.pagina_web),
     destacado: i.destacado === true,
     publicado: i.publicado !== false,
     recibir_avisos: i.recibir_avisos !== false,
