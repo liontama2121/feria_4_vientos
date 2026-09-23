@@ -10,9 +10,7 @@
     {
       "binding": "DB",
       "database_name": "feria-4-vientos",
-      // Pega aquí el id que devuelve `npx wrangler d1 create feria-4-vientos`.
-      // En local cualquier valor funciona.
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "9527b321-3c07-4ffb-a941-f7cab6ec3aae"
     }
   ],
   "r2_buckets": [
