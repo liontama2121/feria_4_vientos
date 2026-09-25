@@ -22,7 +22,7 @@ const emprendedores = defineCollection({
     descripcion_corta: z.string().max(160),
     descripcion_larga: z.string().default(''),
     foto_principal: z.string().default(''),
-    galeria: z.array(z.string()).max(6).default([]),
+    galeria: z.array(z.string()).max(2).default([]),
     whatsapp: z.string().regex(/^\d{10}$/, 'Celular colombiano de 10 dígitos, sin +57'),
     instagram: usuario,
     tiktok: usuario,

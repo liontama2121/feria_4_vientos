@@ -37,7 +37,7 @@ export type TipoPatrocinador = (typeof TIPOS_PATROCINADOR)[number];
 export const LIMITES = {
   descripcionCorta: 160,
   descripcionLarga: 1500,
-  galeria: 5, // fotos adicionales a la principal
+  galeria: 2, // fotos adicionales a la principal (3 en total)
   // Fotos: el navegador acepta el original (fotos de celular de hasta 25 MB), lo reduce y
   // lo re-codifica; lo que llega al servidor (y a R2) no puede pasar de 800 KB.
   fotoOriginalBytes: 25 * 1024 * 1024,

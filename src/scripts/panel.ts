@@ -60,6 +60,8 @@ export function iniciarPanel() {
   const esAdmin = D.rol === 'admin';
   let editable = D.editable;
   const estado: DatosEmprendimiento = structuredClone(resumen.borrador);
+  // Registros de antes del límite de 3 fotos: se quedan con las primeras.
+  estado.galeria = estado.galeria.slice(0, D.limites.galeria);
   let sucio = false;
   let guardando = false;
   let subiendo = 0;

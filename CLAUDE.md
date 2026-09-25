@@ -139,7 +139,7 @@ El bloqueo se hace en el servidor (`puedeEditar` → 409 en borrador/fotos, `env
 - `contenido(coleccion, id, data JSON)` para torres, patrocinadores y fechas.
 - `meta(clave, valor)` — `semilla` marca que ya se sembró.
 
-Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_emprendimiento, nombre_vecino, apartamento ("Torre y apto", **opcional**: hay vecinos que solo quieren decir el conjunto; si está vacío no se muestra "Apto"), torre (= conjunto, obligatorio), categoria, descripcion_corta (≤160), descripcion_larga, foto_principal, galeria (≤5 extra), whatsapp (10 dígitos, sin +57), instagram, tiktok, facebook, pagina_web (URL https, opcional: si existe, la card y el modal muestran un botón grande "Entra aquí"), destacado, publicado, en_feria (participa en la feria; default false, semilla true; solo comité), recibir_avisos, emoji_placeholder.
+Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_emprendimiento, nombre_vecino, apartamento ("Torre y apto", **opcional**: hay vecinos que solo quieren decir el conjunto; si está vacío no se muestra "Apto"), torre (= conjunto, obligatorio), categoria, descripcion_corta (≤160), descripcion_larga, foto_principal, galeria (≤2 extra: 3 fotos en total), whatsapp (10 dígitos, sin +57), instagram, tiktok, facebook, pagina_web (URL https, opcional: si existe, la card y el modal muestran un botón grande "Entra aquí"), destacado, publicado, en_feria (participa en la feria; default false, semilla true; solo comité), recibir_avisos, emoji_placeholder.
 
 ## Cómo se agrupan por torre en la landing
 
@@ -151,7 +151,7 @@ Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_e
 - 5 vistas en el sidebar (hash en la URL): Mi emprendimiento (5 cards), Fotos, Redes sociales, Publicación, Configuración. Los toggles "Publicar en la landing", "Está en la feria 🎪" y "Destacar" solo los ve el admin.
 - Al elegir torre, `aplicarTorre()` pone `body[data-torre]` y las variables `--torre/--torre-claro/--torre-medio`.
 - Solo lectura: `body.solo-lectura` + `disabled` en inputs/chips/toggles/fotos (opacity .6, cursor not-allowed).
-- Fotos: hasta 6 (principal + 5), JPG/PNG/WEBP. El navegador acepta originales de hasta 25 MB, los reduce a 1200 px y re-codifica a WEBP (calidad 0.8; si aún pesa, baja calidad y tamaño hasta 800 px). El servidor rechaza todo lo que pase de **800 KB** (`LIMITES.fotoBytes`); logos de patrocinadores hasta 1 MB (`LIMITES.logoBytes`). Reorden con drag & drop o ← → ★.
+- Fotos: hasta 3 (principal + 2, `LIMITES.galeria`), JPG/PNG/WEBP. Registros viejos con más fotos: la landing y el editor solo usan las 3 primeras. El navegador acepta originales de hasta 25 MB, los reduce a 1200 px y re-codifica a WEBP (calidad 0.8; si aún pesa, baja calidad y tamaño hasta 800 px). El servidor rechaza todo lo que pase de **800 KB** (`LIMITES.fotoBytes`); logos de patrocinadores hasta 1 MB (`LIMITES.logoBytes`). Reorden con drag & drop o ← → ★.
 - **Auto-save cada 30 s** solo como borrador y solo en draft / changes_requested.
 
 ## Cola de moderación (`/admin/comite`)

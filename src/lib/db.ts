@@ -4,6 +4,7 @@
 // - Si la base está vacía, se siembra con las content collections de src/content/.
 import { getCollection } from 'astro:content';
 import {
+  LIMITES,
   TORRES_BASE,
   datosVacios,
   type DatosEmprendimiento,
@@ -411,7 +412,11 @@ export async function listarPublicos(db: D1Database): Promise<EmprendedorPublico
     .prepare(`SELECT slug, publicado FROM emprendedores WHERE estado = 'approved' AND publicado IS NOT NULL`)
     .all<{ slug: string; publicado: string }>();
   return results
-    .map((r) => ({ ...datosVacios(), ...JSON.parse(r.publicado), slug: r.slug }) as EmprendedorPublico)
+    .map((r) => {
+      const e = { ...datosVacios(), ...JSON.parse(r.publicado), slug: r.slug } as EmprendedorPublico;
+      // Registros de antes del límite de 3 fotos pueden traer más: la landing muestra solo 3.
+      return { ...e, galeria: e.galeria.slice(0, LIMITES.galeria) };
+    })
     .filter((e) => e.publicado)
     .sort((a, b) => Number(b.destacado) - Number(a.destacado) || a.nombre_emprendimiento.localeCompare(b.nombre_emprendimiento, 'es'));
 }
