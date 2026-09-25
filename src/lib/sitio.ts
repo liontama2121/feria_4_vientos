@@ -20,6 +20,6 @@ export function linkWhatsApp(mensaje: string, numero: string = SITIO.comiteWhats
 export const MENSAJES = {
   general: 'Hola comité de la Feria 4 Vientos 👋 Tengo una pregunta sobre la feria.',
   participar:
-    'Hola comité 👋 Quiero registrar mi emprendimiento en la Feria 4 Vientos. Mi nombre es ___, vivo en el conjunto ___, apartamento ___.',
+    'Hola comité 👋 Quiero registrar mi emprendimiento en la Feria 4 Vientos. Mi nombre es ___, vivo en el conjunto ___.',
   ayudaPanel: 'Hola comité 👋 Necesito ayuda con mi panel de la Feria 4 Vientos.',
 } as const;

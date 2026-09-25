@@ -1,0 +1,116 @@
+---
+// Registro público de vecinos. La cuenta queda en pending_activation hasta que el comité
+// la active en /admin/comite/cuentas. El envío lo procesa /api/registro.
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import Molinete from '../../components/Molinete.astro';
+import { listarTorres } from '../../lib/db';
+
+const torres = await listarTorres(Astro.locals.runtime.env.DB);
+const ERRORES: Record<string, string> = {
+  datos: 'Revisa los datos: nombre, conjunto, WhatsApp, correo y contraseña son obligatorios.',
+  whatsapp: 'El WhatsApp debe ser un celular colombiano de 10 dígitos, por ejemplo 300 123 4567.',
+  clave: 'La contraseña debe tener al menos 8 caracteres.',
+  existe: 'Ya hay una cuenta con ese correo. Si es tuya, entra desde el panel o escríbele al comité.',
+};
+const fallo = ERRORES[Astro.url.searchParams.get('error') ?? ''];
+---
+
+<Layout title="Registra tu emprendimiento · Feria 4 Vientos" noindex bodyClass="panel comite">
+  <div class="sin-acceso">
+    <form class="card registro" method="post" action="/api/registro">
+      <Molinete size={64} spin />
+      <h1>Súmate a la <span class="serif">feria</span></h1>
+      <p>Crea tu cuenta para registrar tu emprendimiento. El comité la activa en menos de 24 horas y te avisa por WhatsApp.</p>
+
+      {
+        fallo && (
+          <div class="estado alerta" role="alert">
+            <span class="ico">⚠️</span>
+            <div>
+              <strong>No pudimos crear la cuenta</strong>
+              {fallo}
+            </div>
+          </div>
+        )
+      }
+
+      <div class="field-grid">
+        <div class="field full">
+          <label for="nombre">Nombre completo <span class="req">●</span></label>
+          <input id="nombre" name="nombre" type="text" maxlength="80" autocomplete="name" required />
+        </div>
+        <div class="field">
+          <label for="torre">Conjunto <span class="req">●</span></label>
+          <select id="torre" name="torre" required>
+            {torres.map((t) => <option value={t.id}>{t.emoji_simbolo} {t.nombre}</option>)}
+          </select>
+        </div>
+        <div class="field">
+          <label for="apartamento">Torre y apto <span class="opt">Opcional</span></label>
+          <input id="apartamento" name="apartamento" type="text" maxlength="10" placeholder="T2 402" />
+        </div>
+        <div class="field full">
+          <label for="whatsapp">WhatsApp <span class="req">●</span></label>
+          <div class="input-prefix">
+            <div class="pre">+57</div>
+            <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" maxlength="24" placeholder="300 123 4567" autocomplete="tel-national" required />
+          </div>
+        </div>
+        <div class="field full">
+          <label for="email">Correo <span class="req">●</span> <span class="opt">Con él entras al panel</span></label>
+          <input id="email" name="email" type="email" maxlength="200" autocomplete="email" autocapitalize="off" required />
+        </div>
+        <div class="field full">
+          <label for="clave">Contraseña <span class="req">●</span> <span class="opt">Mínimo 8 caracteres</span></label>
+          <input id="clave" name="clave" type="password" minlength="8" maxlength="200" autocomplete="new-password" required />
+        </div>
+      </div>
+
+      {/* Campo trampa para bots: oculto a humanos y lectores de pantalla. */}
+      <div class="trampa" aria-hidden="true">
+        <label for="sitio">No llenar</label>
+        <input id="sitio" name="sitio" type="text" tabindex="-1" autocomplete="off" />
+      </div>
+
+      <button class="btn btn-primary" type="submit">Crear mi cuenta</button>
+      <p class="pie">¿Ya tienes cuenta? <a href="/admin/login">Entra al panel</a></p>
+      <a class="volver" href="/">← Volver a la feria</a>
+    </form>
+  </div>
+</Layout>
+
+<script>
+  // Acepta cualquier formato (+57, espacios, guiones, paréntesis) y valida los 10 dígitos
+  // antes de enviar, con un mensaje claro en vez del genérico del navegador.
+  const inp = document.getElementById('whatsapp') as HTMLInputElement | null;
+  const digitos = (v: string) => {
+    let d = v.replace(/\D/g, '');
+    if (d.length === 12 && d.startsWith('57')) d = d.slice(2);
+    return d;
+  };
+  inp?.addEventListener('input', () => inp.setCustomValidity(''));
+  inp?.form?.addEventListener('submit', (ev) => {
+    const d = digitos(inp.value);
+    if (d.length !== 10) {
+      ev.preventDefault();
+      inp.setCustomValidity('Escribe tu celular de 10 dígitos, por ejemplo 300 123 4567.');
+      inp.reportValidity();
+      return;
+    }
+    inp.value = `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
+  });
+</script>
+
+<style>
+  .registro { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 14px; text-align: left; }
+  .registro :global(.molinete) { margin: 0 auto 4px; }
+  .registro h1 { text-align: center; margin-bottom: 0; }
+  .registro > p { text-align: center; margin-bottom: 6px; }
+  .registro .estado { margin-bottom: 0; }
+  .registro .btn { margin-top: 6px; width: 100%; }
+  .registro .pie { font-size: 13.5px; margin: 0; }
+  .registro .pie a { color: var(--cierzo); font-weight: 800; }
+  .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .volver { text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
+</style>

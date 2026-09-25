@@ -19,9 +19,17 @@ export const KEY_VALIDA = /^(emprendedores\/[\w-]+|patrocinadores)\/[\w-]+\.(jpg
 
 export type ResultadoImagen = { ok: true; url: string } | { ok: false; error: string; status: number };
 
-export async function guardarImagen(bucket: R2Bucket, carpeta: string, archivo: FormDataEntryValue | null, subidoPor: string): Promise<ResultadoImagen> {
+const enKB = (b: number) => (b >= 1024 * 1024 ? `${b / 1024 / 1024} MB` : `${Math.round(b / 1024)} KB`);
+
+export async function guardarImagen(
+  bucket: R2Bucket,
+  carpeta: string,
+  archivo: FormDataEntryValue | null,
+  subidoPor: string,
+  maxBytes: number = LIMITES.fotoBytes,
+): Promise<ResultadoImagen> {
   if (!(archivo instanceof File)) return { ok: false, error: 'No recibimos la imagen.', status: 400 };
-  if (archivo.size > LIMITES.fotoBytes) return { ok: false, error: 'La imagen pesa más de 5 MB.', status: 413 };
+  if (archivo.size > maxBytes) return { ok: false, error: `La imagen pesa más de ${enKB(maxBytes)}. Prueba con otra foto.`, status: 413 };
 
   const bytes = new Uint8Array(await archivo.arrayBuffer());
   const tipo = tipoReal(bytes);

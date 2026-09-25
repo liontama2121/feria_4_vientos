@@ -6,11 +6,12 @@ import { categoria as cat } from '../../../lib/constantes';
 import { filaComite, listarRegistros, listarTorres, type FilaComite } from '../../../lib/db';
 
 const ETIQUETA_ESTADO: Record<FilaComite['estado_visible'], string> = {
-  publicado: 'Publicado',
-  oculto: 'Oculto por el vecino',
-  pendiente: 'Pendiente de aprobación',
-  rechazado: 'Rechazado',
-  borrador: 'Borrador',
+  approved: 'Aprobado (en la landing)',
+  oculto: 'Aprobado pero oculto',
+  pending_review: 'En revisión',
+  changes_requested: 'Cambios pedidos',
+  rejected: 'Rechazado',
+  draft: 'Borrador',
 };
 
 function celda(v: unknown) {
@@ -41,7 +42,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
     .sort((a, b) => a.torre.localeCompare(b.torre) || a.apartamento.localeCompare(b.apartamento, 'es', { numeric: true }));
 
   const nombreTorre = (id: string) => torres.find((t) => t.id === id)?.nombre ?? id;
-  const encabezado = ['Emprendimiento', 'Vecino', 'Conjunto', 'Apartamento', 'Categoría', 'WhatsApp (+57)', 'Instagram (@)', 'TikTok (@)', 'Facebook', 'Página web', 'Estado', 'Destacado', 'Recibe avisos', 'Correo de acceso', 'Descripción corta', 'Última publicación'];
+  const encabezado = ['Emprendimiento', 'Vecino', 'Conjunto', 'Torre y apto', 'Categoría', 'WhatsApp (+57)', 'Instagram (@)', 'TikTok (@)', 'Facebook', 'Página web', 'Estado', 'En la feria', 'Destacado', 'Recibe avisos', 'Correo de acceso', 'Descripción corta', 'Última publicación', 'Enviado a revisión', 'Motivo / nota del comité'];
   const lineas = filas.map((r) =>
     [
       r.nombre,
@@ -55,11 +56,14 @@ export const GET: APIRoute = async ({ locals, url }) => {
       r.facebook ? `facebook.com/${r.facebook}` : '',
       r.pagina_web,
       ETIQUETA_ESTADO[r.estado_visible],
+      r.en_feria ? 'Sí' : 'No',
       r.destacado ? 'Sí' : 'No',
       r.recibir_avisos ? 'Sí' : 'No',
       r.owner_email ?? '',
       r.descripcion_corta,
       r.publicado_at ? r.publicado_at.slice(0, 10) : '',
+      r.enviado_at ? r.enviado_at.slice(0, 10) : '',
+      r.motivo_rechazo || r.nota_cambios,
     ]
       .map(celda)
       .join(';'),

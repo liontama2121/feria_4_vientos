@@ -1,5 +1,5 @@
 ---
-// Entrada al panel del comité (usuario y contraseña de las variables de entorno).
+// Entrada al panel: comité (ADMIN_USER / ADMIN_PASSWORD) o vecino con cuenta activa (correo + contraseña).
 import '../../styles/panel.css';
 import Layout from '../../layouts/Layout.astro';
 import Molinete from '../../components/Molinete.astro';
@@ -7,8 +7,13 @@ import { authConfigurada } from '../../lib/auth';
 
 const env = Astro.locals.runtime.env;
 const configurada = authConfigurada(env);
-const next = Astro.url.searchParams.get('next') ?? '/admin/comite';
-const fallo = Astro.url.searchParams.has('error');
+const next = Astro.url.searchParams.get('next') ?? '';
+const fallo = Astro.url.searchParams.get('error');
+const ERRORES: Record<string, [string, string]> = {
+  pendiente: ['Tu cuenta aún no está activada', 'El comité la revisa en menos de 24 horas. Te avisamos por WhatsApp.'],
+  inactiva: ['Tu cuenta no está activa', 'Escríbele al comité por WhatsApp si crees que es un error.'],
+};
+const mensajeError = fallo ? (ERRORES[fallo] ?? ['Datos incorrectos', 'Revisa tu correo (o usuario) y contraseña e intenta de nuevo.']) : null;
 ---
 
 <Layout title="Entrar · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel comite">
@@ -16,7 +21,7 @@ const fallo = Astro.url.searchParams.has('error');
     <form class="card login" method="post" action="/api/login">
       <Molinete size={72} spin />
       <h1>Panel de la <span class="serif">feria</span></h1>
-      <p>Entra con el usuario y la contraseña del comité.</p>
+      <p>Entra con tu correo y contraseña. El comité usa su usuario.</p>
 
       {
         !configurada && (
@@ -30,12 +35,12 @@ const fallo = Astro.url.searchParams.has('error');
         )
       }
       {
-        fallo && (
+        mensajeError && (
           <div class="estado alerta" role="alert">
             <span class="ico">🔒</span>
             <div>
-              <strong>Usuario o contraseña incorrectos</strong>
-              Revisa e intenta de nuevo.
+              <strong>{mensajeError[0]}</strong>
+              {mensajeError[1]}
             </div>
           </div>
         )
@@ -43,14 +48,15 @@ const fallo = Astro.url.searchParams.has('error');
 
       <input type="hidden" name="next" value={next} />
       <div class="field">
-        <label for="usuario">Usuario</label>
-        <input id="usuario" name="usuario" type="text" autocomplete="username" required autofocus />
+        <label for="usuario">Correo o usuario</label>
+        <input id="usuario" name="usuario" type="text" autocomplete="username" autocapitalize="off" required autofocus />
       </div>
       <div class="field">
         <label for="clave">Contraseña</label>
         <input id="clave" name="clave" type="password" autocomplete="current-password" required />
       </div>
       <button class="btn btn-primary" type="submit" disabled={!configurada}>Entrar</button>
+      <p class="registro">¿Tienes un emprendimiento y aún no tienes cuenta? <a href="/registro">Regístrate aquí</a></p>
       <a class="volver" href="/">← Volver a la feria</a>
     </form>
   </div>
@@ -63,5 +69,7 @@ const fallo = Astro.url.searchParams.has('error');
   .login > p { text-align: center; margin-bottom: 6px; }
   .login .estado { margin-bottom: 0; }
   .login .btn { margin-top: 6px; width: 100%; }
+  .login .registro { text-align: center; font-size: 13.5px; margin: 0; }
+  .login .registro a { color: var(--cierzo); font-weight: 800; }
   .volver { text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
 </style>

@@ -1,17 +1,21 @@
-// Lógica del panel del vecino (/admin).
+// Lógica del panel del emprendimiento (/admin).
 // Estado único en memoria (`estado`) → todo se re-pinta desde ahí: vista previa, chip del
 // usuario, contador de fotos, pasos completos y color de torre.
-import { dominioWeb, iniciales, type CategoriaId, type DatosEmprendimiento, type TorreId } from '../lib/constantes';
-import type { ResumenPanel, Torre } from '../lib/db';
+// Vecino: edita solo en draft / changes_requested y manda a revisión. Admin: edita y publica.
+import { ESTADOS_EDITABLES, dominioWeb, iniciales, type CategoriaId, type DatosEmprendimiento, type TorreId } from '../lib/constantes';
+import type { Notificacion, ResumenPanel, Rol, Torre } from '../lib/db';
 
 type Vista = 'emprendimiento' | 'fotos' | 'redes' | 'publicacion' | 'configuracion';
 type Red = 'whatsapp' | 'instagram' | 'tiktok' | 'facebook';
 
 interface DatosPanel {
   resumen: ResumenPanel;
+  rol: Rol;
+  editable: boolean;
+  comiteWhatsapp: string;
   torres: Torre[];
   categorias: { id: CategoriaId; label: string; emoji: string }[];
-  limites: { descripcionCorta: number; galeria: number; fotoBytes: number; fotoLado: number; autoSaveMs: number };
+  limites: { descripcionCorta: number; galeria: number; fotoOriginalBytes: number; fotoBytes: number; fotoLado: number; autoSaveMs: number };
   iconos: Record<Red, string>;
 }
 
@@ -19,7 +23,7 @@ const CABECERAS: Record<Vista, { eyebrow: string; titulo: [string, string, strin
   emprendimiento: {
     eyebrow: 'MI EMPRENDIMIENTO',
     titulo: ['Cuenta tu ', 'historia', '.'],
-    desc: 'Completa tus datos para que aparezcas en la landing de la feria. Puedes editar cualquier cosa cuando quieras.',
+    desc: 'Completa tus datos y envíalos al comité. Cuando lo aprueben, apareces en la landing de la feria.',
   },
   fotos: {
     eyebrow: 'FOTOS',
@@ -53,6 +57,8 @@ export function iniciarPanel() {
   const slug = D.resumen.slug;
 
   let resumen = D.resumen;
+  const esAdmin = D.rol === 'admin';
+  let editable = D.editable;
   const estado: DatosEmprendimiento = structuredClone(resumen.borrador);
   let sucio = false;
   let guardando = false;
@@ -68,13 +74,25 @@ export function iniciarPanel() {
   const maxFotos = LIM.galeria + 1;
 
   // ───────────────────────── Toasts ─────────────────────────
-  function toast(msg: string, tipo: 'ok' | 'error' | 'info' = 'info') {
+  function toast(msg: string, tipo: 'ok' | 'error' | 'info' = 'info', enlace?: { href: string; texto: string }) {
     const t = document.createElement('div');
     t.className = `toast ${tipo}`;
     t.textContent = msg;
+    if (enlace) {
+      const a = document.createElement('a');
+      a.href = enlace.href;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = ` ${enlace.texto}`;
+      a.style.cssText = 'color:inherit;text-decoration:underline;margin-left:6px';
+      t.append(a);
+    }
     $('toasts').append(t);
-    setTimeout(() => t.remove(), tipo === 'error' ? 6000 : 3500);
+    setTimeout(() => t.remove(), enlace ? 12000 : tipo === 'error' ? 6000 : 3500);
   }
+
+  const linkWsp = (numero: string, mensaje: string) => `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+  const linkComite = (mensaje: string) => linkWsp(D.comiteWhatsapp, mensaje);
 
   // ───────────────────────── Torre: tiñe toda la UI ─────────────────────────
   function aplicarTorre() {
@@ -119,7 +137,8 @@ export function iniciarPanel() {
     }
     $('prevCat').textContent = `${cat.emoji} ${cat.label}`;
     texto($('prevNombre'), estado.nombre_emprendimiento, 'Tu emprendimiento');
-    texto($('prevBy'), estado.nombre_vecino ? `${estado.nombre_vecino} · ${t.nombre} ${estado.apartamento}` : '', `Tu nombre · ${t.nombre} ${estado.apartamento}`);
+    const donde = `${t.nombre}${estado.apartamento ? ` ${estado.apartamento}` : ''}`;
+    texto($('prevBy'), estado.nombre_vecino ? `${estado.nombre_vecino} · ${donde}` : '', `Tu nombre · ${donde}`);
     texto($('prevDesc'), estado.descripcion_corta, 'Aquí va tu descripción corta: qué ofreces y qué te hace especial.');
 
     const web = $('prevWeb');
@@ -144,16 +163,16 @@ export function iniciarPanel() {
     const nombre = estado.nombre_vecino || 'Vecino sin nombre';
     $('userAvatar').textContent = iniciales(nombre);
     $('userName').textContent = nombre;
-    $('userApto').textContent = `· ${t.nombre} ${estado.apartamento}`;
+    $('userApto').textContent = `· ${t.nombre}${estado.apartamento ? ` ${estado.apartamento}` : ''}`;
   }
 
   function renderPasos() {
     const listos: Record<string, boolean> = {
-      '1': !!(estado.nombre_vecino && estado.apartamento && estado.torre),
+      '1': !!(estado.nombre_vecino && estado.torre),
       '2': !!(estado.nombre_emprendimiento && estado.descripcion_corta && estado.categoria),
       '3': !!estado.foto_principal,
       '4': estado.whatsapp.length === 10,
-      '5': resumen.estado_visible === 'publicado' && !sucio,
+      '5': esAdmin ? resumen.estado === 'approved' && !sucio : !ESTADOS_EDITABLES.includes(resumen.estado),
     };
     $$('section[data-paso]').forEach((s) => {
       const listo = listos[s.dataset.paso!];
@@ -173,29 +192,94 @@ export function iniciarPanel() {
     $('cntCortaWrap').classList.toggle('lleno', estado.descripcion_corta.length >= LIM.descripcionCorta);
   }
 
-  // ───────────────────────── Estado de publicación ─────────────────────────
+  // ───────────────────────── Estado de moderación: banner + botón principal ─────────────────────────
+  type Banner = { cls: string; ico: string; titulo: string; texto: string; nota?: string; landing?: boolean; wsp?: string };
+
+  function fecha(iso: string | null) {
+    return iso ? new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' }) : '';
+  }
+
+  function bannerVecino(): Banner | null {
+    const nombre = estado.nombre_emprendimiento || 'mi emprendimiento';
+    switch (resumen.estado_visible) {
+      case 'pending_review':
+        return {
+          cls: 'revision',
+          ico: '⏳',
+          titulo: 'En revisión',
+          texto: 'Tu emprendimiento está en revisión. Te avisaremos por WhatsApp cuando esté aprobado.',
+          wsp: `Hola comité 👋 Acabo de enviar "${nombre}" a revisión en la Feria 4 Vientos.`,
+        };
+      case 'approved':
+        return {
+          cls: 'ok',
+          ico: '✓',
+          titulo: `Aprobado y publicado en ${location.host}`,
+          texto: 'Si necesitas cambios, contacta al comité.',
+          landing: true,
+          wsp: `Hola comité 👋 Necesito un cambio en "${nombre}" de la Feria 4 Vientos.`,
+        };
+      case 'oculto':
+        return {
+          cls: 'espera',
+          ico: '🙈',
+          titulo: 'Aprobado, pero oculto por ahora',
+          texto: 'El comité lo tiene oculto de la landing. Escríbele si tienes dudas.',
+          wsp: `Hola comité 👋 Tengo una pregunta sobre "${nombre}" en la Feria 4 Vientos.`,
+        };
+      case 'rejected':
+        return {
+          cls: 'alerta',
+          ico: '🚫',
+          titulo: 'Tu emprendimiento no fue aprobado',
+          texto: 'Motivo del comité:',
+          nota: resumen.motivo_rechazo || 'Sin motivo escrito.',
+          wsp: `Hola comité 👋 Quiero hablar sobre el rechazo de "${nombre}" en la Feria 4 Vientos.`,
+        };
+      case 'changes_requested':
+        return {
+          cls: 'cambios',
+          ico: '✎',
+          titulo: 'El comité te pide unos cambios',
+          texto: 'Ajusta lo que te indican y dale “Reenviar a revisión”.',
+          nota: resumen.nota_cambios,
+        };
+      default:
+        return null;
+    }
+  }
+
+  function bannerAdmin(): Banner {
+    const t = torreDe(resumen.torre_publicada ?? resumen.borrador.torre);
+    const pendientes = resumen.cambios_sin_publicar ? ' Hay cambios guardados que aún no se publican.' : '';
+    switch (resumen.estado_visible) {
+      case 'approved':
+        return { cls: 'ok', ico: '✅', titulo: 'Publicado en la landing', texto: `Aparece en la sección ${t.nombre}.${pendientes}`, landing: true };
+      case 'oculto':
+        return { cls: 'espera', ico: '🙈', titulo: 'Aprobado pero oculto', texto: '“Publicar en la landing” está apagado. Enciéndelo y publica, o usa “Mostrar” en la lista del comité.' };
+      case 'pending_review':
+        return {
+          cls: 'revision',
+          ico: '⏳',
+          titulo: 'Solicitud del vecino en revisión',
+          texto: `Enviada el ${fecha(resumen.enviado_at)}. Apruébala, recházala o pide cambios desde la cola del comité. “Publicar cambios” aquí también la aprueba.`,
+        };
+      case 'rejected':
+        return { cls: 'alerta', ico: '🚫', titulo: 'Rechazado', texto: 'Motivo:', nota: resumen.motivo_rechazo };
+      case 'changes_requested':
+        return { cls: 'cambios', ico: '✎', titulo: 'Cambios pedidos al vecino', texto: 'Esperando que el vecino reenvíe. Nota enviada:', nota: resumen.nota_cambios };
+      default:
+        return { cls: 'espera', ico: '✏️', titulo: 'Aún no se ha publicado', texto: 'Completa los 5 pasos y dale a “Publicar cambios”: aparece en la landing al instante.' };
+    }
+  }
+
   function renderEstado() {
     const caja = $('estado');
-    const t = torreDe(resumen.torre_publicada ?? resumen.borrador.torre);
-    const pendientes = resumen.cambios_sin_publicar ? ' Tienes cambios guardados que aún no has publicado.' : '';
-    const conf: Record<ResumenPanel['estado_visible'], { cls: string; ico: string; titulo: string; texto: string; link?: boolean }> = {
-      publicado: { cls: 'ok', ico: '✅', titulo: 'Publicado en la landing', texto: `Apareces en la sección ${t.nombre}.${pendientes}`, link: true },
-      oculto: { cls: 'espera', ico: '🙈', titulo: 'Oculto de la landing', texto: 'Apagaste “Publicar en la landing”. Enciéndelo y publica para volver a aparecer.' },
-      pendiente: {
-        cls: 'espera',
-        ico: '⏳',
-        titulo: 'Pendiente de aprobación',
-        texto: `Está publicado pero falta aprobarlo en la lista del comité.${pendientes}`,
-      },
-      rechazado: { cls: 'alerta', ico: '🚫', titulo: 'Oculto por el comité', texto: 'No aparece en la landing. Actívalo de nuevo con “Mostrar” en la lista del comité.' },
-      borrador: {
-        cls: 'espera',
-        ico: '✏️',
-        titulo: 'Aún no has publicado',
-        texto: 'Completa los 5 pasos y dale a “Publicar cambios”: aparece en la landing al instante.',
-      },
-    };
-    const c = conf[resumen.estado_visible];
+    const c = esAdmin ? bannerAdmin() : bannerVecino();
+    if (!c) {
+      caja.hidden = true;
+      return;
+    }
     caja.className = `estado ${c.cls}`;
     const ico = document.createElement('span');
     ico.className = 'ico';
@@ -204,15 +288,70 @@ export function iniciarPanel() {
     const strong = document.createElement('strong');
     strong.textContent = c.titulo;
     cuerpo.append(strong, c.texto);
-    if (c.link) {
-      const a = document.createElement('a');
-      a.href = `/#${t.id}`;
-      a.target = '_blank';
-      a.textContent = ' Ver en la landing →';
-      cuerpo.append(a);
+    if (c.nota) {
+      const nota = document.createElement('span');
+      nota.className = 'nota';
+      nota.textContent = c.nota;
+      cuerpo.append(nota);
     }
+    const acciones = document.createElement('div');
+    acciones.className = 'estado-acciones';
+    if (c.wsp) {
+      const a = document.createElement('a');
+      a.className = 'btn btn-sm btn-wsp';
+      a.href = linkComite(c.wsp);
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = resumen.estado === 'rejected' ? 'Contactar comité por WhatsApp' : resumen.estado === 'pending_review' ? 'Avisar al comité por WhatsApp' : 'Escribir al comité por WhatsApp';
+      acciones.append(a);
+    }
+    if (c.landing) {
+      const a = document.createElement('a');
+      a.className = 'btn btn-sm btn-ghost';
+      a.href = `/#${torreDe(resumen.torre_publicada ?? estado.torre).id}`;
+      a.target = '_blank';
+      a.textContent = 'Ver en la landing →';
+      acciones.append(a);
+    }
+    if (acciones.childElementCount) cuerpo.append(acciones);
     caja.replaceChildren(ico, cuerpo);
     caja.hidden = false;
+  }
+
+  /** Texto y color del botón principal según rol y estado (tabla de CLAUDE.md). */
+  function renderBoton() {
+    const b = $<HTMLButtonElement>('btnPublicar');
+    b.className = 'btn btn-primary';
+    b.disabled = false;
+    if (esAdmin) {
+      b.textContent = 'Publicar cambios';
+      return;
+    }
+    const conf: Record<ResumenPanel['estado'], [string, string]> = {
+      draft: ['Enviar a revisión', ''],
+      changes_requested: ['Reenviar a revisión', ''],
+      pending_review: ['En revisión · No editable', 'gris'],
+      approved: ['Aprobado y publicado', 'verde'],
+      rejected: ['Rechazado', 'rojo'],
+    };
+    const [texto, color] = conf[resumen.estado];
+    b.textContent = texto;
+    if (color) {
+      b.className = `btn btn-estado ${color}`;
+      b.disabled = true;
+    }
+  }
+
+  /** Bloquea (o libera) todo el formulario: inputs, chips, toggles y fotos. */
+  function aplicarEditable() {
+    document.body.classList.toggle('solo-lectura', !editable);
+    $$<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>('#panelMain .card :is(input, textarea, select, button)').forEach((el) => {
+      el.disabled = !editable;
+    });
+    $<HTMLInputElement>('fileInput').disabled = !editable;
+    $('btnBorrador').hidden = !editable;
+    $('btnGuardarHead').hidden = !editable;
+    renderFotos();
   }
 
   // ───────────────────────── Barra de estado (guardado) ─────────────────────────
@@ -245,6 +384,7 @@ export function iniciarPanel() {
   }
 
   function marcarSucio() {
+    if (!editable) return;
     sucio = true;
     render();
     renderStatus();
@@ -253,6 +393,7 @@ export function iniciarPanel() {
   // ───────────────────────── Vistas del sidebar ─────────────────────────
   function irA(v: Vista, scroll = true) {
     vista = v;
+    const desc = v === 'publicacion' && !esAdmin ? 'Elige si quieres que el comité te avise de las próximas ferias y novedades.' : CABECERAS[v].desc;
     $$('.sidebar-nav a').forEach((a) => a.classList.toggle('active', a.dataset.ir === v));
     $$('section.card[data-vistas]').forEach((s) => (s.hidden = !s.dataset.vistas!.split(' ').includes(v)));
     const c = CABECERAS[v];
@@ -262,7 +403,7 @@ export function iniciarPanel() {
     serif.className = 'serif';
     serif.textContent = c.titulo[1];
     h1.replaceChildren(c.titulo[0], serif, c.titulo[2]);
-    $('pageDesc').textContent = c.desc;
+    $('pageDesc').textContent = desc;
     history.replaceState(null, '', `${location.pathname}${location.search}#${v}`);
     if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -289,7 +430,7 @@ export function iniciarPanel() {
       if (campo === 'whatsapp') {
         let d = v.replace(/\D/g, '');
         if (d.length === 12 && d.startsWith('57')) d = d.slice(2);
-        v = d.slice(0, 10);
+        v = d.slice(0, 15);
       }
       if (campo === 'instagram' || campo === 'tiktok') v = v.replace(/^@+/, '').trim();
       // El prefijo https:// ya está pintado: si pegan la URL completa, no se duplica.
@@ -323,7 +464,7 @@ export function iniciarPanel() {
   );
 
   $$('button.toggle[data-campo]').forEach((b) => {
-    const campo = b.dataset.campo as 'publicado' | 'destacado' | 'recibir_avisos';
+    const campo = b.dataset.campo as 'publicado' | 'destacado' | 'en_feria' | 'recibir_avisos';
     b.setAttribute('aria-checked', String(estado[campo]));
     b.addEventListener('click', () => {
       estado[campo] = !estado[campo];
@@ -388,7 +529,8 @@ export function iniciarPanel() {
     b.setAttribute('aria-label', principal ? 'Subir foto principal' : 'Añadir foto');
     b.innerHTML = `<div class="placeholder"><div class="plus">+</div><span></span></div>`;
     b.querySelector('span')!.textContent = texto;
-    b.addEventListener('click', () => fileInput.click());
+    b.disabled = !editable;
+    b.addEventListener('click', () => editable && fileInput.click());
     return b;
   }
 
@@ -402,7 +544,7 @@ export function iniciarPanel() {
       if (src) {
         const slot = document.createElement('div');
         slot.className = `photo-slot filled${principal ? ' photo-main' : ''}`;
-        slot.draggable = true;
+        slot.draggable = editable;
         slot.dataset.idx = String(i);
         slot.tabIndex = 0;
         slot.setAttribute('aria-label', principal ? 'Foto principal' : `Foto ${i + 1}`);
@@ -491,6 +633,7 @@ export function iniciarPanel() {
   });
   grid.addEventListener('drop', (ev) => {
     ev.preventDefault();
+    if (!editable) return;
     $$('.photo-slot', grid).forEach((s) => s.classList.remove('drop'));
     if (ev.dataTransfer?.files.length) {
       subir(ev.dataTransfer.files);
@@ -507,31 +650,48 @@ export function iniciarPanel() {
     fileInput.value = '';
   });
 
-  /** Reduce a máx. 1600 px y re-codifica (WEBP, o JPEG si el navegador no sabe WEBP). */
+  /**
+   * Reduce a máx. 1200 px y re-codifica a WEBP (o JPEG si el navegador no sabe WEBP).
+   * Si aún pesa más del límite, baja calidad y tamaño hasta que quepa.
+   */
   async function optimizar(file: File): Promise<Blob> {
+    let bmp: ImageBitmap;
     try {
-      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-      const escala = Math.min(1, LIM.fotoLado / Math.max(bmp.width, bmp.height));
-      const w = Math.round(bmp.width * escala);
-      const h = Math.round(bmp.height * escala);
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(bmp, 0, 0, w, h);
-      bmp.close();
-      const aBlob = (tipo: string) => new Promise<Blob | null>((r) => canvas.toBlob(r, tipo, 0.85));
-      let blob = await aBlob('image/webp');
-      if (!blob || blob.type !== 'image/webp') blob = await aBlob('image/jpeg');
-      return blob && (blob.size < file.size || escala < 1) ? blob : file;
+      bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
     } catch {
       return file;
     }
+    const intentos: [number, number][] = [
+      [LIM.fotoLado, 0.8],
+      [LIM.fotoLado, 0.65],
+      [1000, 0.6],
+      [800, 0.55],
+    ];
+    let mejor: Blob = file;
+    try {
+      for (const [lado, calidad] of intentos) {
+        const escala = Math.min(1, lado / Math.max(bmp.width, bmp.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bmp.width * escala);
+        canvas.height = Math.round(bmp.height * escala);
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+        const aBlob = (tipo: string) => new Promise<Blob | null>((r) => canvas.toBlob(r, tipo, calidad));
+        let blob = await aBlob('image/webp');
+        if (!blob || blob.type !== 'image/webp') blob = await aBlob('image/jpeg');
+        if (blob && blob.size < mejor.size) mejor = blob;
+        if (mejor.size <= LIM.fotoBytes) break;
+      }
+    } finally {
+      bmp.close();
+    }
+    return mejor;
   }
 
   async function subir(archivos: FileList | File[]) {
+    if (!editable) return;
     const libres = maxFotos - fotos().length - subiendo;
     const lista = Array.from(archivos);
     if (libres <= 0) {
@@ -546,14 +706,15 @@ export function iniciarPanel() {
         toast(`“${f.name}” no es JPG, PNG ni WEBP.`, 'error');
         continue;
       }
-      if (f.size > LIM.fotoBytes) {
-        toast(`“${f.name}” pesa más de 5 MB.`, 'error');
+      if (f.size > LIM.fotoOriginalBytes) {
+        toast(`“${f.name}” es demasiado grande (más de ${Math.round(LIM.fotoOriginalBytes / 1024 / 1024)} MB).`, 'error');
         continue;
       }
       subiendo++;
       renderFotos();
       try {
         const blob = await optimizar(f);
+        if (blob.size > LIM.fotoBytes) throw new Error(`No pudimos aligerar “${f.name}” lo suficiente. Prueba con otra foto o una captura de pantalla.`);
         const ext = blob.type === 'image/webp' ? 'webp' : blob.type === 'image/png' ? 'png' : 'jpg';
         const fd = new FormData();
         fd.append('foto', blob, `${f.name.replace(/\.[^.]+$/, '')}.${ext}`);
@@ -587,7 +748,7 @@ export function iniciarPanel() {
   }
 
   async function guardar(silencioso = false) {
-    if (guardando || subiendo) return;
+    if (!editable || guardando || subiendo) return;
     guardando = true;
     botones().forEach((b) => (b.disabled = true));
     renderStatus();
@@ -613,7 +774,6 @@ export function iniciarPanel() {
   function faltantesLocales() {
     const f: { campo: string; mensaje: string }[] = [];
     if (!estado.nombre_vecino.trim()) f.push({ campo: 'nombre_vecino', mensaje: 'tu nombre' });
-    if (!estado.apartamento.trim()) f.push({ campo: 'apartamento', mensaje: 'el apartamento' });
     if (!estado.nombre_emprendimiento.trim()) f.push({ campo: 'nombre_emprendimiento', mensaje: 'el nombre del emprendimiento' });
     if (!estado.descripcion_corta.trim()) f.push({ campo: 'descripcion_corta', mensaje: 'la descripción corta' });
     if (!estado.foto_principal && !estado.emoji_placeholder) f.push({ campo: 'foto_principal', mensaje: 'la foto principal' });
@@ -627,11 +787,13 @@ export function iniciarPanel() {
     const primero = document.querySelector('.field.error');
     primero?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     (primero?.querySelector('input, textarea, button') as HTMLElement | null)?.focus({ preventScroll: true });
-    toast(`Para publicar falta: ${f.map((x) => x.mensaje).join(', ')}.`, 'error');
+    toast(`Para ${esAdmin ? 'publicar' : 'enviar'} falta: ${f.map((x) => x.mensaje).join(', ')}.`, 'error');
   }
 
+  /** Admin: "Publicar cambios" (aprueba y sale al instante). Vecino: "Enviar a revisión". */
   async function publicar() {
     if (guardando) return;
+    if (!esAdmin && !editable) return;
     if (subiendo) {
       toast('Espera a que terminen de subir las fotos.');
       return;
@@ -646,30 +808,32 @@ export function iniciarPanel() {
     botones().forEach((b) => (b.disabled = true));
     renderStatus();
     try {
-      const { res, j } = await enviar('/api/panel/publicar', 'POST');
+      const { res, j } = await enviar(esAdmin ? '/api/panel/publicar' : '/api/panel/enviar', 'POST');
       if (res.status === 422 && j.faltantes) {
         marcarFaltantes(j.faltantes);
         return;
       }
       if (!res.ok) throw new Error(j.error);
-      resumen = j as ResumenPanel;
-      ultimoGuardado = new Date(resumen.publicado_at ?? Date.now());
+      const { notificacion, ...r } = j as ResumenPanel & { notificacion?: Notificacion | null };
+      resumen = r;
+      ultimoGuardado = new Date((esAdmin ? resumen.publicado_at : resumen.enviado_at) ?? Date.now());
       sucio = false;
-      const t = torreDe(estado.torre).nombre;
-      const msg: Record<ResumenPanel['estado_visible'], string> = {
-        publicado: `¡Publicado! Ya apareces en la sección ${t} 🎉`,
-        pendiente: 'Guardado. Falta aprobarlo en la lista del comité para que salga en la landing.',
-        oculto: 'Guardado. Tu emprendimiento está oculto de la landing.',
-        rechazado: 'Guardado.',
-        borrador: 'Guardado.',
-      };
-      toast(msg[resumen.estado_visible], 'ok');
+      if (esAdmin) {
+        const t = torreDe(estado.torre).nombre;
+        const aviso = notificacion?.whatsapp ? { href: linkWsp(`57${notificacion.whatsapp}`, notificacion.mensaje), texto: 'Avisar al vecino por WhatsApp' } : undefined;
+        toast(resumen.estado_visible === 'oculto' ? 'Guardado. Está oculto de la landing.' : `¡Publicado! Ya aparece en la sección ${t} 🎉`, 'ok', aviso);
+      } else {
+        editable = false;
+        aplicarEditable();
+        toast('¡Enviado! El comité lo revisa y te avisa por WhatsApp.', 'ok');
+      }
       renderEstado();
     } catch (e) {
-      toast((e as Error).message || 'No se pudo publicar.', 'error');
+      toast((e as Error).message || 'No se pudo enviar.', 'error');
     } finally {
       guardando = false;
       botones().forEach((b) => (b.disabled = false));
+      renderBoton();
       renderStatus();
       renderPasos();
     }
@@ -681,13 +845,13 @@ export function iniciarPanel() {
   document.addEventListener('keydown', (ev) => {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') {
       ev.preventDefault();
-      guardar();
+      if (editable) guardar();
     }
   });
 
-  // Auto-save cada 30 s (solo borrador: nunca publica solo)
+  // Auto-save cada 30 s: solo borrador (nunca publica ni envía) y solo en estados editables.
   setInterval(() => {
-    if (sucio && !guardando && !subiendo) guardar(true);
+    if (editable && sucio && !guardando && !subiendo) guardar(true);
   }, LIM.autoSaveMs);
   setInterval(renderStatus, 20_000);
   window.addEventListener('beforeunload', (ev) => {
@@ -711,9 +875,10 @@ export function iniciarPanel() {
 
   // ───────────────────────── Arranque ─────────────────────────
   aplicarTorre();
-  renderFotos();
+  aplicarEditable();
   render();
   renderEstado();
+  renderBoton();
   renderStatus();
   const inicial = location.hash.slice(1) as Vista;
   irA(inicial in CABECERAS ? inicial : 'emprendimiento', false);

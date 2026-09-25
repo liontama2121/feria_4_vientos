@@ -436,3 +436,23 @@ button.photo-slot:hover, .photo-slot.drop { border-color: var(--torre); backgrou
 .dev-caja b { font-family: var(--display); color: var(--cierzo); }
 .dev-caja ul { list-style: none; margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .dev-caja a { color: var(--cierzo); font-weight: 800; }
+
+/* ═════════ Moderación: estados del vecino ═════════ */
+.panel [hidden] { display: none !important; }
+.estado.revision { background: #FFF8DB; border-color: #F5C542; }
+.estado.cambios { background: color-mix(in srgb, var(--gregal-claro) 70%, #fff); border-color: color-mix(in srgb, var(--gregal) 45%, transparent); }
+.estado .nota { display: block; margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, .7); color: var(--tinta); white-space: pre-line; }
+.estado .estado-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.btn-wsp { background: #25D366; color: #fff; border-color: #25D366; }
+.panel .btn-wsp:hover { background: #1EBE5A; }
+.estado a.btn-wsp { color: #fff; }
+
+/* Botón principal cuando ya no se puede enviar: informa el estado, no hace nada. */
+.panel .btn.btn-estado:disabled { opacity: 1; cursor: not-allowed; box-shadow: none; }
+.panel .btn-estado.gris { background: var(--crema-alt); color: var(--tinta-suave); border-color: var(--linea-fuerte); }
+.panel .btn-estado.verde { background: var(--mistral); color: #fff; border-color: var(--mistral); }
+.panel .btn-estado.rojo { background: #D92D20; color: #fff; border-color: #D92D20; }
+
+/* Formulario en solo lectura (pending_review, approved, rejected) */
+.solo-lectura main .card :is(input, textarea, select, .chip, .torre-opt, .toggle, .photo-slot) { opacity: .6; cursor: not-allowed; }
+.solo-lectura .photo-slot .del, .solo-lectura .photo-slot .acciones { display: none; }

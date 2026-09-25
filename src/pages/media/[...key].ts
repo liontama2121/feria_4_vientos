@@ -17,6 +17,6 @@ export const GET: APIRoute = async ({ params, locals, request }) => {
   });
   if (request.headers.get('if-none-match') === obj.httpEtag) return new Response(null, { status: 304, headers });
 
-  // Las fotos pesan máx. 5 MB: leerlas completas funciona igual en producción y en el proxy de `astro dev`.
+  // Las fotos pesan máx. 800 KB (logos 1 MB): leerlas completas funciona igual en producción y en el proxy de `astro dev`.
   return new Response(await obj.arrayBuffer(), { headers });
 };

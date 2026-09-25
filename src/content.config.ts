@@ -1,10 +1,10 @@
 // Content collections (Astro 5, content layer).
 // Los .md de src/content/ son el contenido SEMILLA versionado en git:
 // la primera vez que arranca el sitio se copian a D1, y desde ahí los
-// editan los vecinos (/admin) y el comité (/admin/comite). Ver CLAUDE.md.
+// editan los vecinos (/admin, con moderación) y el comité (/admin/comite). Ver CLAUDE.md.
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
-import { CATEGORIA_IDS, TIPOS_PATROCINADOR, TORRE_IDS } from './lib/constantes';
+import { CATEGORIA_IDS, ESTADOS, TIPOS_PATROCINADOR, TORRE_IDS } from './lib/constantes';
 
 const usuario = z
   .string()
@@ -16,7 +16,7 @@ const emprendedores = defineCollection({
   schema: z.object({
     nombre_emprendimiento: z.string().min(1),
     nombre_vecino: z.string().min(1),
-    apartamento: z.string().min(1),
+    apartamento: z.string().default(''),
     torre: z.enum(TORRE_IDS),
     categoria: z.enum(CATEGORIA_IDS),
     descripcion_corta: z.string().max(160),
@@ -30,7 +30,11 @@ const emprendedores = defineCollection({
     pagina_web: z.string().url().or(z.literal('')).default(''),
     destacado: z.boolean().default(false),
     publicado: z.boolean().default(true),
+    /** Los emprendedores semilla son los de la feria. */
+    en_feria: z.boolean().default(true),
     emoji_placeholder: z.string().default('✨'),
+    /** Estado de moderación con el que se siembra en D1. Solo `approved` sale en la landing. */
+    estado: z.enum(ESTADOS).default('approved'),
   }),
 });
 

@@ -1,27 +1,42 @@
 ---
-// Vista del comité (rol admin): emprendedores con filtros, aprobación, destacados,
-// exportación CSV y edición de torres, patrocinadores y fechas.
-// La lógica vive en src/scripts/comite.ts.
-import '../../styles/panel.css';
-import Layout from '../../layouts/Layout.astro';
-import PanelTopbar from '../../components/PanelTopbar.astro';
-import { CATEGORIAS, iniciales } from '../../lib/constantes';
-import { filaComite, listarFechas, listarPatrocinadores, listarRegistros, listarTorres } from '../../lib/db';
+// Vista del comité (rol admin): cola de moderación ("Pendientes de revisión"), todos los
+// emprendedores con filtros, cuentas de vecinos, bandeja de notificaciones, exportación CSV
+// y edición de torres, patrocinadores y fechas. La lógica vive en src/scripts/comite.ts.
+// /admin/comite/cuentas y /admin/comite/notificaciones redirigen a su pestaña.
+import '../../../styles/panel.css';
+import Layout from '../../../layouts/Layout.astro';
+import PanelTopbar from '../../../components/PanelTopbar.astro';
+import { adminEmails } from '../../../lib/auth';
+import { CATEGORIAS, iniciales } from '../../../lib/constantes';
+import { filaComite, listarCuentas, listarFechas, listarNotificaciones, listarPatrocinadores, listarRegistros, listarTorres } from '../../../lib/db';
 
 const usuario = Astro.locals.usuario!;
-const db = Astro.locals.runtime.env.DB;
+const env = Astro.locals.runtime.env;
+const db = env.DB;
 
-const [registros, torres, patrocinadores, fechas] = await Promise.all([listarRegistros(db), listarTorres(db), listarPatrocinadores(db), listarFechas(db)]);
+const [registros, torres, patrocinadores, fechas, cuentas, notificaciones] = await Promise.all([
+  listarRegistros(db),
+  listarTorres(db),
+  listarPatrocinadores(db),
+  listarFechas(db),
+  listarCuentas(db),
+  listarNotificaciones(db),
+]);
 const datosJson = JSON.stringify({
   filas: registros.map(filaComite),
   torres,
   patrocinadores,
   fechas,
+  cuentas,
+  notificaciones,
+  admins: adminEmails(env),
   categorias: CATEGORIAS,
 }).replace(/</g, '\\u003c');
 
 const TABS = [
   { id: 'emprendedores', label: 'Emprendedores', icono: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' },
+  { id: 'cuentas', label: 'Cuentas', icono: '<circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.85"/>' },
+  { id: 'notificaciones', label: 'Notificaciones', icono: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>' },
   { id: 'torres', label: 'Conjuntos', icono: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>' },
   { id: 'patrocinadores', label: 'Patrocinadores', icono: '<path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/>' },
   { id: 'fechas', label: 'Fechas', icono: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>' },
@@ -51,8 +66,8 @@ const TABS = [
               </nav>
             </div>
             <div class="sidebar-help">
-              <h4>Agregar un vecino</h4>
-              <p>1. El vecino te escribe por WhatsApp. 2. “+ Nuevo emprendimiento” con su conjunto y apto. 3. Llenas sus datos y fotos y le das “Publicar”: sale al instante en la landing.</p>
+              <h4>Cómo funciona</h4>
+              <p>1. El vecino se registra en /registro y activas su cuenta. 2. Llena su emprendimiento y lo envía. 3. Lo apruebas, rechazas o pides cambios aquí. 4. Mandas el aviso por WhatsApp desde Notificaciones.</p>
             </div>
           </aside>
 
@@ -65,7 +80,7 @@ const TABS = [
                   <h1>
                     Toda la feria, <span class="serif">de un vistazo</span>.
                   </h1>
-                  <p class="desc">Agrega y edita emprendimientos, destaca en la vitrina y exporta la lista para organizar los puestos del terminalito. Todo se ve al instante en la landing.</p>
+                  <p class="desc">Revisa lo que envían los vecinos, destaca en la vitrina y exporta la lista para organizar los puestos del terminalito. Solo lo aprobado sale en la landing.</p>
                 </div>
                 <div class="page-actions">
                   <button type="button" class="btn btn-primary" id="btnNuevoEmp">
@@ -79,6 +94,10 @@ const TABS = [
 
               <div class="stats" id="stats" />
 
+              <h2 class="seccion-titulo">Pendientes de revisión <span class="contador" id="contadorPendientes">0</span></h2>
+              <div class="cola" id="colaPendientes" />
+
+              <h2 class="seccion-titulo">Todos los emprendedores</h2>
               <div class="card filtros">
                 <div class="field">
                   <label for="fBuscar">Buscar</label>
@@ -96,16 +115,53 @@ const TABS = [
                   <label for="fEstado">Estado</label>
                   <select id="fEstado">
                     <option value="">Todos</option>
-                    <option value="pendiente">Pendientes</option>
-                    <option value="publicado">Publicados</option>
-                    <option value="borrador">Borradores</option>
-                    <option value="oculto">Ocultos por el vecino</option>
-                    <option value="rechazado">Ocultos por el comité</option>
+                    <option value="pending_review">En revisión</option>
+                    <option value="approved">Aprobados (en la landing)</option>
+                    <option value="oculto">Aprobados pero ocultos</option>
+                    <option value="changes_requested">Cambios pedidos</option>
+                    <option value="rejected">Rechazados</option>
+                    <option value="draft">Borradores</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="fFeria">Feria</label>
+                  <select id="fFeria">
+                    <option value="">Todos</option>
+                    <option value="si">🎪 En la feria</option>
+                    <option value="no">Solo directorio</option>
                   </select>
                 </div>
               </div>
 
               <div class="lista" id="listaEmprendedores" />
+            </section>
+
+            {/* ═══ Cuentas ═══ */}
+            <section data-tab-panel="cuentas" hidden>
+              <div class="page-head">
+                <div>
+                  <div class="title-eyebrow">COMITÉ · CUENTAS</div>
+                  <h1>
+                    Los vecinos, <span class="serif">uno a uno</span>.
+                  </h1>
+                  <p class="desc">Cuentas creadas en /registro. Actívalas para que el vecino pueda entrar al panel; al activar queda un aviso listo en Notificaciones.</p>
+                </div>
+              </div>
+              <div class="lista" id="listaCuentas" />
+            </section>
+
+            {/* ═══ Notificaciones ═══ */}
+            <section data-tab-panel="notificaciones" hidden>
+              <div class="page-head">
+                <div>
+                  <div class="title-eyebrow">COMITÉ · NOTIFICACIONES</div>
+                  <h1>
+                    Avisos por <span class="serif">WhatsApp</span>.
+                  </h1>
+                  <p class="desc">El envío aún es manual: abre el WhatsApp del vecino con el mensaje listo, envíalo y márcalo como enviado.</p>
+                </div>
+              </div>
+              <div class="lista" id="listaNotificaciones" />
             </section>
 
             {/* ═══ Torres ═══ */}
@@ -186,8 +242,8 @@ const TABS = [
                 </select>
               </div>
               <div class="field">
-                <label for="nApto">Apartamento <span class="req">●</span></label>
-                <input id="nApto" name="apartamento" type="text" maxlength="10" required placeholder="402" />
+                <label for="nApto">Torre y apto <span class="opt">Opcional</span></label>
+                <input id="nApto" name="apartamento" type="text" maxlength="10" placeholder="T2 402" />
               </div>
             </div>
             <div class="acciones">
@@ -212,13 +268,28 @@ const TABS = [
           </form>
         </dialog>
 
+        <dialog class="dialogo" id="dlgModerar" aria-labelledby="dlgModerarTitulo">
+          <form class="dialogo-body" id="formModerar" method="dialog">
+            <h3 id="dlgModerarTitulo">Rechazar</h3>
+            <p id="moderarTexto" />
+            <div class="field">
+              <label for="moderarNota" id="moderarLabel">Motivo</label>
+              <textarea id="moderarNota" rows="4" maxlength="600" required></textarea>
+            </div>
+            <div class="acciones">
+              <button class="btn btn-ghost" value="cancelar" formnovalidate>Cancelar</button>
+              <button class="btn btn-primary" value="ok" id="moderarOk">Enviar</button>
+            </div>
+          </form>
+        </dialog>
+
         <div class="toasts" id="toasts" role="status" aria-live="polite" />
         <script type="application/json" id="comite-datos" set:html={datosJson} />
   </>
 </Layout>
 
 <script>
-  import { iniciarComite } from '../../scripts/comite';
+  import { iniciarComite } from '../../../scripts/comite';
   iniciarComite();
 </script>
 
@@ -235,7 +306,7 @@ const TABS = [
   .stat.verde b { color: var(--mistral); }
   .stat.morado b { color: var(--cierzo); }
 
-  .filtros { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 12px; padding: 18px; }
+  .filtros { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 12px; padding: 18px; }
   @media (max-width: 900px) { .filtros { grid-template-columns: 1fr 1fr; } }
 
   .lista { display: flex; flex-direction: column; gap: 10px; }
@@ -256,14 +327,48 @@ const TABS = [
   .fila .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .pill-t { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; font-family: var(--display); background: var(--t-claro); color: var(--t); }
   .pill-estado { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; font-family: var(--display); }
-  .pill-estado.publicado { background: var(--mistral-claro); color: #0F6B5F; }
-  .pill-estado.pendiente { background: var(--gregal-claro); color: #A8440C; }
-  .pill-estado.borrador, .pill-estado.oculto { background: var(--crema-alt); color: var(--tinta-suave); }
-  .pill-estado.rechazado { background: #FEE4E2; color: #B42318; }
+  .pill-estado.approved, .pill-estado.active { background: var(--mistral-claro); color: #0F6B5F; }
+  .pill-estado.pending_review, .pill-estado.pending_activation { background: #FFF4CC; color: #8A5A00; }
+  .pill-estado.changes_requested { background: var(--gregal-claro); color: #A8440C; }
+  .pill-estado.draft, .pill-estado.oculto { background: var(--crema-alt); color: var(--tinta-suave); }
+  .pill-estado.rejected { background: #FEE4E2; color: #B42318; }
+  .pill-admin { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--cierzo-claro); color: var(--cierzo); }
+
+  .seccion-titulo { font-size: 18px; margin: 26px 0 12px; display: flex; align-items: center; gap: 10px; }
+  .contador { min-width: 28px; height: 28px; padding: 0 9px; border-radius: 999px; display: inline-grid; place-items: center; font-size: 13px; background: #FFF4CC; color: #8A5A00; border: 1px solid #F5C542; }
+  .contador.cero { background: var(--crema-alt); color: var(--tinta-suave); border-color: var(--linea); }
+  .cola { display: flex; flex-direction: column; gap: 16px; }
+  .solicitud { border-left: 6px solid var(--t); padding: 22px; margin-bottom: 0; }
+  .solicitud-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 12px; }
+  .solicitud h3 { font-size: 20px; overflow-wrap: anywhere; }
+  .solicitud .desc-larga { white-space: pre-line; color: var(--tinta-media); font-size: 14px; margin-top: 8px; }
+  .solicitud .corta { font-weight: 700; color: var(--tinta); margin-top: 6px; }
+  .fotos-sol { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 14px 0; }
+  .fotos-sol a { aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 1px solid var(--linea); display: block; position: relative; }
+  .fotos-sol img { width: 100%; height: 100%; object-fit: cover; }
+  .fotos-sol .principal::after { content: 'PRINCIPAL'; position: absolute; left: 6px; bottom: 6px; font-size: 9.5px; font-weight: 800; background: rgba(26, 22, 51, .75); color: #fff; padding: 2px 6px; border-radius: 6px; }
+  .sin-fotos { font-size: 13px; color: var(--tinta-suave); font-weight: 700; margin: 12px 0; }
+  .datos-sol { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 16px; font-size: 13px; margin-top: 10px; }
+  .datos-sol dt { font-weight: 800; color: var(--tinta-suave); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  .datos-sol dd { margin: 0; overflow-wrap: anywhere; color: var(--tinta); font-weight: 600; }
+  .acciones-sol { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linea); }
+  .panel .btn-aprobar { background: var(--mistral); color: #fff; border-color: var(--mistral); }
+  .panel .btn-rechazar { background: #D92D20; color: #fff; border-color: #D92D20; }
+  .panel .btn-cambios { background: var(--gregal); color: #fff; border-color: var(--gregal); }
+  .nota-fila { font-size: 12px; color: var(--tinta-media); margin-top: 4px; }
+  .noti { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; background: #fff; border: 1px solid var(--linea); border-radius: 16px; padding: 14px 16px; }
+  .noti.enviada { opacity: .6; }
+  .noti h3 { font-size: 14.5px; margin-bottom: 4px; }
+  .noti p { font-size: 13px; color: var(--tinta-media); white-space: pre-line; overflow-wrap: anywhere; }
+  .noti .sub { font-size: 11.5px; color: var(--tinta-suave); font-weight: 700; margin-top: 6px; }
+  @media (max-width: 760px) { .noti { grid-template-columns: 1fr; } }
   .pill-cambios { font-size: 11px; color: var(--cierzo); font-weight: 800; }
   .fila-acciones { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .estrella { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--linea-fuerte); background: #fff; font-size: 16px; color: var(--tinta-suave); }
   .estrella[aria-pressed='true'] { background: #FFF4CC; border-color: #F5C542; color: #B7791F; }
+  .btn-feria { border-radius: 999px; border: 1px solid var(--linea-fuerte); background: #fff; color: var(--tinta-suave); font-family: var(--display); font-weight: 800; font-size: 12px; padding: 8px 12px; white-space: nowrap; }
+  .btn-feria[aria-pressed='true'] { background: var(--austro-claro); border-color: var(--austro); color: #A3155A; }
+  .pill-feria { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; font-family: var(--display); background: var(--austro-claro); color: #A3155A; }
   .vacio-lista { text-align: center; padding: 40px 20px; color: var(--tinta-suave); font-weight: 700; background: #fff; border-radius: 16px; border: 1px dashed var(--linea-fuerte); }
 
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }

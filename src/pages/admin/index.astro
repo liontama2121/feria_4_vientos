@@ -1,25 +1,37 @@
 ---
-// Panel del vecino. Réplica de panel-registro.html: 5 vistas, formulario de 5 pasos,
+// Panel del emprendimiento. Réplica de panel-registro.html: 5 vistas, formulario de 5 pasos,
 // selector de torre que tiñe toda la UI, fotos con drag & drop, vista previa en vivo
 // y auto-save cada 30 s. La lógica vive en src/scripts/panel.ts.
+// - Vecino: edita SU emprendimiento solo en draft / changes_requested y lo manda a revisión.
+// - Admin: edita cualquiera (?slug=) y publica directo.
 import '../../styles/panel.css';
 import Layout from '../../layouts/Layout.astro';
 import PanelTopbar from '../../components/PanelTopbar.astro';
 import PanelSinAcceso from '../../components/PanelSinAcceso.astro';
-import { slugEditable } from '../../lib/api';
+import { puedeEditar, registroPermitido } from '../../lib/api';
 import { CATEGORIAS, ICONOS, LIMITES, iniciales } from '../../lib/constantes';
-import { listarTorres, obtenerRegistro, resumenPanel } from '../../lib/db';
-import { MENSAJES, linkWhatsApp } from '../../lib/sitio';
+import { crearEmprendimiento, listarTorres, obtenerRegistro, resumenPanel } from '../../lib/db';
+import { MENSAJES, SITIO, linkWhatsApp } from '../../lib/sitio';
 
-const { usuario } = Astro.locals;
+const usuario = Astro.locals.usuario!;
+const esAdmin = usuario.rol === 'admin';
 const db = Astro.locals.runtime.env.DB;
 const slugPedido = Astro.url.searchParams.get('slug');
 
-// El panel siempre edita un emprendimiento concreto; sin ?slug= se va a la lista del comité.
-if (!slugPedido) return Astro.redirect('/admin/comite');
+// El admin siempre edita un emprendimiento concreto; sin ?slug= se va a la lista del comité.
+if (esAdmin && !slugPedido) return Astro.redirect('/admin/comite');
 
-const slug = slugEditable(Astro.locals, slugPedido);
-const registro = slug ? await obtenerRegistro(db, slug) : null;
+let registro = await registroPermitido(Astro.locals, slugPedido);
+// Primera vez del vecino: se le crea su emprendimiento vacío con los datos de su cuenta.
+if (!registro && !esAdmin) {
+  const slug = await crearEmprendimiento(
+    db,
+    { nombre_vecino: usuario.nombre, torre: usuario.torre ?? 'mistral', apartamento: usuario.apartamento, whatsapp: usuario.whatsapp },
+    usuario.email,
+  );
+  registro = await obtenerRegistro(db, slug);
+}
+const editable = registro ? puedeEditar(Astro.locals, registro) : false;
 
 const torres = await listarTorres(db);
 const resumen = registro ? resumenPanel(registro) : null;
@@ -28,6 +40,9 @@ const torreActual = torres.find((t) => t.id === d?.torre) ?? torres[0];
 
 const datosJson = JSON.stringify({
   resumen,
+  rol: usuario.rol,
+  editable,
+  comiteWhatsapp: SITIO.comiteWhatsapp,
   torres,
   categorias: CATEGORIAS,
   limites: LIMITES,
@@ -48,7 +63,7 @@ const VISTAS = [
 const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0;
 ---
 
-<Layout title="Panel · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel" torre={d?.torre}>
+<Layout title="Panel · Feria 4 Vientos" whatsapp={false} noindex bodyClass={editable ? 'panel' : 'panel solo-lectura'} torre={d?.torre}>
   {
     !d || !resumen ? (
       <>
@@ -60,12 +75,16 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
         <PanelTopbar
           seccion="Panel"
           nombre={d.nombre_vecino || 'Vecino sin nombre'}
-          detalle={`· ${torreActual.nombre} ${d.apartamento}`}
+          detalle={`· ${torreActual.nombre}${d.apartamento ? ` ${d.apartamento}` : ''}`}
           iniciales={iniciales(d.nombre_vecino || '?')}
         >
-          <a class="top-btn" href="/admin/comite">
-            ← Comité
-          </a>
+          {
+            esAdmin && (
+              <a class="top-btn" href="/admin/comite">
+                ← Comité
+              </a>
+            )
+          }
         </PanelTopbar>
 
         <div class="layout">
@@ -108,14 +127,14 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                   Cuenta tu <span class="serif">historia</span>.
                 </h1>
                 <p class="desc" id="pageDesc">
-                  Completa tus datos para que aparezcas en la landing de la feria. Puedes editar cualquier cosa cuando quieras.
+                  Completa tus datos y envíalos al comité. Cuando lo aprueben, apareces en la landing de la feria.
                 </p>
               </div>
               <div class="page-actions">
                 <button type="button" class="btn btn-ghost" id="btnVistaPrevia">
                   👁 Vista previa
                 </button>
-                <button type="button" class="btn btn-primary" id="btnGuardarHead">
+                <button type="button" class="btn btn-primary" id="btnGuardarHead" hidden={!editable}>
                   Guardar cambios
                 </button>
               </div>
@@ -142,10 +161,10 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                 </div>
                 <div class="field" data-field="apartamento">
                   <label for="inpApto">
-                    Apartamento <span class="req">●</span>
+                    Torre y apto <span class="opt">Opcional</span>
                   </label>
-                  <input id="inpApto" type="text" data-campo="apartamento" value={d.apartamento} maxlength="10" inputmode="numeric" />
-                  <span class="error-msg">Escribe tu apartamento</span>
+                  <input id="inpApto" type="text" data-campo="apartamento" value={d.apartamento} maxlength="10" placeholder="T2 402" />
+                  <span class="hint">Opcional: si prefieres, deja solo el conjunto.</span>
                 </div>
                 <div class="field full" data-field="torre">
                   <span class="label" id="lblTorre">
@@ -231,7 +250,7 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                 <div>
                   <h2>Fotos de tu emprendimiento</h2>
                   <p>
-                    La primera es la principal y aparece grande. Hasta {LIMITES.galeria + 1} fotos JPG, PNG o WEBP de máximo 5 MB. Arrastra para cambiar el orden.
+                    La primera es la principal y aparece grande. Hasta {LIMITES.galeria + 1} fotos JPG, PNG o WEBP. Las aligeramos solas antes de subirlas (quedan de menos de 800 KB). Arrastra para cambiar el orden.
                   </p>
                 </div>
                 <div class="step">3</div>
@@ -272,7 +291,7 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                   <div class="field" data-field="whatsapp">
                     <div class="input-prefix">
                       <div class="pre">+57</div>
-                      <input type="tel" data-campo="whatsapp" value={d.whatsapp} placeholder="300 123 4567" aria-label="WhatsApp" inputmode="numeric" maxlength="14" />
+                      <input type="tel" data-campo="whatsapp" value={d.whatsapp} placeholder="300 123 4567" aria-label="WhatsApp" inputmode="tel" maxlength="24" />
                     </div>
                     <span class="error-msg">El WhatsApp debe tener 10 dígitos</span>
                   </div>
@@ -343,24 +362,37 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
               <div class="card-head">
                 <div>
                   <h2>Publicación</h2>
-                  <p>Controla cuándo aparece tu emprendimiento y si lo mostramos como destacado.</p>
+                  <p>{esAdmin ? 'Controla cuándo aparece el emprendimiento y si sale en la vitrina.' : 'Elige si quieres recibir avisos del comité.'}</p>
                 </div>
                 <div class="step">5</div>
               </div>
-              <div class="toggle-row">
-                <div>
-                  <h4 id="lblPub">Publicar en la landing</h4>
-                  <p>Si está apagado, tu emprendimiento no aparece en la página pública.</p>
-                </div>
-                <button type="button" class="toggle" role="switch" aria-checked={(d.publicado) ? 'true' : 'false'} aria-labelledby="lblPub" data-campo="publicado" />
-              </div>
-              <div class="toggle-row">
-                <div>
-                  <h4 id="lblDest">Destacar en la vitrina</h4>
-                  <p>Los emprendedores destacados aparecen en el carrusel principal de la portada.</p>
-                </div>
-                <button type="button" class="toggle" role="switch" aria-checked={(d.destacado) ? 'true' : 'false'} aria-labelledby="lblDest" data-campo="destacado" />
-              </div>
+              {
+                esAdmin && (
+                  <>
+                    <div class="toggle-row">
+                      <div>
+                        <h4 id="lblPub">Publicar en la landing</h4>
+                        <p>Si está apagado, el emprendimiento no aparece en la página pública aunque esté aprobado.</p>
+                      </div>
+                      <button type="button" class="toggle" role="switch" aria-checked={(d.publicado) ? 'true' : 'false'} aria-labelledby="lblPub" data-campo="publicado" />
+                    </div>
+                    <div class="toggle-row">
+                      <div>
+                        <h4 id="lblFeria">Está en la feria 🎪</h4>
+                        <p>Sale arriba en la landing (vitrina y sección de su conjunto). Si está apagado, solo aparece en el directorio.</p>
+                      </div>
+                      <button type="button" class="toggle" role="switch" aria-checked={(d.en_feria) ? 'true' : 'false'} aria-labelledby="lblFeria" data-campo="en_feria" />
+                    </div>
+                    <div class="toggle-row">
+                      <div>
+                        <h4 id="lblDest">Destacar en la vitrina</h4>
+                        <p>Los emprendedores destacados aparecen en el carrusel principal de la portada.</p>
+                      </div>
+                      <button type="button" class="toggle" role="switch" aria-checked={(d.destacado) ? 'true' : 'false'} aria-labelledby="lblDest" data-campo="destacado" />
+                    </div>
+                  </>
+                )
+              }
               <div class="toggle-row">
                 <div>
                   <h4 id="lblAvisos">Recibir mensajes del comité</h4>
@@ -375,13 +407,13 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
               <div class="card-head">
                 <div>
                   <h2>Acceso al panel</h2>
-                  <p>El panel tiene un solo usuario: el del comité.</p>
+                  <p>{esAdmin ? 'Estás como comité (admin).' : 'Entras con tu correo y contraseña.'}</p>
                 </div>
               </div>
               <div class="field-grid">
                 <div class="field">
-                  <label for="cfgUsuario">Usuario</label>
-                  <input id="cfgUsuario" type="text" value={usuario!.email} readonly />
+                  <label for="cfgUsuario">{esAdmin ? 'Usuario' : 'Correo'}</label>
+                  <input id="cfgUsuario" type="text" value={usuario.email} readonly />
                 </div>
                 <div class="field">
                   <label for="cfgSlug">Código del emprendimiento</label>
@@ -389,8 +421,11 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                 </div>
                 <div class="field full">
                   <span class="hint">
-                    Para cambiar el usuario o la contraseña, edita ADMIN_USER y ADMIN_PASSWORD en Cloudflare Pages → Settings → Variables and Secrets y
-                    vuelve a desplegar. Al cambiar la contraseña se cierran todas las sesiones abiertas.
+                    {
+                      esAdmin
+                        ? 'Para cambiar el usuario o la contraseña del comité, edita ADMIN_USER y ADMIN_PASSWORD en Cloudflare Pages → Settings → Variables and Secrets y vuelve a desplegar. Al cambiar la contraseña se cierran todas las sesiones abiertas.'
+                        : '¿Olvidaste tu contraseña o quieres cambiarla? Escríbele al comité por WhatsApp.'
+                    }
                   </span>
                 </div>
               </div>
@@ -408,11 +443,11 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                 <span id="statusText">Cargando…</span>
               </div>
               <div class="actions">
-                <button type="button" class="btn btn-ghost" id="btnBorrador">
+                <button type="button" class="btn btn-ghost" id="btnBorrador" hidden={!editable}>
                   Guardar borrador
                 </button>
                 <button type="button" class="btn btn-primary" id="btnPublicar">
-                  Publicar cambios
+                  {esAdmin ? 'Publicar cambios' : 'Enviar a revisión'}
                 </button>
               </div>
             </div>

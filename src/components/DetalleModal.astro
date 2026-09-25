@@ -96,7 +96,7 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
     $('detalle-chip').textContent = d.torre.toUpperCase();
     $('detalle-cat').textContent = d.cat;
     $('detalle-nombre').textContent = d.nombre;
-    $('detalle-by').textContent = `${d.vecino} · ${d.torre} ${d.apto}`;
+    $('detalle-by').textContent = `${d.vecino} · ${d.torre}${d.apto ? ` · Apto ${d.apto}` : ''}`;
 
     const texto = $('detalle-texto');
     texto.replaceChildren(
