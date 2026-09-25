@@ -1,14 +1,18 @@
 ---
-// Vitrina: el ÚNICO lugar donde se mezclan las 4 torres. Muestra los destacados.
-// Autoplay 4.5 s, pausa al pasar el mouse, botones circulares y dots del color del conjunto activo.
-import { categoria } from '../lib/constantes';
-import type { EmprendedorPublico, Torre } from '../lib/db';
+// Vitrina de la feria: título con la fecha de la próxima feria y TODOS los emprendimientos que
+// están en la feria, uno a uno (una diapositiva por emprendimiento) con su descripción.
+// Mezcla los 4 conjuntos intercalados. Autoplay 7 s, pausa al pasar el mouse o con foco,
+// botones circulares y dots del color del conjunto activo.
+import { ICONOS, categoria, enlacesRedes } from '../lib/constantes';
+import type { EmprendedorPublico, Fecha, Torre } from '../lib/db';
+import { fechaLarga, rangoHoras } from '../lib/fechas';
 
 interface Props {
   emprendedores: EmprendedorPublico[];
   torres: Torre[];
+  proxima?: Fecha;
 }
-const { emprendedores, torres } = Astro.props;
+const { emprendedores, torres, proxima } = Astro.props;
 const torreDe = (id: string) => torres.find((t) => t.id === id) ?? torres[0];
 
 // Intercala torres para que el carrusel alterne colores (Austro, Mistral, Gregal, Cierzo, …).
@@ -22,10 +26,26 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
     <section class="vitrina-section" aria-roledescription="carrusel" aria-label="Vitrina de emprendimientos">
       <div class="wrap">
         <div class="vitrina-head">
-          <span class="kicker">Vitrina · la feria de un vistazo</span>
-          <h2>
-            Lo que trae <span class="serif grad-text">cada viento</span>.
-          </h2>
+          {proxima ? (
+            <>
+              <span class="kicker">
+                La próxima feria · {rangoHoras(proxima)} · El terminalito
+              </span>
+              <h2>
+                <span class="serif grad-text">Feria</span> · {fechaLarga(proxima.fecha)}
+              </h2>
+              <p class="vitrina-sub">
+                {`${slides.length} ${slides.length === 1 ? 'emprendimiento te espera' : 'emprendimientos te esperan'}. Conócelos uno a uno.`}
+              </p>
+            </>
+          ) : (
+            <>
+              <span class="kicker">La feria · pronto vendrán más fechas</span>
+              <h2>
+                Lo que trae <span class="serif grad-text">cada viento</span>.
+              </h2>
+            </>
+          )}
         </div>
       </div>
 
@@ -45,6 +65,7 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
           {slides.map((e, i) => {
             const t = torreDe(e.torre);
             const cat = categoria(e.categoria);
+            const redes = enlacesRedes(e);
             return (
               <article
                 class="vitrina-slide"
@@ -66,14 +87,32 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
                   )}
                 </div>
                 <div class="vitrina-info">
+                  <span class="num">
+                    {String(i + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+                  </span>
                   <span class="cat">
-                    {cat.label} · {t.rumbo}
+                    {cat.emoji} {cat.label}
                   </span>
                   <h3>{e.nombre_emprendimiento}</h3>
-                  <p>{e.descripcion_corta}</p>
-                  <button type="button" class="vitrina-mas" data-detalle={e.slug}>
-                    Ver más →
-                  </button>
+                  <div class="by">
+                    {`${e.nombre_vecino} · ${t.nombre}${e.apartamento ? ` · Apto ${e.apartamento}` : ''}`}
+                  </div>
+                  <p class="corta">{e.descripcion_corta}</p>
+                  {e.descripcion_larga && <p class="larga">{e.descripcion_larga}</p>}
+                  <div class="vitrina-foot">
+                    <div class="socials">
+                      {redes.map((r) => (
+                        <a href={r.url} target="_blank" rel="noopener" aria-label={`${r.label} de ${e.nombre_emprendimiento}`}>
+                          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d={ICONOS[r.red]} />
+                          </svg>
+                        </a>
+                      ))}
+                    </div>
+                    <button type="button" class="vitrina-mas" data-detalle={e.slug}>
+                      Ver fotos y contacto →
+                    </button>
+                  </div>
                 </div>
               </article>
             );
@@ -87,7 +126,8 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
 }
 
 <script>
-  const AUTOPLAY_MS = 4500;
+  // 7 s: cada diapositiva trae descripción completa y hay que alcanzar a leerla.
+  const AUTOPLAY_MS = 7000;
 
   document.querySelectorAll<HTMLElement>('[data-vitrina]').forEach((wrap) => {
     const track = wrap.querySelector<HTMLElement>('[data-track]')!;
@@ -180,8 +220,9 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
     filter: blur(80px); opacity: .4;
     pointer-events: none;
   }
-  .vitrina-head { text-align: center; margin-bottom: 40px; }
-  .vitrina-head h2 { font-size: clamp(30px, 4vw, 48px); letter-spacing: -.03em; }
+  .vitrina-head { text-align: center; margin-bottom: 36px; }
+  .vitrina-head h2 { font-size: clamp(32px, 4.6vw, 56px); letter-spacing: -.035em; }
+  .vitrina-sub { margin-top: 10px; color: var(--tinta-media); font-size: 16px; }
 
   .vitrina-wrap { position: relative; }
   .vitrina-track {
@@ -192,24 +233,25 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
   }
   .vitrina-track::-webkit-scrollbar { display: none; }
 
+  /* Una diapositiva por vista: el emprendimiento completo, uno a uno. */
   .vitrina-slide {
-    flex: 0 0 360px; scroll-snap-align: center;
-    display: flex; flex-direction: column;
+    flex: 0 0 100%; scroll-snap-align: center;
+    display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
     border-radius: var(--radio); overflow: hidden; background: #fff;
+    border-top: 6px solid var(--t);
     box-shadow: 0 12px 36px rgba(26, 22, 51, .08);
-    transition: transform .3s ease, box-shadow .3s ease;
   }
-  .vitrina-slide:hover { transform: translateY(-4px); box-shadow: 0 20px 44px rgba(26, 22, 51, .15); }
-  @media (max-width: 500px) { .vitrina-slide { flex: 0 0 290px; } }
+  @media (max-width: 760px) { .vitrina-slide { grid-template-columns: 1fr; } }
 
   .vitrina-img {
-    position: relative; aspect-ratio: 4 / 5;
+    position: relative; min-height: 420px;
     display: flex; align-items: center; justify-content: center;
     background: linear-gradient(160deg, color-mix(in srgb, var(--t) 45%, var(--t-claro)), var(--t-claro) 60%, #fff);
   }
   .vitrina-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .vitrina-img::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(26, 22, 51, .22) 100%); pointer-events: none; }
   .emoji { font-size: 130px; }
+  @media (max-width: 760px) { .vitrina-img { min-height: 0; aspect-ratio: 4 / 3; } .emoji { font-size: 100px; } }
 
   .vitrina-tag {
     position: absolute; top: 16px; left: 16px; z-index: 2;
@@ -222,11 +264,30 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
   }
   .vitrina-tag .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--t); }
 
-  .vitrina-info { padding: 22px 22px 24px; display: flex; flex-direction: column; flex: 1; }
-  .cat { font-family: var(--display); font-size: 10.5px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--tinta-suave); margin-bottom: 6px; }
-  .vitrina-info h3 { font-size: 22px; margin-bottom: 4px; }
-  .vitrina-info p { font-size: 14px; color: var(--tinta-media); flex: 1; }
-  .vitrina-mas { align-self: flex-start; margin-top: 14px; background: none; border: none; padding: 0; font-family: var(--display); font-weight: 700; font-size: 13.5px; color: var(--t); }
+  .vitrina-info { padding: 36px 40px; display: flex; flex-direction: column; min-width: 0; }
+  @media (max-width: 760px) { .vitrina-info { padding: 24px 22px 26px; } }
+  .num { font-family: var(--display); font-size: 12px; font-weight: 800; letter-spacing: .12em; color: var(--t); margin-bottom: 14px; }
+  .cat { font-family: var(--display); font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--tinta-suave); margin-bottom: 8px; }
+  .vitrina-info h3 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -.025em; margin-bottom: 4px; overflow-wrap: anywhere; }
+  .by { font-size: 13.5px; font-weight: 600; color: var(--tinta-suave); margin-bottom: 18px; }
+  .corta { font-size: 17px; font-weight: 600; color: var(--tinta); line-height: 1.45; margin-bottom: 12px; }
+  .larga {
+    font-size: 15px; color: var(--tinta-media); line-height: 1.6; white-space: pre-line;
+    display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .vitrina-foot { margin-top: auto; padding-top: 22px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .socials { display: flex; gap: 6px; }
+  .socials a {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--t-claro); color: var(--t);
+  }
+  .socials svg { width: 16px; height: 16px; }
+  .vitrina-mas {
+    font-family: var(--display); font-weight: 700; font-size: 14px;
+    padding: 11px 18px; border-radius: 999px; border: none;
+    background: var(--t); color: #fff;
+  }
 
   .vitrina-btn {
     position: absolute; top: 45%; transform: translateY(-50%); z-index: 3;
@@ -238,9 +299,10 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
   }
   .vitrina-btn:hover { transform: translateY(-50%) scale(1.08); background: var(--crema); }
   .vitrina-btn svg { width: 20px; height: 20px; }
-  .vitrina-btn.prev { left: -8px; }
-  .vitrina-btn.next { right: -8px; }
-  @media (max-width: 720px) { .vitrina-btn.prev { left: 8px; } .vitrina-btn.next { right: 8px; } }
+  .vitrina-btn.prev { left: -26px; }
+  .vitrina-btn.next { right: -26px; }
+  @media (max-width: 1240px) { .vitrina-btn.prev { left: 6px; } .vitrina-btn.next { right: 6px; } }
+  @media (max-width: 760px) { .vitrina-btn { top: 22%; width: 44px; height: 44px; } }
 
   .vitrina-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
   .vitrina-dots :global(.vitrina-dot) {

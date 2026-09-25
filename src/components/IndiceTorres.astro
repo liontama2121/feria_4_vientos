@@ -6,7 +6,7 @@ interface Props {
   conteo: Record<string, number>;
 }
 const { torres, conteo } = Astro.props;
-const plural = (n: number) => `${n} ${n === 1 ? 'emprendedor' : 'emprendedores'}`;
+const plural = (n: number) => `${n} en la feria`;
 ---
 
 <section class="indice" id="torres">

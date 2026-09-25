@@ -12,7 +12,7 @@ const { torres } = Astro.props;
   <div class="wrap nav-inner">
     <a href="/" class="nav-marca">
       <Molinete size={34} />
-      Feria 4 Vientos
+      4 Vientos
     </a>
     <div class="nav-torres">
       {
@@ -24,7 +24,10 @@ const { torres } = Astro.props;
         ))
       }
     </div>
-    <a href="/admin" class="nav-panel">Panel</a>
+    <div class="nav-acciones">
+      <a href="#directorio" class="nav-dir">Directorio</a>
+      <a href="/admin" class="nav-panel">Panel</a>
+    </div>
   </div>
 </nav>
 
@@ -54,5 +57,8 @@ const { torres } = Astro.props;
     background: #fff; border: 1px solid var(--linea-fuerte);
   }
   .nav-panel:hover { background: var(--crema-alt); }
+  .nav-acciones { display: flex; align-items: center; gap: 8px; }
+  .nav-dir { font-family: var(--display); font-size: 13px; font-weight: 700; padding: 8px 12px; color: var(--tinta-media); }
+  .nav-dir:hover { color: var(--tinta); }
   @media (max-width: 900px) { .nav-torres { display: none; } }
 </style>

@@ -1,6 +1,7 @@
 // Subida del logo real de un patrocinador (reemplaza el emoji de placeholder).
 import type { APIRoute } from 'astro';
 import { error, json } from '../../../lib/api';
+import { LIMITES } from '../../../lib/constantes';
 import { guardarImagen } from '../../../lib/imagenes';
 
 export const POST: APIRoute = async ({ locals, request }) => {
@@ -10,6 +11,6 @@ export const POST: APIRoute = async ({ locals, request }) => {
   } catch {
     return error('No recibimos el logo.');
   }
-  const r = await guardarImagen(locals.runtime.env.MEDIA, 'patrocinadores', form.get('logo'), locals.usuario!.email);
+  const r = await guardarImagen(locals.runtime.env.MEDIA, 'patrocinadores', form.get('logo'), locals.usuario!.email, LIMITES.logoBytes);
   return r.ok ? json({ url: r.url }, 201) : error(r.error, r.status);
 };

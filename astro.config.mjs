@@ -15,5 +15,8 @@ export default defineConfig({
   }),
   vite: {
     plugins: [tailwindcss()],
+    // Rama que Cloudflare Pages está compilando (vacío en local y en `npm run deploy`).
+    // Los previews usan la MISMA D1 de producción: ver `esPreviewSobreProduccion` en src/lib/db.ts.
+    define: { 'import.meta.env.RAMA_CF': JSON.stringify(process.env.CF_PAGES_BRANCH ?? '') },
   },
 });

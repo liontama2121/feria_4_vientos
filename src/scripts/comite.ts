@@ -1,16 +1,21 @@
 // Lógica de /admin/comite. Todo se pinta desde los datos en memoria y cada acción
 // llama a /api/comite/* y actualiza solo lo que cambió.
-import type { Fecha, FilaComite, Patrocinador, Torre } from '../lib/db';
+import type { Cuenta, EstadoVisible, Fecha, FilaComite, Notificacion, Patrocinador, Torre } from '../lib/db';
 
 interface DatosComite {
   filas: FilaComite[];
   torres: Torre[];
   patrocinadores: Patrocinador[];
   fechas: Fecha[];
+  cuentas: Cuenta[];
+  notificaciones: Notificacion[];
+  /** Correos de ADMIN_EMAILS: al activar esas cuentas tendrán acceso total. */
+  admins: string[];
   categorias: { id: string; label: string; emoji: string }[];
 }
 
-type Tab = 'emprendedores' | 'torres' | 'patrocinadores' | 'fechas';
+const TABS = ['emprendedores', 'cuentas', 'notificaciones', 'torres', 'patrocinadores', 'fechas'] as const;
+type Tab = (typeof TABS)[number];
 type Attrs = Record<string, unknown> & { class?: string; text?: string | number; on?: Record<string, (ev: Event) => void>; style?: string };
 
 /** Crea elementos sin innerHTML: todo texto de usuario entra como textContent. */
@@ -29,13 +34,26 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs = {}, ...
   return el;
 }
 
-const ETIQUETA: Record<FilaComite['estado_visible'], string> = {
-  publicado: 'Publicado',
-  pendiente: 'Pendiente',
-  borrador: 'Borrador',
-  oculto: 'Oculto',
-  rechazado: 'Oculto',
+const ETIQUETA: Record<EstadoVisible, string> = {
+  pending_review: 'En revisión',
+  approved: 'Aprobado',
+  oculto: 'Aprobado · oculto',
+  changes_requested: 'Cambios pedidos',
+  rejected: 'Rechazado',
+  draft: 'Borrador',
 };
+
+const ETIQUETA_CUENTA: Record<Cuenta['estado'], string> = {
+  pending_activation: 'Por activar',
+  active: 'Activa',
+  rejected: 'Rechazada',
+};
+
+/** "Mistral 402", o solo "Mistral" si no dio torre/apto. */
+const donde = (t: Torre, apto: string) => `${t.nombre}${apto ? ` ${apto}` : ''}`;
+const wsp = (numero: string, mensaje: string) => `https://wa.me/57${numero}?text=${encodeURIComponent(mensaje)}`;
+const fechaCorta = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
 
 export function iniciarComite() {
   const nodo = document.getElementById('comite-datos');
@@ -45,10 +63,23 @@ export function iniciarComite() {
   const torreDe = (id: string | null) => D.torres.find((t) => t.id === id) ?? D.torres[0];
   const catDe = (id: string) => D.categorias.find((c) => c.id === id) ?? D.categorias[D.categorias.length - 1];
 
-  function toast(msg: string, tipo: 'ok' | 'error' | 'info' = 'info') {
-    const t = h('div', { class: `toast ${tipo}`, text: msg });
+  function toast(msg: string, tipo: 'ok' | 'error' | 'info' = 'info', enlace?: { href: string; texto: string }) {
+    const t = h(
+      'div',
+      { class: `toast ${tipo}`, text: msg },
+      enlace ? h('a', { href: enlace.href, target: '_blank', rel: 'noopener', text: ` ${enlace.texto}`, style: 'color:inherit;text-decoration:underline;margin-left:6px' }) : null,
+    );
     $('toasts').append(t);
-    setTimeout(() => t.remove(), tipo === 'error' ? 6000 : 3500);
+    setTimeout(() => t.remove(), enlace ? 12000 : tipo === 'error' ? 6000 : 3500);
+  }
+
+  /** Guarda la notificación nueva en la bandeja y avisa con un toast que abre el WhatsApp del vecino. */
+  function notificar(msg: string, n: Notificacion | null | undefined) {
+    if (n) {
+      D.notificaciones = [n, ...D.notificaciones];
+      renderNotificaciones();
+    }
+    toast(msg, 'ok', n?.whatsapp ? { href: wsp(n.whatsapp, n.mensaje), texto: 'Avisar por WhatsApp' } : undefined);
   }
 
   async function api<T = unknown>(url: string, metodo: string, cuerpo?: unknown): Promise<T> {
@@ -62,9 +93,10 @@ export function iniciarComite() {
     return j as T;
   }
 
-  function confirmar(texto: string): Promise<boolean> {
+  function confirmar(texto: string, boton = 'Sí, eliminar'): Promise<boolean> {
     const dlg = $<HTMLDialogElement>('dlgConfirmar');
     $('confirmarTexto').textContent = texto;
+    dlg.querySelector('button[value="ok"]')!.textContent = boton;
     dlg.returnValue = '';
     dlg.showModal();
     return new Promise((r) => dlg.addEventListener('close', () => r(dlg.returnValue === 'ok'), { once: true }));
@@ -84,12 +116,16 @@ export function iniciarComite() {
   );
 
   function badges() {
-    const pendientes = D.filas.filter((f) => f.estado_visible === 'pendiente').length;
+    const pendientes = D.filas.filter((f) => f.estado === 'pending_review').length;
+    const cuentas = D.cuentas.filter((c) => c.estado === 'pending_activation').length;
+    const avisos = D.notificaciones.filter((n) => !n.enviada && n.para === 'vecino').length;
     const set = (tab: string, v: string) => {
       const b = document.querySelector<HTMLElement>(`[data-badge="${tab}"]`);
       if (b) b.textContent = v;
     };
-    set('emprendedores', pendientes ? `${pendientes} por aprobar` : String(D.filas.length));
+    set('emprendedores', pendientes ? `${pendientes} por revisar` : String(D.filas.length));
+    set('cuentas', cuentas ? `${cuentas} por activar` : String(D.cuentas.length));
+    set('notificaciones', avisos ? `${avisos} por enviar` : '');
     set('torres', String(D.torres.length));
     set('patrocinadores', String(D.patrocinadores.length));
     set('fechas', String(D.fechas.length));
@@ -100,48 +136,142 @@ export function iniciarComite() {
   const fTorre = $<HTMLSelectElement>('fTorre');
   const fCategoria = $<HTMLSelectElement>('fCategoria');
   const fEstado = $<HTMLSelectElement>('fEstado');
+  const fFeria = $<HTMLSelectElement>('fFeria');
 
   fTorre.append(h('option', { value: '', text: 'Todos' }), ...D.torres.map((t) => h('option', { value: t.id, text: `${t.emoji_simbolo} ${t.nombre}` })));
   fCategoria.append(h('option', { value: '', text: 'Todas' }), ...D.categorias.map((c) => h('option', { value: c.id, text: `${c.emoji} ${c.label}` })));
 
   function filtros() {
-    return { q: fBuscar.value.trim().toLowerCase(), torre: fTorre.value, categoria: fCategoria.value, estado: fEstado.value };
+    return { q: fBuscar.value.trim().toLowerCase(), torre: fTorre.value, categoria: fCategoria.value, estado: fEstado.value, feria: fFeria.value };
   }
 
   function filtradas() {
     const f = filtros();
-    const orden: Record<string, number> = { pendiente: 0, rechazado: 1, borrador: 2, publicado: 3, oculto: 4 };
+    const orden: Record<EstadoVisible, number> = { pending_review: 0, changes_requested: 1, draft: 2, approved: 3, oculto: 4, rejected: 5 };
     return D.filas
       .filter(
         (r) =>
           (!f.torre || r.torre === f.torre) &&
           (!f.categoria || r.categoria === f.categoria) &&
           (!f.estado || r.estado_visible === f.estado) &&
+          (!f.feria || r.en_feria === (f.feria === 'si')) &&
           (!f.q || `${r.nombre} ${r.vecino} ${r.apartamento} ${r.owner_email ?? ''}`.toLowerCase().includes(f.q)),
       )
       .sort((a, b) => orden[a.estado_visible] - orden[b.estado_visible] || a.nombre.localeCompare(b.nombre, 'es'));
   }
 
   function renderStats() {
-    const c = (e: FilaComite['estado_visible']) => D.filas.filter((f) => f.estado_visible === e).length;
+    const c = (e: EstadoVisible) => D.filas.filter((f) => f.estado_visible === e).length;
     const stat = (n: number, l: string, cls = '') => h('div', { class: `stat ${cls}` }, h('b', { text: n }), h('span', { text: l }));
     $('stats').replaceChildren(
       stat(D.filas.length, 'Emprendimientos'),
-      stat(c('publicado'), 'Publicados', 'verde'),
-      stat(c('pendiente'), 'Por aprobar', 'naranja'),
-      stat(D.filas.filter((f) => f.destacado).length, 'En la vitrina', 'morado'),
+      stat(c('approved'), 'En la landing', 'verde'),
+      stat(c('pending_review'), 'Por revisar', 'naranja'),
+      stat(D.filas.filter((f) => f.en_feria && f.estado === 'approved').length, 'En la feria', 'morado'),
     );
   }
 
   async function accion(slug: string, cuerpo: Record<string, unknown>, ok: string) {
     try {
-      const fila = await api<FilaComite>('/api/comite/emprendedores', 'PATCH', { slug, ...cuerpo });
-      D.filas = D.filas.map((f) => (f.slug === slug ? fila : f));
-      toast(ok, 'ok');
+      const r = await api<{ fila: FilaComite; notificacion: Notificacion | null }>('/api/comite/emprendedores', 'PATCH', { slug, ...cuerpo });
+      D.filas = D.filas.map((f) => (f.slug === slug ? r.fila : f));
+      notificar(ok, r.notificacion);
       renderEmprendedores();
+      return true;
     } catch (e) {
       toast((e as Error).message, 'error');
+      return false;
     }
+  }
+
+  // ───────────────────────── Moderación: rechazar / pedir cambios (con nota) ─────────────────────────
+  const dlgModerar = $<HTMLDialogElement>('dlgModerar');
+  const notaModerar = $<HTMLTextAreaElement>('moderarNota');
+
+  function pedirNota(tipo: 'rechazar' | 'pedir_cambios', r: FilaComite): Promise<string | null> {
+    const rechazo = tipo === 'rechazar';
+    $('dlgModerarTitulo').textContent = rechazo ? `Rechazar “${r.nombre || r.slug}”` : `Pedir cambios a “${r.nombre || r.slug}”`;
+    $('moderarTexto').textContent = rechazo
+      ? 'El vecino verá este motivo en su panel y no podrá editar. Queda un aviso listo para mandarle por WhatsApp.'
+      : 'El vecino verá esta nota y podrá editar y reenviar. Queda un aviso listo para mandarle por WhatsApp.';
+    $('moderarLabel').textContent = rechazo ? 'Motivo del rechazo' : 'Qué debe ajustar';
+    const ok = $<HTMLButtonElement>('moderarOk');
+    ok.textContent = rechazo ? '✕ Rechazar' : '✎ Pedir cambios';
+    ok.className = `btn ${rechazo ? 'btn-rechazar' : 'btn-cambios'}`;
+    notaModerar.value = '';
+    dlgModerar.returnValue = '';
+    dlgModerar.showModal();
+    return new Promise((res) =>
+      dlgModerar.addEventListener('close', () => res(dlgModerar.returnValue === 'ok' && notaModerar.value.trim() ? notaModerar.value.trim() : null), { once: true }),
+    );
+  }
+
+  async function moderar(tipo: 'aprobar' | 'rechazar' | 'pedir_cambios', r: FilaComite) {
+    const nombre = r.nombre || 'Emprendimiento';
+    if (tipo === 'aprobar') return accion(r.slug, { accion: 'aprobar' }, `${nombre} aprobado y publicado ✓`);
+    const nota = await pedirNota(tipo, r);
+    if (!nota) return false;
+    return tipo === 'rechazar'
+      ? accion(r.slug, { accion: 'rechazar', motivo: nota }, `${nombre} rechazado`)
+      : accion(r.slug, { accion: 'pedir_cambios', nota }, `Cambios pedidos a ${nombre}`);
+  }
+
+  function solicitud(r: FilaComite) {
+    const t = torreDe(r.torre);
+    const cat = catDe(r.categoria);
+    const fotos = [r.foto, ...r.galeria].filter(Boolean);
+    const dato = (k: string, v: string, href?: string) =>
+      v ? [h('dt', { text: k }), h('dd', {}, href ? h('a', { href, target: '_blank', rel: 'noopener', text: v }) : v)] : [];
+    return h(
+      'article',
+      { class: 'card solicitud', style: `--t:${t.color_hex};--t-claro:${t.color_claro}` },
+      h(
+        'div',
+        { class: 'solicitud-head' },
+        h(
+          'div',
+          {},
+          h('h3', { text: r.nombre || 'Sin nombre' }),
+          h('div', { class: 'sub', text: `${r.vecino || 'Vecino sin nombre'} · ${donde(t, r.apartamento)} · enviado ${fechaCorta(r.enviado_at)}` }),
+        ),
+        h('div', { class: 'meta' }, h('span', { class: 'pill-t', text: `${t.emoji_simbolo} ${t.nombre}${r.apartamento ? ` · Apto ${r.apartamento}` : ''}` }), h('span', { class: 'sub', text: `${cat.emoji} ${cat.label}` })),
+      ),
+      h('p', { class: 'corta', text: r.descripcion_corta }),
+      r.descripcion_larga ? h('p', { class: 'desc-larga', text: r.descripcion_larga }) : null,
+      fotos.length
+        ? h('div', { class: 'fotos-sol' }, ...fotos.map((f, i) => h('a', { href: f, target: '_blank', rel: 'noopener', class: i === 0 ? 'principal' : '' }, h('img', { src: f, alt: '', loading: 'lazy' }))))
+        : h('p', { class: 'sin-fotos', text: `Sin fotos · usa el emoji ${r.emoji || cat.emoji}` }),
+      h(
+        'dl',
+        { class: 'datos-sol' },
+        ...dato('WhatsApp', r.whatsapp ? `+57 ${r.whatsapp}` : '', r.whatsapp ? `https://wa.me/57${r.whatsapp}` : undefined),
+        ...dato('Instagram', r.instagram ? `@${r.instagram}` : '', r.instagram ? `https://instagram.com/${r.instagram}` : undefined),
+        ...dato('TikTok', r.tiktok ? `@${r.tiktok}` : '', r.tiktok ? `https://tiktok.com/@${r.tiktok}` : undefined),
+        ...dato('Facebook', r.facebook, r.facebook ? `https://facebook.com/${r.facebook}` : undefined),
+        ...dato('Página web', r.pagina_web, r.pagina_web || undefined),
+        ...dato('Cuenta', r.owner_email ?? ''),
+      ),
+      h(
+        'div',
+        { class: 'acciones-sol' },
+        h('button', { type: 'button', class: 'btn btn-sm btn-aprobar', text: '✓ Aprobar', on: { click: () => moderar('aprobar', r) } }),
+        h('button', { type: 'button', class: 'btn btn-sm btn-rechazar', text: '✕ Rechazar', on: { click: () => moderar('rechazar', r) } }),
+        h('button', { type: 'button', class: 'btn btn-sm btn-cambios', text: '✎ Pedir cambios', on: { click: () => moderar('pedir_cambios', r) } }),
+        h('a', { class: 'btn btn-ghost btn-sm', href: `/admin?slug=${encodeURIComponent(r.slug)}`, text: 'Abrir en el editor' }),
+      ),
+    );
+  }
+
+  function renderCola() {
+    const pendientes = D.filas
+      .filter((f) => f.estado === 'pending_review')
+      .sort((a, b) => (a.enviado_at ?? '').localeCompare(b.enviado_at ?? ''));
+    const cont = $('contadorPendientes');
+    cont.textContent = String(pendientes.length);
+    cont.classList.toggle('cero', !pendientes.length);
+    $('colaPendientes').replaceChildren(
+      ...(pendientes.length ? pendientes.map(solicitud) : [h('div', { class: 'vacio-lista', text: 'Nada pendiente. Todo al día ✓' })]),
+    );
   }
 
   function filaEmprendedor(r: FilaComite) {
@@ -153,6 +283,19 @@ export function iniciarComite() {
     acciones.append(
       h('button', {
         type: 'button',
+        class: 'btn-feria',
+        'aria-pressed': String(r.en_feria),
+        title: r.en_feria ? 'Sacarlo de la feria (sigue en el directorio)' : 'Marcarlo como participante de la feria',
+        text: r.en_feria ? '🎪 En la feria' : '＋ Feria',
+        on: {
+          click: () =>
+            accion(r.slug, { accion: 'en_feria', valor: !r.en_feria }, r.en_feria ? `${r.nombre || 'Emprendimiento'} ya no está en la feria` : `${r.nombre || 'Emprendimiento'} está en la feria 🎪`),
+        },
+      }),
+    );
+    acciones.append(
+      h('button', {
+        type: 'button',
         class: 'estrella',
         'aria-pressed': String(r.destacado),
         title: r.destacado ? 'Quitar de la vitrina' : 'Destacar en la vitrina',
@@ -161,21 +304,21 @@ export function iniciarComite() {
         on: { click: () => accion(r.slug, { accion: 'destacar', valor: !r.destacado }, r.destacado ? 'Quitado de la vitrina' : 'Destacado en la vitrina ★') },
       }),
     );
-    const visible = r.estado === 'aprobado';
-    acciones.append(
-      h('button', {
-        type: 'button',
-        class: `btn ${visible ? 'btn-ghost' : 'btn-primary'} btn-sm`,
-        text: visible ? 'Ocultar' : 'Mostrar',
-        title: visible ? 'Quitarlo de la landing sin borrarlo' : 'Volver a mostrarlo en la landing',
-        on: {
-          click: () =>
-            visible
-              ? accion(r.slug, { accion: 'rechazar', motivo: 'Oculto por el comité' }, `${r.nombre || 'Emprendimiento'} oculto de la landing`)
-              : accion(r.slug, { accion: 'aprobar' }, `${r.nombre || 'Emprendimiento'} visible en la landing ✓`),
-        },
-      }),
-    );
+    if (r.estado === 'approved') {
+      const visible = r.estado_visible === 'approved';
+      acciones.append(
+        h('button', {
+          type: 'button',
+          class: `btn ${visible ? 'btn-ghost' : 'btn-primary'} btn-sm`,
+          text: visible ? 'Ocultar' : 'Mostrar',
+          title: visible ? 'Quitarlo de la landing sin borrarlo' : 'Volver a mostrarlo en la landing',
+          on: {
+            click: () =>
+              accion(r.slug, { accion: 'visible', valor: !visible }, visible ? `${r.nombre || 'Emprendimiento'} oculto de la landing` : `${r.nombre || 'Emprendimiento'} visible en la landing ✓`),
+          },
+        }),
+      );
+    }
     acciones.append(
       h('a', { class: 'btn btn-ghost btn-sm', href: `/admin?slug=${encodeURIComponent(r.slug)}`, text: 'Editar' }),
       h('button', {
@@ -206,7 +349,9 @@ export function iniciarComite() {
         'div',
         {},
         h('h3', { text: r.nombre || 'Sin nombre todavía' }),
-        h('div', { class: 'sub', text: `${r.vecino || 'Vecino sin nombre'} · ${t.nombre} ${r.apartamento}${r.whatsapp ? ` · +57 ${r.whatsapp}` : ''}` }),
+        h('div', { class: 'sub', text: `${r.vecino || 'Vecino sin nombre'} · ${donde(t, r.apartamento)}${r.whatsapp ? ` · +57 ${r.whatsapp}` : ''}` }),
+        r.estado === 'rejected' && r.motivo_rechazo ? h('div', { class: 'nota-fila', text: `Motivo: ${r.motivo_rechazo}` }) : null,
+        r.estado === 'changes_requested' && r.nota_cambios ? h('div', { class: 'nota-fila', text: `Cambios pedidos: ${r.nota_cambios}` }) : null,
       ),
       h(
         'div',
@@ -214,7 +359,7 @@ export function iniciarComite() {
         h('span', { class: 'pill-t', text: `${t.emoji_simbolo} ${t.nombre}` }),
         h('span', { class: `pill-estado ${r.estado_visible}`, text: ETIQUETA[r.estado_visible] }),
         h('span', { class: 'sub', text: `${cat.emoji} ${cat.label}` }),
-        r.cambios_sin_publicar && r.estado_visible !== 'borrador' ? h('span', { class: 'pill-cambios', text: '● cambios sin publicar' }) : null,
+        r.cambios_sin_publicar && r.estado === 'approved' ? h('span', { class: 'pill-cambios', text: '● cambios sin publicar' }) : null,
       ),
       acciones,
     );
@@ -226,12 +371,118 @@ export function iniciarComite() {
       ...(lista.length ? lista.map(filaEmprendedor) : [h('div', { class: 'vacio-lista', text: 'No hay emprendimientos con esos filtros.' })]),
     );
     const f = filtros();
-    const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]);
+    const qs = new URLSearchParams(Object.entries(f).filter(([k, v]) => v && k !== 'feria') as [string, string][]);
     $<HTMLAnchorElement>('btnExportar').href = `/api/comite/export.csv${qs.size ? `?${qs}` : ''}`;
+    renderCola();
     renderStats();
     badges();
   }
-  [fBuscar, fTorre, fCategoria, fEstado].forEach((el) => el.addEventListener('input', renderEmprendedores));
+
+  // ───────────────────────── Cuentas ─────────────────────────
+  async function revisarCuenta(c: Cuenta, activar: boolean) {
+    if (activar && D.admins.includes(c.email) && !(await confirmar(`${c.email} está en ADMIN_EMAILS: al activarla tendrá acceso TOTAL al comité. ¿Es tuya?`, 'Sí, activar'))) return;
+    try {
+      const r = await api<{ cuenta: Cuenta; notificacion: Notificacion }>('/api/comite/cuentas', 'PATCH', { email: c.email, accion: activar ? 'activar' : 'rechazar' });
+      D.cuentas = D.cuentas.map((x) => (x.email === c.email ? r.cuenta : x));
+      notificar(activar ? `Cuenta de ${c.nombre} activada ✓` : `Cuenta de ${c.nombre} rechazada`, r.notificacion);
+      renderCuentas();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  }
+
+  function renderCuentas() {
+    const orden: Record<Cuenta['estado'], number> = { pending_activation: 0, active: 1, rejected: 2 };
+    const lista = [...D.cuentas].sort((a, b) => orden[a.estado] - orden[b.estado] || b.creado_at.localeCompare(a.creado_at));
+    $('listaCuentas').replaceChildren(
+      ...(lista.length
+        ? lista.map((c) => {
+            const t = torreDe(c.torre);
+            const emp = D.filas.find((f) => f.owner_email === c.email);
+            return h(
+              'article',
+              { class: 'fila', style: `--t:${t.color_hex};--t-claro:${t.color_claro}` },
+              h('div', { class: 'mini-foto', text: t.emoji_simbolo }),
+              h(
+                'div',
+                {},
+                h('h3', { text: c.nombre }),
+                h('div', { class: 'sub', text: `${c.email} · +57 ${c.whatsapp}` }),
+                h('div', { class: 'sub', text: `Pidió acceso ${fechaCorta(c.creado_at)}${c.revisado_por ? ` · revisó ${c.revisado_por}` : ''}` }),
+              ),
+              h(
+                'div',
+                { class: 'meta' },
+                h('span', { class: 'pill-t', text: `${t.emoji_simbolo} ${donde(t, c.apartamento)}` }),
+                h('span', { class: `pill-estado ${c.estado}`, text: ETIQUETA_CUENTA[c.estado] }),
+                D.admins.includes(c.email) ? h('span', { class: 'pill-admin', text: 'ADMIN' }) : null,
+                emp ? h('span', { class: `pill-estado ${emp.estado_visible}`, text: `Emprendimiento: ${ETIQUETA[emp.estado_visible]}` }) : null,
+              ),
+              h(
+                'div',
+                { class: 'fila-acciones' },
+                c.estado !== 'active' ? h('button', { type: 'button', class: 'btn btn-sm btn-aprobar', text: '✓ Activar', on: { click: () => revisarCuenta(c, true) } }) : null,
+                c.estado !== 'rejected'
+                  ? h('button', { type: 'button', class: 'btn btn-sm btn-peligro', text: c.estado === 'active' ? 'Desactivar' : '✕ Rechazar', on: { click: () => revisarCuenta(c, false) } })
+                  : null,
+                h('a', { class: 'btn btn-ghost btn-sm', href: `https://wa.me/57${c.whatsapp}`, target: '_blank', rel: 'noopener', text: 'WhatsApp' }),
+              ),
+            );
+          })
+        : [h('div', { class: 'vacio-lista', text: 'Aún no hay cuentas. Los vecinos se registran en /registro.' })]),
+    );
+    badges();
+  }
+
+  // ───────────────────────── Notificaciones ─────────────────────────
+  function renderNotificaciones() {
+    $('listaNotificaciones').replaceChildren(
+      ...(D.notificaciones.length
+        ? D.notificaciones.map((n) => {
+            const marcar = async () => {
+              try {
+                await api('/api/comite/notificaciones', 'PATCH', { id: n.id, enviada: !n.enviada });
+                n.enviada = !n.enviada;
+                renderNotificaciones();
+              } catch (e) {
+                toast((e as Error).message, 'error');
+              }
+            };
+            const copiar = async () => {
+              try {
+                await navigator.clipboard.writeText(n.mensaje);
+                toast('Mensaje copiado', 'ok');
+              } catch {
+                toast('No se pudo copiar. Selecciónalo a mano.', 'error');
+              }
+            };
+            const paraVecino = n.para === 'vecino';
+            return h(
+              'article',
+              { class: `noti${n.enviada ? ' enviada' : ''}` },
+              h(
+                'div',
+                {},
+                h('h3', { text: `${paraVecino ? '→ Vecino' : '← Para el comité'} · ${n.titulo}` }),
+                h('p', { text: n.mensaje }),
+                h('div', { class: 'sub', text: `${fechaCorta(n.creado_at)}${n.whatsapp ? ` · +57 ${n.whatsapp}` : ''}${n.email ? ` · ${n.email}` : ''}${n.enviada ? ' · ✓ enviada' : ''}` }),
+              ),
+              h(
+                'div',
+                { class: 'fila-acciones' },
+                n.whatsapp ? h('a', { class: 'btn btn-sm btn-wsp', href: wsp(n.whatsapp, n.mensaje), target: '_blank', rel: 'noopener', text: 'Abrir WhatsApp', on: { click: () => !n.enviada && marcar() } }) : null,
+                n.email ? h('a', { class: 'btn btn-ghost btn-sm', href: `mailto:${n.email}?subject=${encodeURIComponent(`Feria 4 Vientos · ${n.titulo}`)}&body=${encodeURIComponent(n.mensaje)}`, text: 'Correo' }) : null,
+                n.slug && !paraVecino ? h('a', { class: 'btn btn-ghost btn-sm', href: '#emprendedores', text: 'Revisar', on: { click: () => irA('emprendedores') } }) : null,
+                h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: 'Copiar', on: { click: copiar } }),
+                h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: n.enviada ? 'Marcar pendiente' : 'Marcar enviada', on: { click: marcar } }),
+              ),
+            );
+          })
+        : [h('div', { class: 'vacio-lista', text: 'Sin notificaciones todavía.' })]),
+    );
+    badges();
+  }
+  [fBuscar, fTorre, fCategoria, fEstado, fFeria].forEach((el) => el.addEventListener('input', renderEmprendedores));
 
   // ───────────────────────── Nuevo emprendimiento ─────────────────────────
   const dlgNuevo = $<HTMLDialogElement>('dlgNuevo');
@@ -600,9 +851,11 @@ export function iniciarComite() {
 
   // ───────────────────────── Arranque ─────────────────────────
   renderEmprendedores();
+  renderCuentas();
+  renderNotificaciones();
   renderTorres();
   renderPatrocinadores();
   renderFechas();
   const inicial = location.hash.slice(1) as Tab;
-  irA(['emprendedores', 'torres', 'patrocinadores', 'fechas'].includes(inicial) ? inicial : 'emprendedores');
+  irA(TABS.includes(inicial) ? inicial : 'emprendedores');
 }

@@ -37,13 +37,39 @@ export type TipoPatrocinador = (typeof TIPOS_PATROCINADOR)[number];
 export const LIMITES = {
   descripcionCorta: 160,
   descripcionLarga: 1500,
-  galeria: 5, // fotos adicionales a la principal
-  fotoBytes: 5 * 1024 * 1024,
-  fotoLado: 1600, // px, lado mayor tras optimizar en el navegador
+  galeria: 2, // fotos adicionales a la principal (3 en total)
+  // Fotos: el navegador acepta el original (fotos de celular de hasta 25 MB), lo reduce y
+  // lo re-codifica; lo que llega al servidor (y a R2) no puede pasar de 800 KB.
+  fotoOriginalBytes: 25 * 1024 * 1024,
+  fotoBytes: 800 * 1024,
+  fotoLado: 1200, // px, lado mayor tras optimizar en el navegador
+  logoBytes: 1024 * 1024, // logos de patrocinadores (se suben sin optimizar)
   autoSaveMs: 30_000,
 } as const;
 
 export const FORMATOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'] as const;
+
+/**
+ * Ciclo de vida de un emprendimiento (ver CLAUDE.md):
+ * draft → pending_review → approved | rejected | changes_requested → pending_review …
+ * Solo `approved` aparece en la landing.
+ */
+export const ESTADOS = ['draft', 'pending_review', 'approved', 'rejected', 'changes_requested'] as const;
+export type EstadoEmprendimiento = (typeof ESTADOS)[number];
+
+/** Estados en los que el vecino puede editar su formulario (y corre el auto-save). */
+export const ESTADOS_EDITABLES: readonly EstadoEmprendimiento[] = ['draft', 'changes_requested'];
+
+export const ETIQUETA_ESTADO: Record<EstadoEmprendimiento, string> = {
+  draft: 'Borrador',
+  pending_review: 'En revisión',
+  approved: 'Aprobado',
+  rejected: 'Rechazado',
+  changes_requested: 'Cambios pedidos',
+};
+
+export const ESTADOS_CUENTA = ['pending_activation', 'active', 'rejected'] as const;
+export type EstadoCuenta = (typeof ESTADOS_CUENTA)[number];
 
 /** Estructura de un emprendimiento tal como la editan el panel y la landing. */
 export interface DatosEmprendimiento {
@@ -64,6 +90,8 @@ export interface DatosEmprendimiento {
   pagina_web: string;
   destacado: boolean;
   publicado: boolean;
+  /** Participa en la feria: sale arriba (vitrina + sección de su conjunto). Solo lo cambia el comité. */
+  en_feria: boolean;
   recibir_avisos: boolean;
   emoji_placeholder: string;
 }
@@ -86,6 +114,7 @@ export function datosVacios(parcial: Partial<DatosEmprendimiento> = {}): DatosEm
     pagina_web: '',
     destacado: false,
     publicado: true,
+    en_feria: false,
     recibir_avisos: true,
     emoji_placeholder: '',
     ...parcial,

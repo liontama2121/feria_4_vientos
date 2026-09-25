@@ -1,9 +1,8 @@
 ---
-// Una sección por viento (conjunto), con su color pleno. Los emprendedores NO se mezclan:
-// cada uno aparece en la sección de su conjunto.
+// Una sección por viento (conjunto), con su color pleno. Solo los que están EN LA FERIA
+// (`en_feria`); los demás viven en el directorio. Los conjuntos NO se mezclan aquí.
 import EmprendedorCard from './EmprendedorCard.astro';
 import type { EmprendedorPublico, Torre } from '../lib/db';
-import { MENSAJES, linkWhatsApp } from '../lib/sitio';
 
 interface Props {
   torre: Torre;
@@ -23,7 +22,7 @@ const n = emprendedores.length;
       </div>
       <div class="conteo-grande">
         <div class="n">{n}</div>
-        <div class="l">{n === 1 ? 'Emprendedor' : 'Emprendedores'}</div>
+        <div class="l">En la feria</div>
       </div>
     </div>
 
@@ -38,10 +37,10 @@ const n = emprendedores.length;
         <div class="vacio">
           <span class="vacio-emoji">{torre.emoji_simbolo}</span>
           <div>
-            <h3>{torre.nombre} está esperando su primer emprendimiento</h3>
-            <p>¿Vives en {torre.nombre} y tienes un negocio? Escríbele al comité y te publicamos.</p>
+            <h3>{torre.nombre} aún no tiene emprendimientos en la feria</h3>
+            <p>¿Vives en {torre.nombre} y tienes un negocio? Regístrate y el comité te suma. Mira también el <a href="#directorio">directorio</a>.</p>
           </div>
-          <a class="vacio-cta" href={linkWhatsApp(MENSAJES.participar)} target="_blank" rel="noopener">
+          <a class="vacio-cta" href="/registro">
             Quiero estar aquí
           </a>
         </div>
@@ -92,5 +91,6 @@ const n = emprendedores.length;
   .vacio-emoji { font-size: 48px; }
   .vacio h3 { font-size: 19px; margin-bottom: 4px; }
   .vacio p { color: var(--tinta-media); font-size: 14.5px; }
+  .vacio p a { color: var(--t); font-weight: 800; text-decoration: underline; }
   .vacio-cta { font-family: var(--display); font-weight: 700; font-size: 14px; padding: 12px 20px; border-radius: 999px; background: var(--t); color: #fff; }
 </style>

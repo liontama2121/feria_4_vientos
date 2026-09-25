@@ -5,14 +5,17 @@ import type { EmprendedorPublico, Torre } from '../lib/db';
 interface Props {
   e: EmprendedorPublico;
   torre: Torre;
+  /** En el directorio: muestra la etiqueta 🎪 En la feria. */
+  enFeria?: boolean;
 }
-const { e, torre } = Astro.props;
+const { e, torre, enFeria = false } = Astro.props;
 const cat = categoria(e.categoria);
 const redes = enlacesRedes(e);
 ---
 
 <article class="emp-card" style={`--t:${torre.color_hex};--t-claro:${torre.color_claro}`}>
   <div class="emp-foto">
+    {enFeria && <span class="badge-feria">🎪 En la feria</span>}
     {
       e.foto_principal ? (
         <img src={e.foto_principal} alt={`Foto de ${e.nombre_emprendimiento}`} loading="lazy" decoding="async" />
@@ -24,7 +27,7 @@ const redes = enlacesRedes(e);
   <div class="emp-body">
     <span class="cat">{cat.emoji} {cat.label}</span>
     <h3>{e.nombre_emprendimiento}</h3>
-    <div class="by">{e.nombre_vecino} · Apto {e.apartamento}</div>
+    <div class="by">{e.nombre_vecino}{e.apartamento && ` · Apto ${e.apartamento}`}</div>
     <p>{e.descripcion_corta}</p>
     <div class="emp-foot">
       <div class="socials">
@@ -79,6 +82,13 @@ const redes = enlacesRedes(e);
     background: linear-gradient(160deg, transparent 55%, color-mix(in srgb, var(--t) 30%, transparent));
   }
   .emoji { font-size: 64px; }
+  .badge-feria {
+    position: absolute; top: 10px; left: 10px; z-index: 1;
+    padding: 4px 10px; border-radius: 999px;
+    background: #fff; color: var(--t);
+    font-family: var(--display); font-size: 11px; font-weight: 800;
+    box-shadow: 0 4px 12px rgba(26, 22, 51, .15);
+  }
   @media (max-width: 500px) { .emp-foto { min-height: 200px; } }
 
   .emp-body { padding: 22px; display: flex; flex-direction: column; }

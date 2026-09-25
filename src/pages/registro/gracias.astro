@@ -1,0 +1,26 @@
+---
+// Confirmación del registro: la cuenta espera activación del comité.
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import Molinete from '../../components/Molinete.astro';
+import { SITIO, linkWhatsApp } from '../../lib/sitio';
+---
+
+<Layout title="¡Gracias! · Feria 4 Vientos" noindex bodyClass="panel comite">
+  <div class="sin-acceso">
+    <div class="card">
+      <Molinete size={72} spin />
+      <h1>¡Listo, <span class="serif">vecino</span>!</h1>
+      <p>
+        Recibimos tu solicitud. El comité activa tu cuenta en <strong>menos de 24 horas</strong> y te avisa por WhatsApp. Cuando esté activa, entra al panel con tu correo y
+        contraseña y registra tu emprendimiento.
+      </p>
+      <div class="acciones">
+        <a class="btn btn-primary" href="/admin/login">Ir al panel</a>
+        <a class="btn btn-ghost" href={linkWhatsApp(`Hola comité 👋 Acabo de crear mi cuenta en ${SITIO.nombre}. ¿Me la pueden activar?`)} target="_blank" rel="noopener">
+          Escribir al comité
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

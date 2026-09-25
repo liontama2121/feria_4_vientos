@@ -1,26 +1,26 @@
-// "Publicar cambios": valida, guarda y copia el borrador a la versión pública.
-// Si el emprendimiento está aprobado, aparece en la landing al instante.
+// "Publicar cambios" (solo admin): valida, guarda y copia el borrador a la versión pública.
+// Equivale a aprobar: deja el emprendimiento `approved` y sale en la landing al instante.
 import type { APIRoute } from 'astro';
-import { error, json, leerJson, slugEditable } from '../../../lib/api';
-import { obtenerRegistro, publicarRegistro, resumenPanel } from '../../../lib/db';
-import { sanearDatos, validarPublicacion } from '../../../lib/validacion';
+import { error, json, leerJson, registroPermitido } from '../../../lib/api';
+import { avisoAprobado } from '../../../lib/avisos';
+import { aprobarRegistro, obtenerRegistro, resumenPanel } from '../../../lib/db';
+import { sanearDatosPara, validarPublicacion } from '../../../lib/validacion';
 
-export const POST: APIRoute = async ({ locals, request }) => {
+export const POST: APIRoute = async ({ locals, request, url }) => {
+  if (locals.usuario?.rol !== 'admin') return error('Solo el comité publica. Usa “Enviar a revisión”.', 403);
   const body = await leerJson<{ slug?: string; datos?: unknown }>(request);
   if (!body) return error('No entendimos los datos enviados.');
-  const slug = slugEditable(locals, body.slug);
-  if (!slug) return error('Falta indicar qué emprendimiento editar.', 404);
-
-  const db = locals.runtime.env.DB;
-  const registro = await obtenerRegistro(db, slug);
+  const registro = await registroPermitido(locals, body.slug);
   if (!registro) return error('No encontramos el emprendimiento.', 404);
 
-  const datos = sanearDatos(body.datos, registro.borrador);
+  const datos = sanearDatosPara(locals, body.datos, registro.borrador);
   const faltantes = validarPublicacion(datos);
   if (faltantes.length) return error('Faltan algunos datos para publicar.', 422, { faltantes });
 
-  await publicarRegistro(db, slug, datos);
-
-  const actualizado = await obtenerRegistro(db, slug);
-  return json(resumenPanel(actualizado!));
+  const db = locals.runtime.env.DB;
+  await aprobarRegistro(db, registro.slug, datos, locals.usuario.email);
+  const actualizado = (await obtenerRegistro(db, registro.slug))!;
+  // Si era una solicitud de un vecino, publicarla desde el editor también cuenta como aprobarla.
+  const notificacion = registro.estado !== 'approved' && registro.owner_email ? await avisoAprobado(db, actualizado, url.origin) : null;
+  return json({ ...resumenPanel(actualizado), notificacion });
 };

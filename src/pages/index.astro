@@ -1,6 +1,7 @@
 ---
-// Landing pública. Lee todo de D1 en cada request: lo que un vecino publica
-// (y el comité aprobó) aparece aquí al instante, dentro de la sección de su torre.
+// Landing pública. Lee todo de D1 en cada request: lo que el comité aprueba aparece al instante.
+// Arriba mandan los que están EN LA FERIA (vitrina + sección de su conjunto); abajo el directorio
+// con todos, para buscar por nombre o categoría.
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Hero from '../components/Hero.astro';
@@ -14,6 +15,7 @@ import ConElRespaldoDe from '../components/ConElRespaldoDe.astro';
 import PatrocinadorJuanCode from '../components/PatrocinadorJuanCode.astro';
 import Footer from '../components/Footer.astro';
 import DetalleModal from '../components/DetalleModal.astro';
+import Directorio from '../components/Directorio.astro';
 import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres } from '../lib/db';
 import { proximas } from '../lib/fechas';
 
@@ -25,9 +27,11 @@ const [torres, emprendedores, patrocinadores, todasLasFechas] = await Promise.al
   listarFechas(db),
 ]);
 
-const porTorre = Object.fromEntries(torres.map((t) => [t.id, emprendedores.filter((e) => e.torre === t.id)]));
+const enFeria = emprendedores.filter((e) => e.en_feria);
+const porTorre = Object.fromEntries(torres.map((t) => [t.id, enFeria.filter((e) => e.torre === t.id)]));
 const conteo = Object.fromEntries(torres.map((t) => [t.id, porTorre[t.id].length]));
-const destacados = emprendedores.filter((e) => e.destacado);
+// Vitrina "Feria · <fecha>": todos los de la feria uno a uno (destacados primero); si nadie está en la feria, todos.
+const baseVitrina = enFeria.length ? enFeria : emprendedores;
 const fechas = proximas(todasLasFechas);
 
 // Sin caché: lo que el comité publica se ve apenas se recarga la página.
@@ -39,9 +43,10 @@ Astro.response.headers.set('Cache-Control', 'no-store');
   <main>
     <Hero proxima={fechas[0]} torres={torres} />
     <IndiceTorres torres={torres} conteo={conteo} />
-    <VitrinaCarrusel emprendedores={destacados.length ? destacados : emprendedores} torres={torres} />
+    <VitrinaCarrusel emprendedores={baseVitrina} torres={torres} proxima={fechas[0]} />
     <Historia />
     {torres.map((t) => <TorreSection torre={t} emprendedores={porTorre[t.id]} />)}
+    <Directorio emprendedores={emprendedores} torres={torres} />
     <ComoParticipar />
     <UbicacionFechas fechas={fechas} />
     <ConElRespaldoDe patrocinadores={patrocinadores} />

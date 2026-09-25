@@ -26,7 +26,8 @@ export function urlFoto(v: unknown): string {
 export function celular(v: unknown): string {
   let d = texto(v, 30).replace(/\D/g, '');
   if (d.length === 12 && d.startsWith('57')) d = d.slice(2);
-  return d.slice(0, 10);
+  // Sin recortar a 10: un número con dígitos de más debe fallar la validación, no quedar mal guardado.
+  return d.slice(0, 15);
 }
 
 export function usuarioRed(v: unknown): string {
@@ -91,9 +92,17 @@ export function sanearDatos(input: unknown, base: DatosEmprendimiento = datosVac
     pagina_web: paginaWeb(i.pagina_web),
     destacado: i.destacado === true,
     publicado: i.publicado !== false,
+    en_feria: i.en_feria === true,
     recibir_avisos: i.recibir_avisos !== false,
     emoji_placeholder: texto(i.emoji_placeholder, 16) || base.emoji_placeholder,
   };
+}
+
+/** Como `sanearDatos`, pero vitrina, "Publicar en la landing" y "Está en la feria" solo los cambia el comité. */
+export function sanearDatosPara(locals: App.Locals, input: unknown, base: DatosEmprendimiento): DatosEmprendimiento {
+  const datos = sanearDatos(input, base);
+  if (locals.usuario?.rol === 'admin') return datos;
+  return { ...datos, destacado: base.destacado, publicado: base.publicado, en_feria: base.en_feria };
 }
 
 export interface Faltante {
@@ -105,7 +114,6 @@ export interface Faltante {
 export function validarPublicacion(d: DatosEmprendimiento): Faltante[] {
   const f: Faltante[] = [];
   if (!d.nombre_vecino) f.push({ campo: 'nombre_vecino', mensaje: 'Escribe tu nombre completo' });
-  if (!d.apartamento) f.push({ campo: 'apartamento', mensaje: 'Escribe tu número de apartamento' });
   if (!d.nombre_emprendimiento) f.push({ campo: 'nombre_emprendimiento', mensaje: 'Ponle nombre a tu emprendimiento' });
   if (!d.descripcion_corta) f.push({ campo: 'descripcion_corta', mensaje: 'Escribe la descripción corta' });
   if (!d.foto_principal && !d.emoji_placeholder)

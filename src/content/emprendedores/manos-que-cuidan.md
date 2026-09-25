@@ -17,5 +17,6 @@ tiktok: manosquecuidan
 facebook: ""
 destacado: true
 publicado: true
+estado: approved
 emoji_placeholder: "💅"
 ---

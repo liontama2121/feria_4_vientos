@@ -1,4 +1,6 @@
 // Utilidades pequeñas para los endpoints de /api.
+import { ESTADOS_EDITABLES } from './constantes';
+import { obtenerRegistro, registroDeVecino, type Registro } from './db';
 
 export function json(data: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
@@ -21,11 +23,20 @@ export async function leerJson<T = Record<string, unknown>>(request: Request): P
 
 /**
  * Qué emprendimiento puede tocar quien hace el request.
- * El vecino solo el suyo; el comité cualquiera (pasando ?slug= o { slug }).
+ * El admin, cualquiera (pasando ?slug= o { slug }); el vecino, solo el suyo (el slug pedido se ignora).
  */
-export function slugEditable(locals: App.Locals, pedido?: unknown): string | null {
+export async function registroPermitido(locals: App.Locals, pedido?: unknown): Promise<Registro | null> {
   const u = locals.usuario;
+  const db = locals.runtime.env.DB;
   if (!u) return null;
-  if (u.rol === 'admin' && typeof pedido === 'string' && pedido) return pedido;
-  return u.slug;
+  if (u.rol === 'admin') return typeof pedido === 'string' && pedido ? obtenerRegistro(db, pedido) : null;
+  return registroDeVecino(db, u.email);
 }
+
+/** El vecino solo edita en draft o changes_requested. El admin siempre. */
+export function puedeEditar(locals: App.Locals, r: Registro) {
+  return locals.usuario?.rol === 'admin' || ESTADOS_EDITABLES.includes(r.estado);
+}
+
+export const ERROR_NO_EDITABLE =
+  'Tu emprendimiento ya se envió al comité y no se puede editar. Si necesitas un cambio, escríbele al comité por WhatsApp.';

@@ -17,5 +17,6 @@ tiktok: ""
 facebook: reparacionesdonjulio
 destacado: true
 publicado: true
+estado: approved
 emoji_placeholder: "🔧"
 ---
