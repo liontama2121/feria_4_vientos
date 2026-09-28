@@ -267,3 +267,8 @@ body.plaza .sin-acceso h1 { font-size: 40px; }
 @media (max-width: 420px) {
   body.plaza .brand > div { display: none; }
 }
+
+/* La página nunca se desliza de lado: lo que sobresale (estrellas, filas deslizables)
+   se recorta. "clip" (no "hidden") para no romper la barra pegada arriba. */
+html { overflow-x: hidden; overflow-x: clip; }
+body.plaza { overflow-x: hidden; overflow-x: clip; max-width: 100%; }
