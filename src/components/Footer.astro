@@ -5,8 +5,9 @@ import { MENSAJES, SITIO, linkWhatsApp } from '../lib/sitio';
 
 interface Props {
   torres: Torre[];
+  feria: boolean;
 }
-const { torres } = Astro.props;
+const { torres, feria } = Astro.props;
 const anio = 2026;
 ---
 
@@ -25,7 +26,7 @@ const anio = 2026;
           {
             torres.map((t) => (
               <li>
-                <a href={`/#${t.id}`}>
+                <a href={feria ? `/#${t.id}` : '/#directorio'}>
                   {t.nombre} · {t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace(/^./, (c) => c.toUpperCase())}
                 </a>
               </li>

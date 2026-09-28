@@ -15,6 +15,17 @@ export function proximas(fechas: Fecha[]) {
   return fechas.filter((f) => f.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
+/** ¿Hoy cae dentro de la ventana "Mostrar desde / hasta" de una feria activada? El comité usa la misma regla en comite.ts. */
+export function estaActiva(f: Fecha, hoy = hoyBogota()) {
+  return f.activa === true && (f.mostrar_desde || '') <= hoy && hoy <= (f.mostrar_hasta || f.fecha);
+}
+
+/** Ferias que se muestran hoy en la landing, en orden de fecha. Fuera de su ventana se ocultan solas. */
+export function feriasActivas(fechas: Fecha[]) {
+  const hoy = hoyBogota();
+  return fechas.filter((f) => estaActiva(f, hoy)).sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
 function comoFecha(iso: string) {
   // Mediodía UTC para que ningún huso horario cambie el día.
   return new Date(`${iso}T12:00:00Z`);

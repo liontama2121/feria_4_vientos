@@ -141,6 +141,10 @@ El bloqueo se hace en el servidor (`puedeEditar` → 409 en borrador/fotos, `env
 
 Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_emprendimiento, nombre_vecino, apartamento ("Torre y apto", **opcional**: hay vecinos que solo quieren decir el conjunto; si está vacío no se muestra "Apto"), torre (= conjunto, obligatorio), categoria, descripcion_corta (≤160), descripcion_larga, foto_principal, galeria (≤2 extra: 3 fotos en total), whatsapp (10 dígitos, sin +57), instagram, tiktok, facebook, pagina_web (URL https, opcional: si existe, la card y el modal muestran un botón grande "Entra aquí"), destacado, publicado, en_feria (participa en la feria; default false, semilla true; solo comité), recibir_avisos, emoji_placeholder.
 
+## Feria activa
+
+La landing arranca con Hero + **Directorio** (prioridad). Índice, vitrina, secciones por conjunto, pills del nav y etiquetas 🎪 solo salen si hay una **feria activa** = fecha con `activa: true` y hoy (Bogotá) dentro de `mostrar_desde`…`mostrar_hasta` (ambos incluidos; sin `mostrar_desde` = desde siempre, sin `mostrar_hasta` = hasta el día de la feria). Regla única: `estaActiva()` / `feriasActivas()` en `src/lib/fechas.ts` (también la usa `comite.ts`). Se crea en `/admin/comite#fechas` (pestaña "Ferias", "+ Crear feria" nace activa con ventana hoy→día de la feria). Fuera del rango se oculta sola. Fechas viejas sin `activa` = inactivas.
+
 ## Cómo se agrupan por torre en la landing
 
 `index.astro` → `listarPublicos()` (solo approved) → `enFeria = emprendedores.filter(e => e.en_feria)` → `porTorre[t.id] = enFeria.filter(e => e.torre === t.id)` → un `<TorreSection>` por torre en el orden de `torres.orden` (el conteo del índice también es "en la feria"). Conjunto sin nadie en la feria muestra una card con link a `/registro` y al directorio. La vitrina ("Feria · <fecha>") muestra a todos los de la feria uno a uno, destacados primero (si nadie está en la feria, a todos). Después, `<Directorio>` recibe TODOS los aprobados.

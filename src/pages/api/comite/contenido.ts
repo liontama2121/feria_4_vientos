@@ -88,6 +88,11 @@ export const PUT: APIRoute = async ({ locals, request }) => {
     const hf = texto(i.hora_fin, 5);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return error('Fecha inválida.');
     if (!/^\d{2}:\d{2}$/.test(hi) || !/^\d{2}:\d{2}$/.test(hf)) return error('Horas inválidas (usa HH:MM).');
+    const desde = texto(i.mostrar_desde, 10);
+    const hasta = texto(i.mostrar_hasta, 10) || fecha;
+    if (desde && !/^\d{4}-\d{2}-\d{2}$/.test(desde)) return error('"Mostrar desde" inválido.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(hasta)) return error('"Mostrar hasta" inválido.');
+    if (desde && desde > hasta) return error('"Mostrar desde" no puede ser después de "Mostrar hasta".');
     const f: Fecha = {
       id: texto(i.id, 60) || `${fecha}-${crypto.randomUUID().slice(0, 8)}`,
       titulo: texto(i.titulo, 80) || 'Feria 4 Vientos',
@@ -95,6 +100,9 @@ export const PUT: APIRoute = async ({ locals, request }) => {
       hora_inicio: hi,
       hora_fin: hf,
       descripcion: texto(i.descripcion, 300),
+      activa: i.activa === true,
+      mostrar_desde: desde,
+      mostrar_hasta: hasta,
     };
     await guardarFecha(db, f);
     return json(f);

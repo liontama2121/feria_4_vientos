@@ -25,7 +25,8 @@ const listaTorres = `${nombres.slice(0, -1).join(', ')} y ${nombres.at(-1)}`;
         La feria de emprendimientos donde cada conjunto — <strong>{listaTorres}</strong> — trae lo suyo al espacio que recuperamos para la comunidad.
       </p>
       <div class="cta-row">
-        <a href="#torres" class="btn btn-primary">Ver los 4 vientos →</a>
+        <a href="#directorio" class="btn btn-primary">Ver emprendimientos →</a>
+        {proxima && <a href="#torres" class="btn btn-ghost">Ver la feria</a>}
         <a href="#participar" class="btn btn-ghost">Quiero participar</a>
       </div>
     </div>

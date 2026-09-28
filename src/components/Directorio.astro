@@ -34,7 +34,7 @@ const hayFeria = lista.some((e) => e.en_feria);
           <h2>
             Encuentra lo que necesitas entre <span class="serif">todos</span>.
           </h2>
-          <p>Comida, servicios, oficios, belleza… Busca por nombre o elige una categoría. Los que llevan 🎪 estarán en la feria.</p>
+          <p>Comida, servicios, oficios, belleza… Busca por nombre o elige una categoría.{hayFeria && ' Los que llevan 🎪 estarán en la feria.'}</p>
         </div>
 
         <div class="dir-controles">
