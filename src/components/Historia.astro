@@ -1,26 +1,18 @@
 ---
 // El corazón narrativo: el terminalito, kiosco cerrado por años que la asamblea recuperó.
-// Placa conmemorativa grabada (no hay fotos reales del lugar: no se inventa ninguna).
+// Letrero pintado sobre un campo de color (no hay fotos reales del lugar: no se inventa ninguna).
 ---
 
 <section class="historia" id="historia" aria-labelledby="historia-titulo">
+  <div class="toldo" style="--t1:var(--hierbabuena)" aria-hidden="true"></div>
   <div class="wrap historia-grid">
-    <div class="conmemorativa placa tornillos">
-      <p class="rotulo">Conjuntos Residenciales 4 Vientos</p>
-      <h2 id="historia-titulo" class="grabado">Recuperamos el terminalito</h2>
-      <dl class="antes-hoy">
-        <div>
-          <dt class="rotulo">Antes</dt>
-          <dd>Portería auxiliar cerrada por años</dd>
-        </div>
-        <div>
-          <dt class="rotulo">Hoy</dt>
-          <dd>Punto de encuentro de los cuatro conjuntos</dd>
-        </div>
-      </dl>
-      <p class="rotulo firma">Comité de la Feria 4 Vientos</p>
+    <div>
+      <h2 id="historia-titulo">Recuperamos el terminalito</h2>
+      <div class="antes-hoy">
+        <p class="etiqueta" style="--g:-3deg"><span class="que">Antes</span> portería auxiliar cerrada</p>
+        <p class="etiqueta" style="--g:2deg"><span class="que">Hoy</span> la plaza de los cuatro conjuntos</p>
+      </div>
     </div>
-
     <div class="relato">
       <p>Durante años, el kiosco del terminalito estuvo cerrado. Era una portería auxiliar: una esquina olvidada que muchos pasábamos de largo sin mirar.</p>
       <p>
@@ -28,23 +20,19 @@
         los servicios que ofrecen quienes viven aquí.
       </p>
       <p>La Feria 4 Vientos nace de ese acuerdo: convertir un espacio en desuso en un lugar de la comunidad, para la comunidad.</p>
+      <p class="firma">Comité de la Feria 4 Vientos</p>
     </div>
   </div>
 </section>
 
 <style>
-  .historia { padding: 30px 0 100px; }
-  .historia-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 52px; align-items: center; }
-  @media (max-width: 900px) { .historia-grid { grid-template-columns: 1fr; gap: 32px; } }
-  .conmemorativa { padding: 56px 48px 50px; text-align: center; }
-  @media (max-width: 600px) { .conmemorativa { padding: 46px 22px 40px; } }
-  .conmemorativa > .rotulo { font-size: 14px; color: var(--grafito-suave); }
-  h2 { font-size: clamp(48px, 6vw, 88px); margin: 14px 0 26px; }
-  .antes-hoy { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 26px; text-align: left; }
-  @media (max-width: 480px) { .antes-hoy { grid-template-columns: 1fr; } }
-  .antes-hoy > div { padding: 14px 16px; border-radius: 6px; background: rgba(35, 39, 43, .06); box-shadow: inset 0 2px 4px rgba(35, 39, 43, .18), 0 1px 0 rgba(255, 255, 255, .7); }
-  .antes-hoy dt { font-size: 13px; color: var(--grafito-suave); margin-bottom: 4px; }
-  .antes-hoy dd { font-family: var(--f-placa); font-weight: 700; font-size: 22px; text-transform: uppercase; line-height: 1.05; }
-  .firma { font-size: 13px; padding-top: 16px; border-top: 1px solid rgba(35, 39, 43, .25); display: inline-block; }
-  .relato p { font-size: 18px; line-height: 1.6; margin-bottom: 18px; max-width: 58ch; }
+  .historia { background: var(--hierbabuena); color: #fff; padding-bottom: 80px; margin-bottom: 90px; }
+  .historia-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 52px; align-items: center; padding-top: 30px; }
+  @media (max-width: 900px) { .historia-grid { grid-template-columns: 1fr; gap: 30px; } }
+  h2 { font-size: clamp(52px, 6.6vw, 96px); margin-bottom: 26px; }
+  .antes-hoy { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+  .antes-hoy .etiqueta { transform: rotate(var(--g)); font-size: 26px; }
+  .que { font-family: var(--f-letrero); font-size: 18px; color: var(--hierbabuena); margin-right: 4px; }
+  .relato p { font-size: 18px; line-height: 1.6; margin-bottom: 18px; max-width: 56ch; }
+  .firma { font-family: var(--f-mano); font-size: 26px; }
 </style>

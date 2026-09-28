@@ -6,16 +6,16 @@ related_targets: ["src/pages/index.astro"]
 ---
 
 ## Scope
-Public landing (`/` and `/e/<slug>`), rendered by `src/components/Landing.astro` and its components. Mode: persuade (the visitor decides which neighbor to contact and acts). Panels (`/admin`, `/registro`) are out of scope and must keep working unchanged. Second option for comparison (branch feat/rediseno-2); option one (flyer wall) lives on feat/rediseno.
+Public landing (`/` and `/e/<slug>`), rendered by `src/components/Landing.astro` and its components. Mode: persuade. Panels (`/admin`, `/registro`) out of scope. Option three (branch feat/rediseno-3). User feedback on option two: "too robotic; want more color; the images of each business must not get lost".
 
 ## Audience and job
-Vecinos on their phones, often arriving from a WhatsApp link, looking for a neighbor who sells or does something; action = message them on WhatsApp in one tap. Proof: real business photos, committee approval, star ratings. Constraints: molinete logo stays; no invented photos, counts or testimonials; older neighbors need legible type and big targets.
+Vecinos on their phones, often arriving from a WhatsApp link, looking for a neighbor who sells or does something; action = message them on WhatsApp in one tap. Proof: the businesses' own photos, committee approval, ratings. Constraints: molinete logo stays; no invented photos or claims; legible for older neighbors.
 
 ## Direction contract
-THESIS: The directory is the intercom panel at the conjunto's entrance: you find the neighbor by the backlit name plate and call them with one button (WhatsApp). Refuses card grids, cream community pages and dark tech apps.
-OWN-WORLD: Brushed stainless steel plates with corner screws on a painted portería wall #DCE1E3; graphite #23272B frame and engraving; backlit warm name labels #FFF3D1 behind acrylic; green LCD #B8E986 on #16211A for search and counts; rubber keypad keys; round call button #1FA35B, the only green, only for calling. Barlow Condensed engraved caps for plates and headings, Barlow for reading, VT323 for the LCD. Conjuntos carry name plus rumbo; a small LED of their color is secondary.
-STORY: I see my conjunto's intercom, I type or press a category key, I find the plate and press call.
-FIRST VIEWPORT: A large screwed steel panel: engraved ENCUENTRA A TU VECINO across the top, the LCD search window under it with a blinking caret, the category keypad below; to the right, the speaker grille with the molinete and the neighbor count in LCD digits. Primary action: the LCD search.
-FORM: Citófono de portería, candidate 3 of the grounded list (assigned by the roll), seed 432659ec. Raises kept: fixed-digit LCD counts (nixie), newest plates lit brightest (flyer wall), committee seal on each sheet (passport), conjuntos never by color alone (silk canopy), green reserved for calling (arcade).
-SIGNATURE: pressing call lights the button and the plate's backlight flashes like an intercom ringing before WhatsApp opens; keypad keys depress physically.
+THESIS: The directory is the neighborhood's plaza de mercado: every business is a stall under its own striped awning, with its real photo big and in full color, and you order by WhatsApp. Refuses robotic panels, grayscale photos and generic card grids.
+OWN-WORLD: Fruit-stand color fields: mango #FFC93C (brand, hero), hierbabuena #1E9C8C (Mistral), lulo #FF8A1F (Gregal), pitahaya #FF3F80 (Austro), mora #7B3FE4 (Cierzo), WhatsApp green #22B45A only for ordering, ink #20183A, paper #FFFDF8. Striped scalloped awnings, hand-painted signboards, handwritten card price-tags, starburst "¡Recién llegado!" stickers. Lilita One for painted signs, Figtree for reading, Caveat Brush for handwritten tags. Photos always full color, large, never filtered.
+STORY: I see the plaza's stalls with real photos, search or pick a tag, and order by WhatsApp.
+FIRST VIEWPORT: Full-width striped awning over a mango field; left, the painted sign ¿QUÉ SE LE OFRECE, VECINO? with the big search board and handwritten category tags; right, a stack of real business photos tilted like produce on a stall. Primary action: search.
+FORM: Plaza de mercado (letreros y puestos), candidate 5 of the grounded list, chosen by the user after re-roll feedback; seed 432659ec.
+SIGNATURE: each stall's awning flutters gently on hover; tapping "Pídelo" pops the starburst-style confirmation; categories are handwritten tags that swing when chosen.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

@@ -1,7 +1,7 @@
 ---
-// Directorio = la lista de plaquitas del citófono: TODOS los aprobados, estén o no en la feria.
-// El buscador (#dirBuscar) y el teclado de categorías viven en el panel del Hero.
-// El filtro corre en el navegador sobre las plaquitas ya renderizadas.
+// Directorio = los puestos de la plaza: TODOS los aprobados, estén o no en la feria.
+// El buscador (#dirBuscar) y las etiquetas de categoría viven en el letrero del Hero.
+// El filtro corre en el navegador sobre los puestos ya renderizados.
 import EmprendedorCard from './EmprendedorCard.astro';
 import { LIMITES, categoria } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
@@ -47,7 +47,7 @@ const catDe = (id: string) => categoria(id, Astro.locals.categorias);
             <div class="resaltados" id="dirResaltados">
               {mejores.length > 0 && (
                 <div class="franja">
-                  <h2 class="franja-titulo">Los más recomendados</h2>
+                  <h2 class="franja-titulo">Los favoritos del barrio</h2>
                   <p class="franja-bajada">Lo que mejor califican los vecinos.</p>
                   <div class="lista">
                     {mejores.map((e) => (
@@ -71,8 +71,8 @@ const catDe = (id: string) => categoria(id, Astro.locals.categorias);
           )}
 
           <div class="dir-head" id="muro">
-            <h2 id="dir-titulo" class="grabado">Directorio</h2>
-            <p class="dir-conteo lcd" id="dirConteo" aria-live="polite">
+            <h2 id="dir-titulo">Todos los puestos</h2>
+            <p class="dir-conteo etiqueta" id="dirConteo" aria-live="polite">
               {`${lista.length} ${lista.length === 1 ? 'emprendimiento' : 'emprendimientos'}`}
             </p>
           </div>
@@ -92,9 +92,9 @@ const catDe = (id: string) => categoria(id, Astro.locals.categorias);
             })}
           </div>
 
-          <div class="vacio lcd" id="dirVacio" hidden>
-            <p class="vacio-titulo">Sin resultados</p>
-            <p>Prueba con otra palabra o toca “Todas” en el teclado.</p>
+          <div class="vacio letrero" id="dirVacio" hidden>
+            <p class="vacio-titulo">No encontramos eso</p>
+            <p>Pruebe con otra palabra o toque “Todo” en las etiquetas.</p>
           </div>
         </>
       )
@@ -102,10 +102,10 @@ const catDe = (id: string) => categoria(id, Astro.locals.categorias);
 
     {
       lista.length === 0 && (
-        <div class="vacio lcd">
-          <p class="vacio-titulo">Directorio vacío</p>
+        <div class="vacio letrero">
+          <p class="vacio-titulo">La plaza está esperando su primer puesto</p>
           <p>
-            ¿Tienes un emprendimiento? <a href="#participar">Registra el tuyo</a>.
+            ¿Tiene un emprendimiento? <a href="#participar">Ponga su puesto</a>.
           </p>
         </div>
       )
@@ -168,23 +168,23 @@ const catDe = (id: string) => categoria(id, Astro.locals.categorias);
 </script>
 
 <style>
-  .directorio { padding: 20px 0 100px; scroll-margin-top: 64px; }
+  .directorio { padding: 56px 0 100px; scroll-margin-top: 64px; }
 
-  .franja { margin-bottom: 56px; }
-  .franja-titulo { font-size: clamp(38px, 4.6vw, 60px); margin-bottom: 6px; }
-  .franja-bajada { font-size: 17px; color: var(--grafito-suave); margin-bottom: 22px; }
+  .franja { margin-bottom: 64px; }
+  .franja-titulo { font-size: clamp(40px, 5vw, 64px); margin-bottom: 6px; }
+  .franja-bajada { font-family: var(--f-mano); font-size: 24px; color: var(--tinta-suave); margin-bottom: 24px; }
   .resaltados[hidden] { display: none; }
 
-  .dir-head { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 26px; scroll-margin-top: 84px; }
+  .dir-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 28px; scroll-margin-top: 84px; }
   .dir-head h2 { font-size: clamp(48px, 6vw, 84px); }
-  .dir-conteo { font-size: 26px; line-height: 1; padding: 8px 14px; text-transform: uppercase; }
+  .dir-conteo { font-size: 24px; transform: rotate(-3deg); background: var(--mango); }
 
-  .lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
-  @media (max-width: 880px) { .lista { grid-template-columns: 1fr; } }
+  .lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 34px 26px; align-items: start; }
+  @media (max-width: 640px) { .lista { grid-template-columns: 1fr; gap: 28px; } }
   .dir-item[hidden] { display: none; }
 
-  .vacio { max-width: 620px; margin: 20px auto 0; padding: 22px 24px; font-size: 24px; line-height: 1.2; }
-  .vacio-titulo { font-size: 40px; text-transform: uppercase; margin-bottom: 6px; }
-  .vacio a { text-decoration: underline; color: var(--luz); }
+  .vacio { max-width: 620px; margin: 20px auto 0; padding: 26px 28px; text-align: center; font-size: 18px; }
+  .vacio-titulo { font-family: var(--f-letrero); font-size: 34px; line-height: 1; margin-bottom: 8px; }
+  .vacio a { text-decoration: underline; font-weight: 700; }
   .vacio[hidden] { display: none; }
 </style>

@@ -20,9 +20,6 @@ import { MENSAJES, linkWhatsApp } from '../lib/sitio';
   .whatsapp-flotante svg { width: 30px; height: 30px; fill: #fff; }
   @media (max-width: 500px) { .whatsapp-flotante { bottom: 16px; right: 16px; } }
 
-  /* En el citófono: el mismo botón de llamar, con su bisel de acero */
-  :global(body.citofono) .whatsapp-flotante {
-    background: radial-gradient(circle at 50% 35%, #2BC06F, var(--llamar) 60%);
-    box-shadow: 0 4px 0 var(--llamar-sombra), 0 0 0 4px var(--acero-borde), 0 0 0 6px #E9EDEF, 0 12px 20px -8px rgba(19, 105, 58, .6);
-  }
+  /* En la plaza: el mismo verde de pedir, con borde de letrero */
+  :global(body.plaza) .whatsapp-flotante { background: var(--pedir); border: 3px solid var(--pedir-oscuro); box-shadow: 0 4px 0 var(--pedir-oscuro), 0 14px 24px -10px rgba(23, 138, 67, .6); }
 </style>

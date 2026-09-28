@@ -1,0 +1,135 @@
+/* ══════════════════════════════════════════════════════════════
+   Mundo "plaza de mercado" de la landing pública (/ y /e/<slug>).
+   Todo vive bajo body.plaza: el panel y el registro siguen con los
+   tokens de global.css. Colores de fruta, toldos de rayas, letreros
+   pintados a mano, etiquetas escritas en cartulina. Las fotos de los
+   emprendimientos van SIEMPRE grandes y a todo color.
+   Esquinas: puestos y letreros 18px · etiquetas 10px · botones píldora.
+   ══════════════════════════════════════════════════════════════ */
+
+body.plaza {
+  --papel: #FFFDF8;
+  --tinta: #20183A;
+  --tinta-suave: #4B4463;
+  --mango: #FFC93C;       /* marca: toldo principal, hero */
+  --mango-claro: #FFE7A3;
+  --hierbabuena: #1E9C8C; /* Mistral */
+  --lulo: #FF8A1F;        /* Gregal */
+  --pitahaya: #FF3F80;    /* Austro */
+  --mora: #7B3FE4;        /* Cierzo */
+  --pedir: #22B45A;       /* SOLO para pedir por WhatsApp */
+  --pedir-oscuro: #178A43;
+
+  --f-letrero: 'Lilita One', 'Arial Rounded MT Bold', sans-serif;
+  --f-texto: 'Figtree', 'Segoe UI', sans-serif;
+  --f-mano: 'Caveat Brush', 'Comic Sans MS', cursive;
+
+  --r-puesto: 18px;
+  --r-etiqueta: 10px;
+  --sombra: 0 2px 0 rgba(32, 24, 58, .06), 0 16px 30px -16px rgba(32, 24, 58, .45);
+  --sombra-alta: 0 2px 0 rgba(32, 24, 58, .08), 0 26px 40px -18px rgba(32, 24, 58, .55);
+  --ease: cubic-bezier(.16, 1, .3, 1);
+
+  font-family: var(--f-texto);
+  font-weight: 500;
+  background: var(--papel);
+  color: var(--tinta);
+  line-height: 1.55;
+}
+
+body.plaza h1, body.plaza h2, body.plaza h3, body.plaza h4, body.plaza h5 {
+  font-family: var(--f-letrero);
+  font-weight: 400;
+  letter-spacing: .005em;
+  line-height: 1;
+  color: inherit;
+  text-wrap: balance;
+}
+
+/* Superficies del navegador */
+body.plaza ::selection { background: var(--mango); color: var(--tinta); }
+body.plaza { caret-color: var(--pitahaya); accent-color: var(--pitahaya); scrollbar-color: var(--tinta-suave) #F1EDE3; }
+body.plaza :focus-visible { outline: 3px solid var(--tinta); outline-offset: 3px; box-shadow: 0 0 0 7px var(--mango); border-radius: 8px; }
+body.plaza a { text-underline-offset: .2em; }
+
+body.plaza .wrap { max-width: 1280px; padding: 0 24px; }
+@media (max-width: 600px) { body.plaza .wrap { padding: 0 16px; } }
+
+/* Color por conjunto, siempre junto a su nombre */
+[data-conjunto='mistral'] { --c: var(--hierbabuena); }
+[data-conjunto='gregal'] { --c: var(--lulo); }
+[data-conjunto='austro'] { --c: var(--pitahaya); }
+[data-conjunto='cierzo'] { --c: var(--mora); }
+
+/* ── Toldo de rayas con borde festoneado ── */
+.toldo {
+  --t1: var(--c, var(--pitahaya));
+  --t2: #FFFFFF;
+  --ancho: 44px;
+  --feston: 16px;
+  height: 64px;
+  background: repeating-linear-gradient(90deg, var(--t1) 0 var(--ancho), var(--t2) var(--ancho) calc(var(--ancho) * 2));
+  -webkit-mask: radial-gradient(circle at calc(var(--ancho) / 2) 0, #000 calc(var(--ancho) / 2), transparent calc(var(--ancho) / 2 + .5px)) bottom left / var(--ancho) var(--feston) repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - var(--feston)) no-repeat;
+  mask: radial-gradient(circle at calc(var(--ancho) / 2) 0, #000 calc(var(--ancho) / 2), transparent calc(var(--ancho) / 2 + .5px)) bottom left / var(--ancho) var(--feston) repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - var(--feston)) no-repeat;
+}
+
+/* ── Letrero pintado ── */
+.letrero {
+  background: var(--papel);
+  color: var(--tinta);
+  border: 4px solid var(--tinta);
+  border-radius: var(--r-puesto);
+  box-shadow: var(--sombra);
+}
+
+/* ── Etiqueta de cartulina escrita a mano ── */
+.etiqueta {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px 6px 22px;
+  font-family: var(--f-mano); font-size: 22px; line-height: 1;
+  background: var(--papel); color: var(--tinta);
+  border-radius: var(--r-etiqueta);
+  box-shadow: 0 1px 0 rgba(32, 24, 58, .1), 0 8px 14px -8px rgba(32, 24, 58, .45);
+}
+.etiqueta::before { content: ''; position: absolute; left: 8px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: rgba(32, 24, 58, .55); box-shadow: inset 0 1px 1px rgba(0, 0, 0, .4); }
+
+/* ── Botones ── */
+.boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 50px; padding: 10px 24px;
+  font-family: var(--f-letrero); font-size: 20px; line-height: 1;
+  color: var(--tinta); background: var(--papel);
+  border: 3px solid var(--tinta); border-radius: 999px;
+  box-shadow: 0 4px 0 var(--tinta);
+  transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
+  cursor: pointer; white-space: nowrap;
+}
+.boton:hover { background: var(--mango-claro); }
+.boton:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--tinta); }
+.boton-tinta { background: var(--tinta); color: var(--papel); }
+.boton-tinta:hover { background: #33295A; }
+.boton-pedir { background: var(--pedir); color: #fff; border-color: var(--pedir-oscuro); box-shadow: 0 4px 0 var(--pedir-oscuro); }
+.boton-pedir:hover { background: #26C263; }
+.boton-pedir:active { box-shadow: 0 1px 0 var(--pedir-oscuro); }
+.boton svg { width: 22px; height: 22px; flex: 0 0 auto; }
+
+/* Íconos trazados, un solo grosor */
+.ico { width: 1.1em; height: 1.1em; flex: 0 0 auto; stroke: currentColor; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ico-lleno { fill: currentColor; stroke: none; }
+
+/* Estrella de oferta: "¡Recién llegado!" */
+.estallido {
+  display: inline-grid; place-items: center; text-align: center;
+  width: 96px; height: 96px; padding: 14px;
+  font-family: var(--f-letrero); font-size: 17px; line-height: .95;
+  color: var(--tinta); background: var(--mango);
+  -webkit-mask: url('/plaza/estallido.svg') center / contain no-repeat;
+  mask: url('/plaza/estallido.svg') center / contain no-repeat;
+}
+
+/* Entrada: los puestos se abren al cargar, una sola vez */
+@media (prefers-reduced-motion: no-preference) {
+  .abrir { animation: abrir .7s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 60ms); }
+  @keyframes abrir { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
+}

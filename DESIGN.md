@@ -1,41 +1,45 @@
-# Design: "El citófono de portería"
+# Design: "La plaza de mercado"
 
-Visual system of the public landing (`/` and `/e/<slug>`), option two (branch `feat/rediseno-2`; option one, the flyer wall, lives on `feat/rediseno`). The committee panel and `/registro` keep the older tokens in `src/styles/global.css`; everything here is scoped under `body.citofono` (`src/styles/citofono.css`, enabled with `<Layout citofono>`).
+Visual system of the public landing (`/` and `/e/<slug>`), option three (branch `feat/rediseno-3`; option one, flyer wall, on `feat/rediseno`; option two, intercom, on `feat/rediseno-2`). The committee panel and `/registro` keep the older tokens in `src/styles/global.css`; everything here is scoped under `body.plaza` (`src/styles/plaza.css`, enabled with `<Layout plaza>`).
 
 ## Idea
-The directory is the intercom panel at the conjunto's entrance. The LCD is the search, the rubber keypad is the category filter, every business is a backlit name plate with a round green call button that opens WhatsApp. New businesses are the brightest plates.
+The directory is the neighborhood's market plaza: every business is a stall under its own striped awning, with its real photo big and in full color, and you order by WhatsApp. Photos are never filtered or shrunk.
 
-## Color (Restrained: steel neutrals + one call color)
+## Color (Full palette of fruit-stand colors)
 | Token | Hex | Role |
 |---|---|---|
-| `--pared` | #DCE1E3 | painted portería wall (page ground) |
-| `--acero-claro` / `--acero` | #DDE2E5 / #BCC3C8 | brushed steel plates |
-| `--acero-borde` | #8C949A | plate edge, bezels |
-| `--grafito` | #23272B | engraving, text, nav, footer, keys |
-| `--caucho` | #2E3338 | rubber keys |
-| `--luz` / `--luz-fuerte` | #FFF3D1 / #FFE9A8 | backlit name labels; pressed key; "Nuevo" plates glow |
-| `--lcd-fondo` / `--lcd` | #16211A / #B8E986 | LCD search, counters, dates |
-| `--llamar` | #1FA35B | the call button (WhatsApp) only |
-| `--led-*` | #1E9C8C Mistral, #E8641B Gregal, #E3287A Austro, #7B3FE4 Cierzo | small LED next to the conjunto name, never alone |
+| `--papel` | #FFFDF8 | page and stall paper |
+| `--tinta` | #20183A | text, nav, footer, dark buttons |
+| `--mango` / `--mango-claro` | #FFC93C / #FFE7A3 | brand: hero field, focus halo, highlights |
+| `--hierbabuena` | #1E9C8C | Mistral, Historia section |
+| `--lulo` | #FF8A1F | Gregal, convocatoria awning |
+| `--pitahaya` | #FF3F80 | Austro, main awning, fair notice |
+| `--mora` | #7B3FE4 | Cierzo, JuanCode sign |
+| `--pedir` / `--pedir-oscuro` | #22B45A / #178A43 | "Pídalo por WhatsApp" only |
+
+`[data-conjunto]` sets `--c`; the conjunto name is always printed next to its color.
 
 ## Type
-- Plates and headings: Barlow Condensed 700 to 800, uppercase, tracking .015 to .08em, engraved (`.grabado`: 1px light text-shadow).
-- Reading: Barlow 400 to 600.
-- LCD: VT323 (search, counts with fixed zero-padded digits, dates, "Nuevo").
+- Signs and headings: Lilita One (mixed case).
+- Reading: Figtree 400 to 800.
+- Handwritten tags: Caveat Brush (category tags, counts, small notes).
+- Voice: "usted", like a plaza vendor ("¿Qué se le ofrece, vecino?", "Pídalo por WhatsApp").
 
-## Shape
-Plates 10px (`--r-placa`), keys and buttons 8px (`--r-tecla`), name labels 4px (`--r-plaquita`), call button and LEDs round. `.tornillos` puts a screw in each corner of a plate.
+## Shape and material
+- Stalls and signs 18px (`--r-puesto`), tags 10px, buttons and chips pill.
+- `.toldo`: striped awning (`--t1`, `--t2`, `--ancho`) with a scalloped edge (radial-gradient mask, `--feston`).
+- `.letrero`: painted sign, 4px ink border. `.etiqueta`: card tag with a punched hole. `.estallido`: starburst sticker (`public/plaza/estallido.svg` mask).
+- Buttons press down 3px (bottom bevel), soft tinted shadows elsewhere.
 
 ## Components
-- `.placa` brushed steel plate; `.lcd` screen with bezel; `.tecla` rubber key (`aria-pressed` = lit); `.boton` / `.boton-tinta` steel keys; `.llamar` round green call button with steel bezel; `.led`; `.rotulo` small engraved label.
-- Business (`EmprendedorCard`): photo in a small screen, backlit name label (name + LED + neighbor + conjunto), category and marks ("Nuevo" in LCD, "En la feria"), 3-line description, stars, socials, "Ficha", and the call button with its "Llamar" label.
-- Hero: engraved headline, LCD search (`#dirBuscar`), category keypad (`button[data-filtro-cat]`, "Solo en la feria"), speaker grille, molinete, LCD counter and next fair.
-- Detail (`DetalleModal`): video-intercom screen with the photo, steel info plate, ratings and report on a printed card.
+- Hero: pink awning over a mango field, the sign "¿Qué se le ofrece, vecino?", pill search `#dirBuscar`, handwritten category tags (`button[data-filtro-cat]`), and up to 4 real business photos as tilted framed produce (`vitrina` prop from `Landing.astro`).
+- Stall (`EmprendedorCard`): awning in the conjunto color, "¡Recién llegado!" starburst for new ones, big 4:3 full-color photo with its category tag, name, neighbor and conjunto, description, stars, full-width green "Pídalo por WhatsApp", "Ver fotos y más", socials.
+- Detail (`DetalleModal`): big photo left, sign right, ratings on a warm card below.
 
 ## Motion
-- `.encender`: the panel powers on once at load.
-- Signature: pressing call makes the plate flash like a ringing intercom (`.sonando`) while WhatsApp opens; keys depress 3px.
-- LCD prompt blinks. All motion off under `prefers-reduced-motion`.
+- `.abrir`: stalls open once at load (staggered).
+- Hover: the stall lifts and its awning stretches; photos zoom slightly; tags straighten.
+- All motion off under `prefers-reduced-motion`.
 
 ## Browser surfaces
-Selection green LCD on dark, caret and accent graphite, focus = 3px graphite outline plus a warm backlight halo.
+Selection mango on ink, caret and accent pitahaya, focus = 3px ink outline plus mango halo.

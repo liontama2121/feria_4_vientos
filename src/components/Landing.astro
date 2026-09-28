@@ -3,7 +3,7 @@
 // Primero el directorio con todos (buscar por nombre o categoría). La feria (índice, vitrina y
 // sección por conjunto) solo aparece si el comité activó una fecha que aún no pasa.
 // La usan `/` y `/e/<slug>` (link para compartir: abre la ficha de ese emprendimiento).
-import '../styles/citofono.css';
+import '../styles/plaza.css';
 import Layout from '../layouts/Layout.astro';
 import Nav from './Nav.astro';
 import Hero from './Hero.astro';
@@ -56,15 +56,17 @@ const catDe = (id: string) => categoria(id, Astro.locals.categorias);
 const teclas = Astro.locals.categorias
   .map((c) => ({ id: c.id, label: c.label, n: emprendedores.filter((e) => catDe(e.categoria).id === c.id).length }))
   .filter((c) => c.n > 0);
+// Primer vistazo: fotos reales de emprendimientos (primero los que tienen foto; destacados y nuevos van adelante).
+const vitrinaHero = [...emprendedores.filter((e) => e.foto_principal), ...emprendedores.filter((e) => !e.foto_principal)].slice(0, 4);
 
 // Sin caché: lo que el comité publica se ve apenas se recarga la página.
 Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 
-<Layout title={meta?.title} description={meta?.description} image={meta?.image} citofono>
+<Layout title={meta?.title} description={meta?.description} image={meta?.image} plaza>
   <Nav torres={torres} feria={hayFeria} />
   <main>
-    <Hero proxima={fechas[0]} torres={torres} total={emprendedores.length} teclas={teclas} feria={enFeria.length > 0} />
+    <Hero proxima={fechas[0]} torres={torres} total={emprendedores.length} teclas={teclas} feria={enFeria.length > 0} vitrina={vitrinaHero} />
     <Directorio emprendedores={emprendedores} torres={torres} />
     {
       hayFeria && (

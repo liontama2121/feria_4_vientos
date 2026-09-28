@@ -1,5 +1,5 @@
 ---
-// Solo con feria activa: los 4 conjuntos como placas de entrada, con nombre, rumbo y cuántos van a la feria.
+// Solo con feria activa: los 4 conjuntos como pasillos de la plaza, con nombre, rumbo y cuántos van.
 import type { Torre } from '../lib/db';
 
 interface Props {
@@ -11,15 +11,17 @@ const { torres, conteo } = Astro.props;
 
 <section class="indice" id="torres" aria-labelledby="indice-titulo">
   <div class="wrap">
-    <h2 id="indice-titulo" class="grabado">En la feria, por conjunto</h2>
+    <h2 id="indice-titulo">En la feria, por conjunto</h2>
     <div class="conjuntos">
       {
         torres.map((t) => (
-          <a href={`#${t.id}`} class="conjunto placa tornillos" data-conjunto={t.id}>
-            <span class="led" aria-hidden="true" />
-            <span class="nombre grabado">{t.nombre}</span>
-            <span class="rotulo rumbo">{t.rumbo}</span>
-            <span class="conteo lcd">{String(conteo[t.id] ?? 0).padStart(2, '0')} en la feria</span>
+          <a href={`#${t.id}`} class="pasillo" data-conjunto={t.id}>
+            <span class="toldo" aria-hidden="true" />
+            <span class="cuerpo">
+              <span class="nombre">{t.nombre}</span>
+              <span class="rumbo">{t.rumbo}</span>
+              <span class="etiqueta conteo">{conteo[t.id] ?? 0} en la feria</span>
+            </span>
           </a>
         ))
       }
@@ -28,15 +30,16 @@ const { torres, conteo } = Astro.props;
 </section>
 
 <style>
-  .indice { padding: 20px 0 70px; scroll-margin-top: 64px; }
+  .indice { padding: 0 0 80px; scroll-margin-top: 64px; }
   h2 { font-size: clamp(40px, 5vw, 72px); margin-bottom: 28px; }
   .conjuntos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
   @media (max-width: 900px) { .conjuntos { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 480px) { .conjuntos { grid-template-columns: 1fr; } }
-  .conjunto { display: flex; flex-direction: column; gap: 6px; padding: 38px 22px 26px; transition: transform .2s var(--ease); }
-  .conjunto:hover { transform: translateY(-3px); }
-  .led { width: 14px; height: 14px; }
-  .nombre { font-family: var(--f-placa); font-weight: 800; font-size: 46px; text-transform: uppercase; line-height: .9; }
-  .rumbo { font-size: 13px; color: var(--grafito-suave); margin-bottom: 12px; }
-  .conteo { align-self: flex-start; padding: 6px 10px; font-size: 22px; line-height: 1; text-transform: uppercase; }
+  .pasillo { display: flex; flex-direction: column; background: var(--c); color: #fff; border-radius: var(--r-puesto); overflow: hidden; box-shadow: var(--sombra); transition: transform .3s var(--ease); }
+  .pasillo:hover { transform: translateY(-4px); }
+  .pasillo .toldo { display: block; --t1: var(--c); --t2: #fff; --ancho: 28px; --feston: 12px; height: 40px; }
+  .cuerpo { display: flex; flex-direction: column; gap: 4px; padding: 10px 20px 22px; }
+  .nombre { font-family: var(--f-letrero); font-size: 44px; line-height: 1; }
+  .rumbo { font-weight: 700; opacity: .92; margin-bottom: 12px; }
+  .conteo { align-self: flex-start; transform: rotate(-2deg); }
 </style>

@@ -1,28 +1,31 @@
 ---
-// Un emprendimiento = una plaquita del citófono: placa de acero con la etiqueta de nombre
-// retroiluminada y el botón redondo de llamar (abre WhatsApp). Los nuevos brillan más.
+// Un emprendimiento = un puesto de la plaza: su toldo de rayas del color de su conjunto, la
+// FOTO grande y a todo color, el letrero con el nombre y el botón para pedir por WhatsApp.
 import { ICONOS, categoria, dominioWeb, enlacesRedes, iniciales } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
   e: EmprendedorPublico;
   torre: Torre;
-  /** Muestra la marca "En la feria". */
+  /** Muestra el letrerito "En la feria". */
   enFeria?: boolean;
 }
 const { e, torre, enFeria = false } = Astro.props;
 const cat = categoria(e.categoria, Astro.locals.categorias);
-// Instagram, TikTok, Facebook; el WhatsApp es el botón de llamar.
+// Instagram, TikTok, Facebook; el WhatsApp es el botón grande.
 const redes = enlacesRedes(e).filter((r) => r.red !== 'whatsapp');
 const calif = e.calificacion;
 const llenas = calif ? Math.round(calif.promedio) : 0;
 const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
-  `Hola ${e.nombre_vecino.split(' ')[0]} 👋 Te encontré en el directorio de la Feria 4 Vientos y quiero saber más de ${e.nombre_emprendimiento}.`,
+  `Hola ${e.nombre_vecino.split(' ')[0]} 👋 Te vi en la plaza de la Feria 4 Vientos y quiero hacerle un pedido o saber más de ${e.nombre_emprendimiento}.`,
 )}`;
 ---
 
-<article class:list={['timbre placa', { nuevo: e.nuevo }]} data-conjunto={torre.id}>
-  <button type="button" class="timbre-foto" data-detalle={e.slug} aria-label={`Ver la ficha de ${e.nombre_emprendimiento}`}>
+<article class="puesto" data-conjunto={torre.id}>
+  <div class="toldo toldo-puesto" aria-hidden="true"></div>
+  {e.nuevo && <span class="estallido nuevo" aria-label="Recién llegado">¡Recién llegado!</span>}
+
+  <button type="button" class="puesto-foto" data-detalle={e.slug} aria-label={`Ver fotos y detalles de ${e.nombre_emprendimiento}`}>
     {
       e.foto_principal ? (
         <img src={e.foto_principal} alt="" loading="lazy" decoding="async" />
@@ -30,48 +33,47 @@ const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
         <span class="iniciales" aria-hidden="true">{iniciales(e.nombre_emprendimiento || e.nombre_vecino)}</span>
       )
     }
+    <span class="etiqueta cat">{cat.label}</span>
   </button>
 
-  <div class="timbre-cuerpo">
-    <div class="plaquita">
-      <h3>
-        <button type="button" data-detalle={e.slug}>{e.nombre_emprendimiento}</button>
-      </h3>
-      <p class="quien">
-        <span class="led" aria-hidden="true"></span>
-        {e.nombre_vecino} · {torre.nombre}{e.apartamento && ` ${e.apartamento}`}
-      </p>
-    </div>
-
-    <div class="marcas rotulo">
-      <span>{cat.label}</span>
-      {e.nuevo && <span class="marca marca-nuevo">Nuevo</span>}
-      {enFeria && <span class="marca">En la feria</span>}
-    </div>
-
+  <div class="puesto-cuerpo">
+    {enFeria && <p class="en-feria">En la feria</p>}
+    <h3>
+      <button type="button" data-detalle={e.slug}>{e.nombre_emprendimiento}</button>
+    </h3>
+    <p class="quien">
+      {e.nombre_vecino} · <strong class="conjunto">{torre.nombre}{e.apartamento && ` ${e.apartamento}`}</strong>
+    </p>
     <p class="desc">{e.descripcion_corta}</p>
 
-    <div class="timbre-pie">
-      <button type="button" class="calif" data-detalle={e.slug} data-ir="calificar">
-        {
-          calif && calif.total > 0 ? (
-            <>
-              <span class="estrellas" aria-hidden="true">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <svg viewBox="0 0 24 24" class:list={['estrella', { llena: n <= llenas }]}>
-                    <path d="M12 2.8l2.8 6 6.5.7-4.9 4.4 1.4 6.4L12 17l-5.8 3.3 1.4-6.4-4.9-4.4 6.5-.7z" />
-                  </svg>
-                ))}
-              </span>
-              <strong>{calif.promedio.toFixed(1)}</strong>
-              <span class="cuantos">({calif.total})</span>
-              <span class="sr-only-f4v">{`Calificación ${calif.promedio.toFixed(1)} de 5, ${calif.total} ${calif.total === 1 ? 'voto' : 'votos'}. Calificar`}</span>
-            </>
-          ) : (
-            <span class="primero">Califícalo primero</span>
-          )
-        }
-      </button>
+    <button type="button" class="calif" data-detalle={e.slug} data-ir="calificar">
+      {
+        calif && calif.total > 0 ? (
+          <span class="calif-datos">
+            <span class="estrellas" aria-hidden="true">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <svg viewBox="0 0 24 24" class:list={['estrella', { llena: n <= llenas }]}>
+                  <path d="M12 2.8l2.8 6 6.5.7-4.9 4.4 1.4 6.4L12 17l-5.8 3.3 1.4-6.4-4.9-4.4 6.5-.7z" />
+                </svg>
+              ))}
+            </span>
+            <strong>{calif.promedio.toFixed(1)}</strong>
+            <span class="cuantos">({calif.total})</span>
+            <span class="sr-only-f4v">{`Calificación ${calif.promedio.toFixed(1)} de 5, ${calif.total} ${calif.total === 1 ? 'voto' : 'votos'}. Calificar`}</span>
+          </span>
+        ) : (
+          <span class="primero">Sea el primero en calificar</span>
+        )
+      }
+    </button>
+
+    <a class="boton boton-pedir pedir" href={wsp} target="_blank" rel="noopener" aria-label={`Pedir por WhatsApp a ${e.nombre_emprendimiento}`}>
+      <svg viewBox="0 0 24 24" class="ico ico-lleno" aria-hidden="true"><path d={ICONOS.whatsapp} /></svg>
+      Pídalo por WhatsApp
+    </a>
+
+    <div class="puesto-pie">
+      <button type="button" class="ver" data-detalle={e.slug}>Ver fotos y más</button>
       <div class="extras">
         {redes.map((r) => (
           <a href={r.url} target="_blank" rel="noopener" aria-label={`${r.label} de ${e.nombre_emprendimiento}`}>
@@ -83,95 +85,67 @@ const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
         {
           e.pagina_web && (
             <a class="web" href={e.pagina_web} target="_blank" rel="noopener" title={dominioWeb(e.pagina_web)}>
-              Web
+              Página web
             </a>
           )
         }
-        <button type="button" class="boton boton-chico" data-detalle={e.slug}>Ficha</button>
       </div>
     </div>
   </div>
-
-  <div class="timbre-llamar">
-    <a class="llamar" href={wsp} target="_blank" rel="noopener" aria-label={`Llamar por WhatsApp a ${e.nombre_emprendimiento}`} data-llamar>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONOS.whatsapp} /></svg>
-    </a>
-    <span class="rotulo llamar-txt" aria-hidden="true">Llamar</span>
-  </div>
 </article>
 
-<script>
-  // Timbrar: la plaquita parpadea como el citófono cuando suena; WhatsApp abre igual.
-  document.addEventListener('click', (ev) => {
-    const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-llamar]');
-    const t = b?.closest<HTMLElement>('.timbre');
-    if (!t) return;
-    t.classList.remove('sonando');
-    void t.offsetWidth;
-    t.classList.add('sonando');
-  });
-</script>
-
 <style>
-  .timbre {
-    display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 16px; align-items: start;
-    padding: 16px 16px 16px 16px;
+  .puesto {
+    position: relative; display: flex; flex-direction: column;
+    background: var(--papel); border-radius: var(--r-puesto);
+    box-shadow: var(--sombra);
+    transition: transform .35s var(--ease), box-shadow .35s var(--ease);
   }
-  @media (max-width: 480px) { .timbre { grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; padding: 14px 12px; } }
+  .puesto:hover { transform: translateY(-5px); box-shadow: var(--sombra-alta); }
+  .toldo-puesto {
+    --t1: var(--c); --ancho: 30px; --feston: 12px; height: 44px;
+    border-radius: var(--r-puesto) var(--r-puesto) 0 0;
+    transform-origin: top;
+    transition: transform .5s var(--ease);
+  }
+  @media (prefers-reduced-motion: no-preference) { .puesto:hover .toldo-puesto { transform: scaleY(1.12); } }
+  .nuevo { position: absolute; top: 18px; right: -12px; z-index: 3; transform: rotate(12deg); }
 
-  .timbre-foto {
-    width: 100%; aspect-ratio: 1; padding: 0; border: 0; cursor: pointer; overflow: hidden;
-    border-radius: 6px; background: var(--grafito);
-    box-shadow: 0 0 0 3px var(--grafito), 0 0 0 5px var(--acero-borde), inset 0 2px 6px rgba(0, 0, 0, .5);
-    display: flex; align-items: center; justify-content: center;
+  .puesto-foto {
+    position: relative; display: block; margin: -6px 12px 0; padding: 0; border: 0; cursor: pointer;
+    aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden;
+    background: var(--c);
   }
-  .timbre-foto img { width: 100%; height: 100%; object-fit: cover; }
-  .iniciales { font-family: var(--f-lcd); font-size: 44px; color: var(--lcd); line-height: 1; }
+  .puesto-foto img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s var(--ease); }
+  .puesto-foto:hover img { transform: scale(1.05); }
+  .iniciales { display: grid; place-items: center; width: 100%; height: 100%; font-family: var(--f-letrero); font-size: 96px; color: #fff; }
+  .cat { position: absolute; left: 10px; bottom: 10px; transform: rotate(-3deg); font-size: 21px; }
 
-  /* Etiqueta retroiluminada detrás del acrílico */
-  .plaquita {
-    background: linear-gradient(180deg, #FFFBEF, var(--luz));
-    border-radius: var(--r-plaquita);
-    padding: 10px 12px 8px;
-    box-shadow: inset 0 0 0 1px rgba(35, 39, 43, .22), inset 0 6px 10px -6px rgba(255, 255, 255, .9), 0 0 0 3px #9AA2A7, 0 0 0 4px #E9EDEF;
-  }
-  .nuevo .plaquita {
-    background: linear-gradient(180deg, #FFFDF5, var(--luz-fuerte));
-    box-shadow: inset 0 0 0 1px rgba(35, 39, 43, .22), 0 0 0 3px #9AA2A7, 0 0 0 4px #E9EDEF, 0 0 22px 2px rgba(255, 223, 128, .75);
-  }
-  h3 { font-size: clamp(24px, 2.4vw, 30px); line-height: 1; margin-bottom: 4px; }
+  .puesto-cuerpo { padding: 16px 18px 18px; display: flex; flex-direction: column; flex: 1; }
+  .en-feria { align-self: flex-start; margin-bottom: 8px; padding: 3px 12px; border-radius: 999px; background: var(--pitahaya); color: #fff; font-family: var(--f-letrero); font-size: 16px; }
+  h3 { font-size: clamp(28px, 2.6vw, 34px); margin-bottom: 6px; }
   h3 button { all: unset; cursor: pointer; overflow-wrap: anywhere; }
-  h3 button:hover { text-decoration: underline; text-decoration-thickness: 2px; }
-  h3 button:focus-visible { outline: 3px solid var(--grafito); outline-offset: 2px; }
-  .quien { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--grafito-suave); }
+  h3 button:hover { text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--c); }
+  h3 button:focus-visible { outline: 3px solid var(--tinta); outline-offset: 3px; border-radius: 6px; }
+  .quien { font-size: 15.5px; font-weight: 600; color: var(--tinta-suave); margin-bottom: 10px; }
+  .conjunto { color: var(--c); font-weight: 800; filter: brightness(.82); }
+  .desc { font-size: 16px; line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
-  .marcas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 6px; font-size: 13.5px; }
-  .marca { padding: 3px 8px 2px; border-radius: 4px; background: var(--grafito); color: #F2F4F5; }
-  .marca-nuevo { background: var(--lcd-fondo); color: var(--lcd); font-family: var(--f-lcd); font-size: 18px; letter-spacing: .02em; line-height: 1; }
-  .desc { font-size: 15.5px; line-height: 1.45; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-
-  .timbre-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
-  .calif { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; font-weight: 600; }
+  .calif { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; font-weight: 700; margin-bottom: 12px; }
   .estrellas { display: inline-flex; gap: 1px; }
-  .estrella { width: 17px; height: 17px; fill: none; stroke: var(--grafito); stroke-width: 1.6; }
-  .estrella.llena { fill: var(--grafito); }
-  .calif strong { font-family: var(--f-placa); font-size: 20px; }
-  .cuantos { font-size: 14px; color: var(--grafito-suave); }
-  .primero { font-size: 14px; text-decoration: underline; text-decoration-thickness: 1px; }
-  .extras { display: flex; align-items: center; gap: 4px; }
-  .extras a { min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
-  .extras a:hover { background: rgba(35, 39, 43, .1); }
-  .extras .ico { width: 19px; height: 19px; }
-  .web { font-family: var(--f-placa); font-weight: 700; text-transform: uppercase; padding: 0 8px; text-decoration: underline; }
-  .boton-chico { min-height: 40px; padding: 6px 14px; font-size: 17px; margin-left: 4px; }
+  .estrella { width: 19px; height: 19px; fill: none; stroke: #E0A800; stroke-width: 1.8; }
+  .estrella.llena { fill: var(--mango); }
+  .calif strong { font-family: var(--f-letrero); font-size: 20px; font-weight: 400; }
+  .cuantos { font-size: 14px; color: var(--tinta-suave); }
+  .primero { font-family: var(--f-mano); font-size: 21px; color: var(--tinta-suave); }
+  .calif:hover .primero, .calif:hover strong { text-decoration: underline; }
 
-  .timbre-llamar { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 6px; }
-  .llamar-txt { font-size: 13px; }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .sonando .plaquita { animation: timbre .9s steps(2) 2; }
-    .sonando .llamar { animation: llamando .9s ease 2; }
-    @keyframes timbre { 50% { background: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(35, 39, 43, .22), 0 0 0 3px #9AA2A7, 0 0 30px 6px rgba(255, 233, 168, .95); } }
-    @keyframes llamando { 50% { transform: scale(1.08); } }
-  }
+  .pedir { width: 100%; margin-top: auto; }
+  .puesto-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .ver { border: 0; background: none; padding: 8px 0; min-height: 40px; cursor: pointer; font-weight: 800; font-size: 15.5px; color: var(--tinta); text-decoration: underline; text-decoration-thickness: 2px; text-decoration-color: var(--c); }
+  .extras { display: flex; align-items: center; gap: 2px; }
+  .extras a { min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; color: var(--tinta); }
+  .extras a:hover { background: color-mix(in srgb, var(--c) 18%, transparent); }
+  .extras .ico { width: 20px; height: 20px; }
+  .web { padding: 0 10px; font-weight: 800; font-size: 14.5px; text-decoration: underline; }
 </style>

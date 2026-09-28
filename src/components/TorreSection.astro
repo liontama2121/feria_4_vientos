@@ -1,6 +1,6 @@
 ---
 // Solo con feria activa: una sección por conjunto con los que están EN LA FERIA.
-// Cabecera = placa de entrada del conjunto; debajo, sus plaquitas.
+// Cabecera = el pasillo del conjunto con su toldo; debajo, sus puestos.
 import EmprendedorCard from './EmprendedorCard.astro';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
@@ -14,19 +14,16 @@ const n = emprendedores.length;
 
 <section class="conjunto-seccion" id={torre.id} data-conjunto={torre.id} aria-labelledby={`t-${torre.id}`}>
   <div class="wrap">
-    <div class="cabecera placa tornillos">
-      <div class="titulo">
-        <span class="led" aria-hidden="true"></span>
-        <h2 id={`t-${torre.id}`} class="grabado">{torre.nombre}</h2>
+    <div class="cabecera">
+      <div class="toldo" aria-hidden="true"></div>
+      <div class="cab-cuerpo">
+        <h2 id={`t-${torre.id}`}>{torre.nombre}</h2>
+        <div class="datos">
+          <p class="rumbo">{torre.rumbo}</p>
+          {torre.tagline && <p class="tagline">{torre.tagline}</p>}
+        </div>
+        <p class="etiqueta conteo">{n} en la feria</p>
       </div>
-      <div class="datos">
-        <p class="rotulo">{torre.rumbo}</p>
-        {torre.tagline && <p class="tagline">{torre.tagline}</p>}
-      </div>
-      <p class="conteo lcd">
-        <span class="n">{String(n).padStart(2, '0')}</span>
-        <span>en la feria</span>
-      </p>
     </div>
 
     {
@@ -37,10 +34,10 @@ const n = emprendedores.length;
           ))}
         </div>
       ) : (
-        <div class="vacio lcd">
-          <p class="vacio-titulo">{torre.nombre}: nadie en la feria todavía</p>
+        <div class="vacio letrero">
+          <p class="vacio-titulo">{torre.nombre} aún no tiene puestos en la feria</p>
           <p>
-            ¿Vives en {torre.nombre} y tienes un negocio? <a href="/registro">Regístrate</a> y el comité te suma. Mira también el <a href="#muro">directorio</a>.
+            ¿Vive en {torre.nombre} y tiene un negocio? <a href="/registro">Regístrese</a> y el comité lo suma. Mire también <a href="#muro">todos los puestos</a>.
           </p>
         </div>
       )
@@ -49,19 +46,18 @@ const n = emprendedores.length;
 </section>
 
 <style>
-  .conjunto-seccion { padding: 20px 0 80px; scroll-margin-top: 64px; }
-  .cabecera { display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: center; padding: 40px 36px 36px; margin-bottom: 26px; }
-  @media (max-width: 760px) { .cabecera { grid-template-columns: 1fr; gap: 14px; padding: 40px 20px 30px; } }
-  .titulo { display: flex; align-items: center; gap: 14px; }
-  .titulo .led { width: 18px; height: 18px; }
-  h2 { font-size: clamp(56px, 8vw, 116px); }
-  .datos .rotulo { font-size: 14px; color: var(--grafito-suave); margin-bottom: 4px; }
+  .conjunto-seccion { padding: 0 0 80px; scroll-margin-top: 64px; }
+  .cabecera { border-radius: var(--r-puesto); overflow: hidden; background: var(--c); color: #fff; margin-bottom: 28px; box-shadow: var(--sombra); }
+  .cabecera .toldo { --t1: var(--c); --t2: #fff; }
+  .cab-cuerpo { display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: center; padding: 14px 32px 28px; }
+  @media (max-width: 760px) { .cab-cuerpo { grid-template-columns: 1fr; gap: 10px; padding: 10px 20px 24px; } }
+  h2 { font-size: clamp(56px, 8vw, 112px); }
+  .rumbo { font-weight: 800; margin-bottom: 4px; }
   .tagline { font-size: 18px; line-height: 1.4; max-width: 44ch; }
-  .conteo { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 22px; line-height: 1; text-transform: uppercase; }
-  .n { font-size: 56px; line-height: .8; }
-  .lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
-  @media (max-width: 880px) { .lista { grid-template-columns: 1fr; } }
-  .vacio { padding: 20px 22px; font-size: 22px; line-height: 1.25; max-width: 760px; }
-  .vacio-titulo { font-size: 32px; text-transform: uppercase; margin-bottom: 6px; }
-  .vacio a { color: var(--luz); text-decoration: underline; }
+  .conteo { transform: rotate(-3deg); }
+  .lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 34px 26px; align-items: start; }
+  @media (max-width: 640px) { .lista { grid-template-columns: 1fr; } }
+  .vacio { padding: 22px 24px; max-width: 760px; font-size: 17px; }
+  .vacio-titulo { font-family: var(--f-letrero); font-size: 30px; line-height: 1; margin-bottom: 8px; }
+  .vacio a { text-decoration: underline; font-weight: 700; }
 </style>

@@ -13,6 +13,7 @@ const rumbo = (t: Torre) => t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace
 ---
 
 <footer class="footer">
+  <div class="toldo" style="--t1:var(--mango);--t2:var(--tinta)" aria-hidden="true"></div>
   <div class="wrap">
     <div class="foot-grid">
       <div>
@@ -28,7 +29,7 @@ const rumbo = (t: Torre) => t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace
             torres.map((t) => (
               <li>
                 <a href={feria ? `/#${t.id}` : '/#directorio'} data-conjunto={t.id}>
-                  <span class="led" aria-hidden="true" />
+                  <span class="punto" aria-hidden="true" />
                   {t.nombre} · {rumbo(t)}
                 </a>
               </li>
@@ -53,7 +54,7 @@ const rumbo = (t: Torre) => t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace
         {
           SITIO.juancodeUrl && (
             <a class="cotiza" href={SITIO.juancodeUrl} target="_blank" rel="noopener">
-              Cotiza tu página web
+              Cotice su página web
             </a>
           )
         }
@@ -63,17 +64,19 @@ const rumbo = (t: Torre) => t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace
 </footer>
 
 <style>
-  .footer { background: linear-gradient(180deg, #2C3136, var(--grafito)); color: #E9EDEF; padding: 56px 0 36px; }
+  .footer { background: linear-gradient(var(--papel) 0 16px, var(--tinta) 16px); color: #EDEAF5; padding: 0 0 36px; }
+  .footer .toldo { transform: scaleY(-1); margin-bottom: 40px; }
   .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
   @media (max-width: 800px) { .foot-grid { grid-template-columns: 1fr; gap: 30px; } }
-  .foot-marca { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; font-family: var(--f-placa); font-weight: 800; font-size: 32px; text-transform: uppercase; letter-spacing: .03em; line-height: 1; }
-  .foot-texto { font-size: 16px; line-height: 1.55; max-width: 48ch; color: #C9CFD2; }
-  .foot-titulo { font-size: 24px; margin-bottom: 12px; color: #F2F4F5; }
+  .foot-marca { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; font-family: var(--f-letrero); font-size: 32px; line-height: 1; }
+  .foot-texto { font-size: 16px; line-height: 1.55; max-width: 48ch; color: #D6D1E4; }
+  .foot-titulo { font-size: 24px; margin-bottom: 12px; color: var(--mango); }
   ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
-  ul a { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; font-size: 16px; }
-  ul a:hover { color: var(--luz); text-decoration: underline; }
-  .foot-bottom { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid #454C53; font-size: 14px; color: #C9CFD2; }
-  .firma-jc { display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; color: #F2F4F5; }
-  .cotiza { color: var(--luz); text-decoration: underline; }
+  ul a { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; font-size: 16px; font-weight: 600; }
+  ul a:hover { color: var(--mango); text-decoration: underline; }
+  .punto { width: 12px; height: 12px; border-radius: 50%; background: var(--c); flex: 0 0 auto; }
+  .foot-bottom { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid #3E3563; font-size: 14px; color: #D6D1E4; }
+  .firma-jc { display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; color: #fff; }
+  .cotiza { color: var(--mango); text-decoration: underline; }
   @media (max-width: 600px) { .foot-bottom { padding-right: 76px; } }
 </style>

@@ -1,26 +1,27 @@
 ---
-// Quienes respaldan la feria, como placas atornilladas. La destacada (Alcaldía) va más grande.
+// Quienes respaldan la feria, como letreros pintados. La destacada (Alcaldía) va más grande.
 import type { Patrocinador } from '../lib/db';
 
 interface Props {
   patrocinadores: Patrocinador[];
 }
 const { patrocinadores } = Astro.props;
+const COLOR: Record<Patrocinador['tipo'], string> = { oficial: 'var(--mora)', comunitario: 'var(--hierbabuena)', cultural: 'var(--pitahaya)' };
 ---
 
 <section class="respaldo" id="respaldo" aria-labelledby="respaldo-titulo">
   <div class="wrap">
-    <h2 id="respaldo-titulo" class="grabado">Con el respaldo de</h2>
+    <h2 id="respaldo-titulo">Con el respaldo de</h2>
     <p class="bajada">La feria existe gracias a la comunidad, las instituciones y los aliados que creen en el emprendimiento del barrio.</p>
     <div class="respaldo-grid">
       {
         patrocinadores.map((p) => (
-          <div class:list={['sponsor placa tornillos', { principal: p.destacado }]}>
-            <p class="rotulo etiqueta">{p.etiqueta}</p>
+          <div class:list={['sponsor letrero', { principal: p.destacado }]} style={`--sc:${COLOR[p.tipo]}`}>
+            <p class="etiqueta tipo">{p.etiqueta}</p>
             {p.logo && <img class="logo" src={p.logo} alt={`Logo de ${p.nombre}`} loading="lazy" />}
-            <h3 class="grabado">{p.nombre}</h3>
+            <h3>{p.nombre}</h3>
             <p class="desc">{p.descripcion}</p>
-            <p class="rotulo rol">{p.rol_corto}</p>
+            <p class="rol">{p.rol_corto}</p>
           </div>
         ))
       }
@@ -29,16 +30,16 @@ const { patrocinadores } = Astro.props;
 </section>
 
 <style>
-  .respaldo { padding: 20px 0 100px; }
-  h2 { font-size: clamp(44px, 5.6vw, 84px); margin-bottom: 12px; }
-  .bajada { font-size: 18px; color: var(--grafito-suave); max-width: 60ch; margin-bottom: 36px; }
+  .respaldo { padding: 0 0 90px; }
+  h2 { font-size: clamp(44px, 5.6vw, 80px); margin-bottom: 12px; }
+  .bajada { font-size: 18px; max-width: 60ch; margin-bottom: 34px; color: var(--tinta-suave); }
   .respaldo-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 22px; align-items: start; }
   @media (max-width: 900px) { .respaldo-grid { grid-template-columns: 1fr; } }
-  .sponsor { display: flex; flex-direction: column; padding: 40px 28px 34px; }
-  .etiqueta { font-size: 13px; color: var(--grafito-suave); margin-bottom: 14px; }
-  .logo { height: 84px; width: auto; max-width: 100%; align-self: flex-start; object-fit: contain; margin-bottom: 16px; border-radius: 6px; background: #fff; padding: 6px; box-shadow: 0 0 0 3px #9AA2A7; }
-  h3 { font-size: 32px; margin-bottom: 8px; }
-  .principal h3 { font-size: 42px; }
-  .desc { font-size: 16px; line-height: 1.5; margin-bottom: 16px; }
-  .rol { font-size: 13px; padding-top: 12px; border-top: 1px solid rgba(35, 39, 43, .25); }
+  .sponsor { display: flex; flex-direction: column; padding: 26px 24px 22px; border-color: var(--sc); border-top-width: 14px; }
+  .tipo { align-self: flex-start; transform: rotate(-2deg); margin-bottom: 16px; background: var(--mango-claro); }
+  .logo { height: 84px; width: auto; max-width: 100%; align-self: flex-start; object-fit: contain; margin-bottom: 16px; }
+  h3 { font-size: 30px; margin-bottom: 8px; color: var(--sc); }
+  .principal h3 { font-size: 40px; }
+  .desc { font-size: 16px; line-height: 1.5; margin-bottom: 14px; }
+  .rol { font-weight: 800; font-size: 14px; color: var(--tinta-suave); }
 </style>

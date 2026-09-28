@@ -1,5 +1,5 @@
 ---
-// Dónde y cuándo: placa con la ubicación y el tablero LCD con las fechas.
+// Dónde y cuándo: letrero con la ubicación y las fechas como carteles de colores.
 import type { Fecha } from '../lib/db';
 import { diaMes, diaSemana, rangoHoras } from '../lib/fechas';
 import { MENSAJES, SITIO, linkWhatsApp } from '../lib/sitio';
@@ -8,79 +8,82 @@ interface Props {
   fechas: Fecha[];
 }
 const { fechas } = Astro.props;
+const COLORES = ['var(--pitahaya)', 'var(--mora)', 'var(--lulo)', 'var(--hierbabuena)'];
 ---
 
 <section class="ubicacion" id="ubicacion" aria-labelledby="ubicacion-titulo">
   <div class="wrap ubic-grid">
-    <div class="lugar placa tornillos">
-      <h2 id="ubicacion-titulo" class="grabado">Dónde y cuándo</h2>
-      <p class="lugar-nombre grabado">El terminalito</p>
-      <p class="rotulo direccion">{SITIO.conjunto} · {SITIO.ciudad}</p>
-      <p class="indicacion">Al lado de la portería secundaria, con entrada por la peatonal. Si es tu primera vez, cualquier vecino te indica.</p>
+    <div>
+      <h2 id="ubicacion-titulo">Dónde y cuándo</h2>
+      <p class="lugar">El terminalito</p>
+      <p class="direccion">{SITIO.conjunto} · {SITIO.ciudad}</p>
+      <p class="indicacion">Al lado de la portería secundaria, con entrada por la peatonal. Si es su primera vez, cualquier vecino le indica.</p>
       <ul class="extras">
-        <li>Vacunación para mascotas</li>
-        <li>Vacunación para niños</li>
-        <li>Actividades deportivas</li>
-        <li>Música y talleres de la Casa de Cultura</li>
+        <li class="etiqueta">Vacunación para mascotas</li>
+        <li class="etiqueta">Vacunación para niños</li>
+        <li class="etiqueta">Actividades deportivas</li>
+        <li class="etiqueta">Música y talleres de la Casa de Cultura</li>
       </ul>
-      <a class="enlace" href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">¿Dudas? Escríbele al comité</a>
+      <a class="enlace" href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">¿Dudas? Escríbale al comité</a>
     </div>
 
-    <div class="tablero">
-      <div class="lcd pantalla-fechas">
-        {
-          fechas.length === 0 ? (
-            <p class="linea">Pronto, nueva fecha</p>
-          ) : (
-            fechas.map((f) => {
-              const { dd, mm } = diaMes(f.fecha);
-              return (
-                <div class="fecha">
-                  <span class="dia">
-                    {dd} {mm}
-                  </span>
-                  <span class="detalle-fecha">
-                    <span class="linea">{f.titulo}</span>
-                    <span class="linea">
-                      {diaSemana(f.fecha)} · {rangoHoras(f)}
-                    </span>
-                  </span>
+    <div class="fechas">
+      {
+        fechas.length === 0 ? (
+          <div class="cartel letrero">
+            <p class="cartel-titulo">Pronto, nueva fecha</p>
+            <p>El comité está definiendo la próxima feria.</p>
+          </div>
+        ) : (
+          fechas.map((f, i) => {
+            const { dd, mm } = diaMes(f.fecha);
+            return (
+              <div class="cartel letrero" style={`--fc:${COLORES[i % COLORES.length]}`}>
+                <span class="dia" aria-hidden="true">
+                  <span class="dd">{dd}</span>
+                  <span class="mm">{mm}</span>
+                </span>
+                <div>
+                  <p class="cartel-titulo">{f.titulo}</p>
+                  <p>
+                    {diaSemana(f.fecha)} · {rangoHoras(f)}
+                  </p>
+                  {f.descripcion && <p class="desc-fecha">{f.descripcion}</p>}
                 </div>
-              );
-            })
-          )
-        }
-      </div>
-      {fechas.map((f) => f.descripcion && <p class="desc-fecha">{f.descripcion}</p>)}
+              </div>
+            );
+          })
+        )
+      }
       <p class="pronto">
-        <strong>Pronto vendrán más ferias.</strong> Síguenos en <a href={`https://instagram.com/${SITIO.instagram}`} target="_blank" rel="noopener">@{SITIO.instagram}</a> o
-        escríbele al comité para enterarte primero.
+        <strong>Pronto vendrán más ferias.</strong> Síganos en <a href={`https://instagram.com/${SITIO.instagram}`} target="_blank" rel="noopener">@{SITIO.instagram}</a> o
+        escríbale al comité para enterarse primero.
       </p>
     </div>
   </div>
 </section>
 
 <style>
-  .ubicacion { padding: 20px 0 100px; }
-  .ubic-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+  .ubicacion { padding: 0 0 90px; }
+  .ubic-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
   @media (max-width: 900px) { .ubic-grid { grid-template-columns: 1fr; } }
-  .lugar { padding: 52px 40px 44px; }
-  @media (max-width: 600px) { .lugar { padding: 44px 20px 38px; } }
-  h2 { font-size: clamp(44px, 5vw, 72px); margin-bottom: 18px; }
-  .lugar-nombre { font-family: var(--f-placa); font-weight: 800; font-size: 34px; text-transform: uppercase; line-height: 1; }
-  .direccion { font-size: 14px; color: var(--grafito-suave); margin: 6px 0 14px; }
+  h2 { font-size: clamp(48px, 5.6vw, 80px); margin-bottom: 18px; }
+  .lugar { font-family: var(--f-letrero); font-size: 36px; line-height: 1; color: var(--pitahaya); }
+  .direccion { font-weight: 700; color: var(--tinta-suave); margin: 6px 0 12px; }
   .indicacion { font-size: 17px; margin-bottom: 18px; max-width: 48ch; }
-  .extras { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
-  @media (max-width: 480px) { .extras { grid-template-columns: 1fr; } }
-  .extras li { padding: 10px 12px; border-radius: 6px; background: rgba(35, 39, 43, .06); box-shadow: inset 0 2px 4px rgba(35, 39, 43, .16); font-family: var(--f-placa); font-weight: 700; font-size: 17px; text-transform: uppercase; line-height: 1.1; }
-  .enlace { font-weight: 600; text-decoration: underline; }
+  .extras { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+  .extras .etiqueta { font-size: 21px; }
+  .extras .etiqueta:nth-child(odd) { transform: rotate(-1.5deg); background: var(--mango-claro); }
+  .extras .etiqueta:nth-child(even) { transform: rotate(1.5deg); }
+  .enlace { font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; }
 
-  .pantalla-fechas { padding: 22px 24px; display: grid; gap: 16px; }
-  .fecha { display: flex; gap: 18px; align-items: center; }
-  .dia { font-size: 56px; line-height: .9; white-space: nowrap; }
-  .detalle-fecha { display: grid; gap: 4px; }
-  .linea { font-size: 26px; line-height: 1; text-transform: uppercase; }
-  .desc-fecha { font-size: 16px; margin-top: 14px; }
-  .pronto { font-size: 16px; line-height: 1.5; margin-top: 20px; max-width: 52ch; }
+  .fechas { display: grid; gap: 18px; padding-top: 8px; }
+  .cartel { display: flex; gap: 18px; align-items: center; padding: 18px 20px; border-color: var(--fc, var(--tinta)); }
+  .dia { flex: 0 0 auto; width: 88px; height: 88px; border-radius: 14px; display: grid; place-content: center; text-align: center; background: var(--fc, var(--tinta)); color: #fff; }
+  .dd { font-family: var(--f-letrero); font-size: 44px; line-height: .9; }
+  .mm { font-family: var(--f-letrero); font-size: 18px; }
+  .cartel-titulo { font-family: var(--f-letrero); font-size: 28px; line-height: 1; margin-bottom: 4px; }
+  .desc-fecha { font-size: 15.5px; margin-top: 6px; color: var(--tinta-suave); }
+  .pronto { font-size: 16.5px; line-height: 1.5; max-width: 52ch; }
   .pronto a { text-decoration: underline; font-weight: 700; }
 </style>
