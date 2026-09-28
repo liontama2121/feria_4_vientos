@@ -13,14 +13,15 @@ const { torres, feria } = Astro.props;
 <nav class="nav" aria-label="Principal">
   <div class="wrap nav-inner">
     <a href="/" class="nav-marca" aria-label="4 Vientos, inicio">
-      <Molinete size={34} />
+      <Molinete size={32} />
       <span>4 Vientos</span>
     </a>
     {
       feria && (
         <div class="nav-conjuntos">
           {torres.map((t) => (
-            <a href={`#${t.id}`} class="nav-conjunto sello" data-conjunto={t.id}>
+            <a href={`#${t.id}`} class="nav-conjunto" data-conjunto={t.id}>
+              <span class="led" aria-hidden="true" />
               {t.nombre}
             </a>
           ))}
@@ -28,7 +29,7 @@ const { torres, feria } = Astro.props;
       )
     }
     <div class="nav-acciones">
-      <a href="#directorio" class="nav-link">Directorio</a>
+      <a href="#muro" class="nav-link">Directorio</a>
       <a href="#participar" class="nav-link nav-ocultable">Participar</a>
       <a href="/admin" class="boton nav-panel">Panel</a>
     </div>
@@ -38,30 +39,29 @@ const { torres, feria } = Astro.props;
 <style>
   .nav {
     position: sticky; top: 0; z-index: 50;
-    background: var(--xerox);
-    color: var(--papel);
+    background: linear-gradient(180deg, #2C3136, var(--grafito));
+    color: #F2F4F5;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 6px 16px -10px rgba(0, 0, 0, .6);
   }
   .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; }
   .nav-marca {
-    display: flex; align-items: center; gap: 10px;
-    font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 30px;
-    text-transform: uppercase; line-height: 1; letter-spacing: .005em;
-    white-space: nowrap;
+    display: flex; align-items: center; gap: 10px; white-space: nowrap;
+    font-family: var(--f-placa); font-weight: 800; font-size: 28px; text-transform: uppercase; letter-spacing: .03em; line-height: 1;
   }
   .nav-conjuntos { display: flex; gap: 6px; }
   .nav-conjunto {
-    padding: 6px 10px; background: var(--stock); color: var(--xerox);
-    transform: rotate(-1deg); transition: transform .25s var(--ease);
+    display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 12px;
+    font-family: var(--f-placa); font-weight: 700; font-size: 16px; text-transform: uppercase; letter-spacing: .04em;
+    border-radius: 6px; background: rgba(255, 255, 255, .06);
   }
-  .nav-conjunto:nth-child(even) { transform: rotate(1.2deg); }
-  .nav-conjunto:hover { transform: translateY(-2px) rotate(0); }
+  .nav-conjunto:hover { background: rgba(255, 255, 255, .14); }
   .nav-acciones { display: flex; align-items: center; gap: 4px; }
   .nav-link {
-    font-family: var(--f-display); font-stretch: 70%; font-weight: 800; font-size: 19px; text-transform: uppercase;
+    font-family: var(--f-placa); font-weight: 700; font-size: 19px; text-transform: uppercase; letter-spacing: .03em;
     padding: 10px 12px; min-height: 44px; display: inline-flex; align-items: center;
   }
-  .nav-link:hover { color: var(--verde); }
-  .nav-panel { min-height: 40px; padding: 8px 14px; font-size: 18px; margin-left: 8px; }
-  @media (max-width: 980px) { .nav-conjuntos { display: none; } }
-  @media (max-width: 520px) { .nav-ocultable { display: none; } .nav-marca { font-size: 26px; } }
+  .nav-link:hover { color: var(--luz); }
+  .nav-panel { min-height: 40px; padding: 8px 16px; font-size: 17px; margin-left: 8px; }
+  @media (max-width: 1000px) { .nav-conjuntos { display: none; } }
+  @media (max-width: 520px) { .nav-ocultable { display: none; } .nav-marca { font-size: 24px; } }
 </style>

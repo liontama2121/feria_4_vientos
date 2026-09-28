@@ -1,59 +1,57 @@
 ---
-// Un emprendimiento = un aviso fotocopiado en la cartulina de su conjunto, engrapado al muro,
-// con tiritas abajo para "arrancar" el WhatsApp (cada tirita abre el chat).
+// Un emprendimiento = una plaquita del citófono: placa de acero con la etiqueta de nombre
+// retroiluminada y el botón redondo de llamar (abre WhatsApp). Los nuevos brillan más.
 import { ICONOS, categoria, dominioWeb, enlacesRedes, iniciales } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
   e: EmprendedorPublico;
   torre: Torre;
-  /** Muestra el sello "En la feria". */
+  /** Muestra la marca "En la feria". */
   enFeria?: boolean;
 }
 const { e, torre, enFeria = false } = Astro.props;
 const cat = categoria(e.categoria, Astro.locals.categorias);
-// Instagram, TikTok, Facebook; el WhatsApp va en las tiritas.
+// Instagram, TikTok, Facebook; el WhatsApp es el botón de llamar.
 const redes = enlacesRedes(e).filter((r) => r.red !== 'whatsapp');
 const calif = e.calificacion;
 const llenas = calif ? Math.round(calif.promedio) : 0;
-const numero = e.whatsapp.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1 $2 $3');
 const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
-  `Hola ${e.nombre_vecino.split(' ')[0]} 👋 Te vi en el muro de la Feria 4 Vientos y quiero saber más de ${e.nombre_emprendimiento}.`,
+  `Hola ${e.nombre_vecino.split(' ')[0]} 👋 Te encontré en el directorio de la Feria 4 Vientos y quiero saber más de ${e.nombre_emprendimiento}.`,
 )}`;
-const TIRITAS = 6;
 ---
 
-<article class="aviso" data-conjunto={torre.id}>
-  <span class="grapa" style="top:-3px;left:calc(50% - 13px);--g-rot:-3deg"></span>
-  <div class="aviso-papel">
+<article class:list={['timbre placa', { nuevo: e.nuevo }]} data-conjunto={torre.id}>
+  <button type="button" class="timbre-foto" data-detalle={e.slug} aria-label={`Ver la ficha de ${e.nombre_emprendimiento}`}>
     {
-      (e.nuevo || enFeria) && (
-        <div class="calcos">
-          {e.nuevo && <span class="calco calco-nuevo">Nuevo</span>}
-          {enFeria && <span class="calco calco-feria">En la feria</span>}
-        </div>
+      e.foto_principal ? (
+        <img src={e.foto_principal} alt="" loading="lazy" decoding="async" />
+      ) : (
+        <span class="iniciales" aria-hidden="true">{iniciales(e.nombre_emprendimiento || e.nombre_vecino)}</span>
       )
     }
-    <button type="button" class="aviso-foto" data-detalle={e.slug} aria-label={`Ver la ficha de ${e.nombre_emprendimiento}`}>
-      {
-        e.foto_principal ? (
-          <img class="fotocopia" src={e.foto_principal} alt="" loading="lazy" decoding="async" />
-        ) : (
-          <span class="aviso-iniciales" aria-hidden="true">{iniciales(e.nombre_emprendimiento || e.nombre_vecino)}</span>
-        )
-      }
-    </button>
+  </button>
 
-    <div class="aviso-cuerpo">
+  <div class="timbre-cuerpo">
+    <div class="plaquita">
       <h3>
         <button type="button" data-detalle={e.slug}>{e.nombre_emprendimiento}</button>
       </h3>
-      <p class="sello quien">
+      <p class="quien">
+        <span class="led" aria-hidden="true"></span>
         {e.nombre_vecino} · {torre.nombre}{e.apartamento && ` ${e.apartamento}`}
       </p>
-      <p class="sello cat">{cat.label}</p>
-      <p class="desc">{e.descripcion_corta}</p>
+    </div>
 
+    <div class="marcas rotulo">
+      <span>{cat.label}</span>
+      {e.nuevo && <span class="marca marca-nuevo">Nuevo</span>}
+      {enFeria && <span class="marca">En la feria</span>}
+    </div>
+
+    <p class="desc">{e.descripcion_corta}</p>
+
+    <div class="timbre-pie">
       <button type="button" class="calif" data-detalle={e.slug} data-ir="calificar">
         {
           calif && calif.total > 0 ? (
@@ -66,172 +64,114 @@ const TIRITAS = 6;
                 ))}
               </span>
               <strong>{calif.promedio.toFixed(1)}</strong>
-              <span class="sello">({calif.total})</span>
+              <span class="cuantos">({calif.total})</span>
               <span class="sr-only-f4v">{`Calificación ${calif.promedio.toFixed(1)} de 5, ${calif.total} ${calif.total === 1 ? 'voto' : 'votos'}. Calificar`}</span>
             </>
           ) : (
-            <span class="sello primero">Califícalo primero</span>
+            <span class="primero">Califícalo primero</span>
           )
         }
       </button>
-
-      <div class="aviso-acciones">
-        <button type="button" class="boton boton-chico" data-detalle={e.slug}>Ver ficha</button>
+      <div class="extras">
+        {redes.map((r) => (
+          <a href={r.url} target="_blank" rel="noopener" aria-label={`${r.label} de ${e.nombre_emprendimiento}`}>
+            <svg viewBox="0 0 24 24" class="ico ico-lleno" aria-hidden="true">
+              <path d={ICONOS[r.red]} />
+            </svg>
+          </a>
+        ))}
         {
-          redes.length > 0 && (
-            <div class="redes">
-              {redes.map((r) => (
-                <a href={r.url} target="_blank" rel="noopener" aria-label={`${r.label} de ${e.nombre_emprendimiento}`}>
-                  <svg viewBox="0 0 24 24" class="ico ico-lleno" aria-hidden="true">
-                    <path d={ICONOS[r.red]} />
-                  </svg>
-                </a>
-              ))}
-            </div>
+          e.pagina_web && (
+            <a class="web" href={e.pagina_web} target="_blank" rel="noopener" title={dominioWeb(e.pagina_web)}>
+              Web
+            </a>
           )
         }
+        <button type="button" class="boton boton-chico" data-detalle={e.slug}>Ficha</button>
       </div>
-      {
-        e.pagina_web && (
-          <a class="aviso-web" href={e.pagina_web} target="_blank" rel="noopener">
-            <span>Entra aquí</span>
-            <small class="sello">{dominioWeb(e.pagina_web)}</small>
-            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-          </a>
-        )
-      }
     </div>
+  </div>
 
-    <div class="tiritas" data-tiritas>
-      {
-        Array.from({ length: TIRITAS }, (_, i) => (
-          <a
-            class="tirita"
-            href={wsp}
-            target="_blank"
-            rel="noopener"
-            aria-label={i === 0 ? `Escribir por WhatsApp a ${e.nombre_emprendimiento}, ${numero}` : undefined}
-            aria-hidden={i === 0 ? undefined : 'true'}
-            tabindex={i === 0 ? undefined : -1}
-          >
-            <span class="tirita-texto sello">
-              <svg class="ico ico-lleno" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONOS.whatsapp} /></svg>
-              {numero}
-            </span>
-          </a>
-        ))
-      }
-    </div>
+  <div class="timbre-llamar">
+    <a class="llamar" href={wsp} target="_blank" rel="noopener" aria-label={`Llamar por WhatsApp a ${e.nombre_emprendimiento}`} data-llamar>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONOS.whatsapp} /></svg>
+    </a>
+    <span class="rotulo llamar-txt" aria-hidden="true">Llamar</span>
   </div>
 </article>
 
 <script>
-  // Arrancar una tirita: se suelta del aviso y cae; el chat de WhatsApp abre igual (el enlace no se toca).
+  // Timbrar: la plaquita parpadea como el citófono cuando suena; WhatsApp abre igual.
   document.addEventListener('click', (ev) => {
-    const t = (ev.target as HTMLElement).closest<HTMLElement>('.tirita');
-    if (t) t.classList.add('arrancada');
+    const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-llamar]');
+    const t = b?.closest<HTMLElement>('.timbre');
+    if (!t) return;
+    t.classList.remove('sonando');
+    void t.offsetWidth;
+    t.classList.add('sonando');
   });
 </script>
 
 <style>
-  .aviso {
-    position: relative;
-    transform: rotate(var(--r, 0deg));
-    transition: transform .4s var(--ease);
-    filter: drop-shadow(0 14px 14px rgba(17, 17, 17, .2)) drop-shadow(0 1px 0 rgba(17, 17, 17, .12));
+  .timbre {
+    display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 16px; align-items: start;
+    padding: 16px 16px 16px 16px;
   }
-  .aviso:hover { transform: rotate(0deg) translateY(-4px); }
-  .aviso-papel { background: var(--stock, var(--papel)); color: var(--xerox); display: flex; flex-direction: column; }
+  @media (max-width: 480px) { .timbre { grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; padding: 14px 12px; } }
 
-  .calcos { position: absolute; top: 14px; left: -8px; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-  .calco {
-    font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 24px; text-transform: uppercase; line-height: 1;
-    padding: 7px 12px 5px;
-    box-shadow: 0 6px 10px -4px rgba(17, 17, 17, .5);
-  }
-  .calco-nuevo { background: var(--xerox); color: var(--verde); transform: rotate(-5deg); }
-  .calco-feria { background: var(--papel); color: var(--xerox); transform: rotate(3deg); }
-
-  .aviso-foto {
+  .timbre-foto {
+    width: 100%; aspect-ratio: 1; padding: 0; border: 0; cursor: pointer; overflow: hidden;
+    border-radius: 6px; background: var(--grafito);
+    box-shadow: 0 0 0 3px var(--grafito), 0 0 0 5px var(--acero-borde), inset 0 2px 6px rgba(0, 0, 0, .5);
     display: flex; align-items: center; justify-content: center;
-    aspect-ratio: 4 / 3; margin: 14px 14px 0; padding: 0; border: 0;
-    background: var(--stock, var(--papel)); overflow: hidden; cursor: pointer;
   }
-  .aviso-foto img { width: 100%; height: 100%; object-fit: cover; transition: filter .35s ease, transform .5s var(--ease); }
-  .aviso-foto:hover img { filter: none; mix-blend-mode: normal; transform: scale(1.03); }
-  .aviso-iniciales { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 96px; line-height: .8; opacity: .85; }
-  /* Sin foto: el aviso no gasta media hoja en iniciales */
-  .aviso-foto:has(.aviso-iniciales) { aspect-ratio: 16 / 7; border-bottom: 2px solid rgba(17, 17, 17, .8); }
+  .timbre-foto img { width: 100%; height: 100%; object-fit: cover; }
+  .iniciales { font-family: var(--f-lcd); font-size: 44px; color: var(--lcd); line-height: 1; }
 
-  .aviso-cuerpo { padding: 16px 18px 14px; display: flex; flex-direction: column; }
-  h3 { font-size: clamp(34px, 3.2vw, 44px); margin-bottom: 8px; }
+  /* Etiqueta retroiluminada detrás del acrílico */
+  .plaquita {
+    background: linear-gradient(180deg, #FFFBEF, var(--luz));
+    border-radius: var(--r-plaquita);
+    padding: 10px 12px 8px;
+    box-shadow: inset 0 0 0 1px rgba(35, 39, 43, .22), inset 0 6px 10px -6px rgba(255, 255, 255, .9), 0 0 0 3px #9AA2A7, 0 0 0 4px #E9EDEF;
+  }
+  .nuevo .plaquita {
+    background: linear-gradient(180deg, #FFFDF5, var(--luz-fuerte));
+    box-shadow: inset 0 0 0 1px rgba(35, 39, 43, .22), 0 0 0 3px #9AA2A7, 0 0 0 4px #E9EDEF, 0 0 22px 2px rgba(255, 223, 128, .75);
+  }
+  h3 { font-size: clamp(24px, 2.4vw, 30px); line-height: 1; margin-bottom: 4px; }
   h3 button { all: unset; cursor: pointer; overflow-wrap: anywhere; }
-  h3 button:hover { text-decoration: underline; text-decoration-thickness: 3px; }
-  h3 button:focus-visible { outline: 3px solid var(--xerox); outline-offset: 3px; }
-  .quien { font-size: 13.5px; }
-  .cat { font-size: 12.5px; margin: 2px 0 10px; opacity: .8; }
-  .desc { font-size: 15.5px; line-height: 1.45; margin-bottom: 12px; }
+  h3 button:hover { text-decoration: underline; text-decoration-thickness: 2px; }
+  h3 button:focus-visible { outline: 3px solid var(--grafito); outline-offset: 2px; }
+  .quien { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--grafito-suave); }
 
-  .calif {
-    align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
-    min-height: 36px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; margin-bottom: 12px;
-  }
+  .marcas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 6px; font-size: 13.5px; }
+  .marca { padding: 3px 8px 2px; border-radius: 4px; background: var(--grafito); color: #F2F4F5; }
+  .marca-nuevo { background: var(--lcd-fondo); color: var(--lcd); font-family: var(--f-lcd); font-size: 18px; letter-spacing: .02em; line-height: 1; }
+  .desc { font-size: 15.5px; line-height: 1.45; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+  .timbre-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+  .calif { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; font-weight: 600; }
   .estrellas { display: inline-flex; gap: 1px; }
-  .estrella { width: 18px; height: 18px; fill: none; stroke: var(--xerox); stroke-width: 1.6; }
-  .estrella.llena { fill: var(--xerox); }
-  .calif strong { font-family: var(--f-display); font-stretch: 70%; font-weight: 900; font-size: 20px; }
-  .calif:hover .primero, .calif:hover strong { text-decoration: underline; }
+  .estrella { width: 17px; height: 17px; fill: none; stroke: var(--grafito); stroke-width: 1.6; }
+  .estrella.llena { fill: var(--grafito); }
+  .calif strong { font-family: var(--f-placa); font-size: 20px; }
+  .cuantos { font-size: 14px; color: var(--grafito-suave); }
+  .primero { font-size: 14px; text-decoration: underline; text-decoration-thickness: 1px; }
+  .extras { display: flex; align-items: center; gap: 4px; }
+  .extras a { min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
+  .extras a:hover { background: rgba(35, 39, 43, .1); }
+  .extras .ico { width: 19px; height: 19px; }
+  .web { font-family: var(--f-placa); font-weight: 700; text-transform: uppercase; padding: 0 8px; text-decoration: underline; }
+  .boton-chico { min-height: 40px; padding: 6px 14px; font-size: 17px; margin-left: 4px; }
 
-  .aviso-acciones { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .boton-chico { min-height: 42px; padding: 8px 14px; font-size: 18px; }
-  .redes { display: flex; gap: 4px; }
-  .redes a { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; }
-  .redes a:hover { background: var(--xerox); color: var(--stock, var(--papel)); }
-  .redes .ico { width: 20px; height: 20px; }
+  .timbre-llamar { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 6px; }
+  .llamar-txt { font-size: 13px; }
 
-  .aviso-web {
-    display: flex; align-items: center; gap: 10px; margin-top: 12px;
-    padding: 12px 14px; background: var(--xerox); color: var(--papel);
-    font-family: var(--f-display); font-stretch: 70%; font-weight: 900; font-size: 22px; text-transform: uppercase; line-height: 1;
-  }
-  .aviso-web small { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; opacity: .8; }
-  .aviso-web .ico { width: 22px; height: 22px; }
-
-  /* Tiritas: el papel cortado en flecos, cada uno con el número */
-  .tiritas {
-    display: grid; grid-template-columns: repeat(6, 1fr);
-    border-top: 2px dashed rgba(17, 17, 17, .55);
-  }
-  .tirita {
-    position: relative; display: flex; justify-content: center;
-    height: 156px; padding: 10px 0 14px;
-    background: var(--stock, var(--papel));
-    transform-origin: 50% 0;
-    transition: background .2s ease;
-    /* borde rasgado propio: viaja con la tirita cuando se arranca */
-    -webkit-mask: url('/muro/borde-abajo.svg') bottom 0 left var(--corte, 0px) / 300px 8px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat;
-    mask: url('/muro/borde-abajo.svg') bottom 0 left var(--corte, 0px) / 300px 8px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat;
-  }
-  .tirita:nth-child(2) { --corte: -61px; height: 150px; }
-  .tirita:nth-child(3) { --corte: -137px; }
-  .tirita:nth-child(4) { --corte: -29px; height: 153px; }
-  .tirita:nth-child(5) { --corte: -203px; }
-  .tirita:nth-child(6) { --corte: -97px; height: 148px; }
-  .tirita + .tirita { border-left: 1.5px dashed rgba(17, 17, 17, .45); }
-  .tirita:hover { background: var(--verde); }
-  .tirita-texto {
-    writing-mode: vertical-rl; transform: rotate(180deg);
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 12.5px; letter-spacing: .02em; white-space: nowrap;
-  }
-  .tirita-texto .ico { width: 15px; height: 15px; transform: rotate(90deg); }
-  .tirita.arrancada { visibility: hidden; }
   @media (prefers-reduced-motion: no-preference) {
-    .tirita.arrancada { visibility: visible; animation: arrancar .8s var(--ease) forwards; pointer-events: none; }
-    @keyframes arrancar {
-      0% { transform: none; }
-      25% { transform: rotate(7deg) translateY(3px); }
-      100% { transform: translate(-14px, 150px) rotate(-24deg); opacity: 0; }
-    }
+    .sonando .plaquita { animation: timbre .9s steps(2) 2; }
+    .sonando .llamar { animation: llamando .9s ease 2; }
+    @keyframes timbre { 50% { background: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(35, 39, 43, .22), 0 0 0 3px #9AA2A7, 0 0 30px 6px rgba(255, 233, 168, .95); } }
+    @keyframes llamando { 50% { transform: scale(1.08); } }
   }
 </style>

@@ -1,4 +1,5 @@
 ---
+// Dónde y cuándo: placa con la ubicación y el tablero LCD con las fechas.
 import type { Fecha } from '../lib/db';
 import { diaMes, diaSemana, rangoHoras } from '../lib/fechas';
 import { MENSAJES, SITIO, linkWhatsApp } from '../lib/sitio';
@@ -7,57 +8,50 @@ interface Props {
   fechas: Fecha[];
 }
 const { fechas } = Astro.props;
-const STOCKS = ['var(--verde)', 'var(--lila)', 'var(--menta)', 'var(--rosa)'];
 ---
 
 <section class="ubicacion" id="ubicacion" aria-labelledby="ubicacion-titulo">
   <div class="wrap ubic-grid">
-    <div class="cartel con-sombra">
-      <div class="hoja rasgado-ambos cartel-papel">
-        <span class="grapa" style="top:20px;left:28px;--g-rot:-8deg"></span>
-        <h2 id="ubicacion-titulo">Dónde y cuándo</h2>
-        <p class="lugar">El terminalito</p>
-        <p class="sello direccion">{SITIO.conjunto} · {SITIO.ciudad}</p>
-        <p class="indicacion">Al lado de la portería secundaria, con entrada por la peatonal. Si es tu primera vez, cualquier vecino te indica.</p>
-        <ul class="extras">
-          <li>Vacunación para mascotas</li>
-          <li>Vacunación para niños</li>
-          <li>Actividades deportivas</li>
-          <li>Música y talleres de la Casa de Cultura</li>
-        </ul>
-        <a class="sello enlace" href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">¿Dudas? Escríbele al comité</a>
-      </div>
+    <div class="lugar placa tornillos">
+      <h2 id="ubicacion-titulo" class="grabado">Dónde y cuándo</h2>
+      <p class="lugar-nombre grabado">El terminalito</p>
+      <p class="rotulo direccion">{SITIO.conjunto} · {SITIO.ciudad}</p>
+      <p class="indicacion">Al lado de la portería secundaria, con entrada por la peatonal. Si es tu primera vez, cualquier vecino te indica.</p>
+      <ul class="extras">
+        <li>Vacunación para mascotas</li>
+        <li>Vacunación para niños</li>
+        <li>Actividades deportivas</li>
+        <li>Música y talleres de la Casa de Cultura</li>
+      </ul>
+      <a class="enlace" href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">¿Dudas? Escríbele al comité</a>
     </div>
 
-    <div class="fechas">
-      {
-        fechas.length === 0 ? (
-          <div class="talon talon-vacio" style="--stock:var(--papel)">
-            <p class="talon-titulo">Pronto, nueva fecha</p>
-            <p>El comité está definiendo la próxima feria.</p>
-          </div>
-        ) : (
-          fechas.map((f, i) => {
-            const { dd, mm } = diaMes(f.fecha);
-            return (
-              <div class="talon" style={`--stock:${STOCKS[i % STOCKS.length]};--rt:${i % 2 ? 0.9 : -1.1}deg`}>
-                <div class="talon-dia" aria-hidden="true">
-                  <span class="sello">{diaSemana(f.fecha).slice(0, 3)}</span>
-                  <span class="dd">{dd}</span>
-                  <span class="sello">{mm}</span>
+    <div class="tablero">
+      <div class="lcd pantalla-fechas">
+        {
+          fechas.length === 0 ? (
+            <p class="linea">Pronto, nueva fecha</p>
+          ) : (
+            fechas.map((f) => {
+              const { dd, mm } = diaMes(f.fecha);
+              return (
+                <div class="fecha">
+                  <span class="dia">
+                    {dd} {mm}
+                  </span>
+                  <span class="detalle-fecha">
+                    <span class="linea">{f.titulo}</span>
+                    <span class="linea">
+                      {diaSemana(f.fecha)} · {rangoHoras(f)}
+                    </span>
+                  </span>
                 </div>
-                <div>
-                  <p class="talon-titulo">{f.titulo}</p>
-                  <p class="sello">
-                    {diaSemana(f.fecha)} {Number(dd)} {mm} · {rangoHoras(f)}
-                  </p>
-                  {f.descripcion && <p class="talon-desc">{f.descripcion}</p>}
-                </div>
-              </div>
-            );
-          })
-        )
-      }
+              );
+            })
+          )
+        }
+      </div>
+      {fechas.map((f) => f.descripcion && <p class="desc-fecha">{f.descripcion}</p>)}
       <p class="pronto">
         <strong>Pronto vendrán más ferias.</strong> Síguenos en <a href={`https://instagram.com/${SITIO.instagram}`} target="_blank" rel="noopener">@{SITIO.instagram}</a> o
         escríbele al comité para enterarte primero.
@@ -67,40 +61,26 @@ const STOCKS = ['var(--verde)', 'var(--lila)', 'var(--menta)', 'var(--rosa)'];
 </section>
 
 <style>
-  .ubicacion { padding: 30px 0 110px; }
-  .ubic-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 44px; align-items: start; }
+  .ubicacion { padding: 20px 0 100px; }
+  .ubic-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
   @media (max-width: 900px) { .ubic-grid { grid-template-columns: 1fr; } }
-
-  .cartel-papel { --stock: var(--rosa); --borde-alto: 18px; padding: 64px 36px 52px; transform: rotate(-.8deg); }
-  @media (max-width: 600px) { .cartel-papel { padding: 56px 20px 44px; } }
-  h2 { font-size: clamp(52px, 6.4vw, 96px); margin-bottom: 18px; }
-  .lugar { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 44px; text-transform: uppercase; line-height: .9; }
-  .direccion { font-size: 14px; margin: 6px 0 14px; }
-  .indicacion { font-size: 16.5px; max-width: 46ch; margin-bottom: 18px; }
-  .extras { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+  .lugar { padding: 52px 40px 44px; }
+  @media (max-width: 600px) { .lugar { padding: 44px 20px 38px; } }
+  h2 { font-size: clamp(44px, 5vw, 72px); margin-bottom: 18px; }
+  .lugar-nombre { font-family: var(--f-placa); font-weight: 800; font-size: 34px; text-transform: uppercase; line-height: 1; }
+  .direccion { font-size: 14px; color: var(--grafito-suave); margin: 6px 0 14px; }
+  .indicacion { font-size: 17px; margin-bottom: 18px; max-width: 48ch; }
+  .extras { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
   @media (max-width: 480px) { .extras { grid-template-columns: 1fr; } }
-  .extras li {
-    background: var(--papel); padding: 10px 12px;
-    font-family: var(--f-display); font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; line-height: 1.05;
-  }
-  .enlace { font-size: 14px; text-decoration: underline; text-decoration-thickness: 2px; }
+  .extras li { padding: 10px 12px; border-radius: 6px; background: rgba(35, 39, 43, .06); box-shadow: inset 0 2px 4px rgba(35, 39, 43, .16); font-family: var(--f-placa); font-weight: 700; font-size: 17px; text-transform: uppercase; line-height: 1.1; }
+  .enlace { font-weight: 600; text-decoration: underline; }
 
-  .fechas { display: flex; flex-direction: column; gap: 16px; padding-top: 18px; }
-  .talon {
-    display: flex; gap: 18px; align-items: center;
-    background: var(--stock); padding: 16px 18px;
-    transform: rotate(var(--rt, 0deg));
-    box-shadow: var(--sombra-papel);
-  }
-  .talon-dia {
-    flex: 0 0 auto; width: 84px; padding: 8px 0;
-    display: flex; flex-direction: column; align-items: center; line-height: 1;
-    border: 2px solid var(--xerox);
-  }
-  .dd { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 48px; line-height: .95; font-variant-numeric: tabular-nums; }
-  .talon-titulo { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 34px; text-transform: uppercase; line-height: .95; margin-bottom: 4px; }
-  .talon-desc { font-size: 15px; margin-top: 6px; }
-  .talon-vacio { flex-direction: column; align-items: flex-start; gap: 6px; }
-  .pronto { font-size: 16px; line-height: 1.5; max-width: 52ch; padding: 14px 0 0; border-top: 2px solid var(--xerox); }
+  .pantalla-fechas { padding: 22px 24px; display: grid; gap: 16px; }
+  .fecha { display: flex; gap: 18px; align-items: center; }
+  .dia { font-size: 56px; line-height: .9; white-space: nowrap; }
+  .detalle-fecha { display: grid; gap: 4px; }
+  .linea { font-size: 26px; line-height: 1; text-transform: uppercase; }
+  .desc-fecha { font-size: 16px; margin-top: 14px; }
+  .pronto { font-size: 16px; line-height: 1.5; margin-top: 20px; max-width: 52ch; }
   .pronto a { text-decoration: underline; font-weight: 700; }
 </style>

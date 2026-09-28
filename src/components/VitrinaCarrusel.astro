@@ -1,6 +1,6 @@
 ---
 // Vitrina de la feria (solo con feria activa): la fecha en grande y TODOS los que están en la
-// feria, uno a uno, cada uno como un afiche de la cartulina de su conjunto. Mezcla los 4
+// feria, uno a uno, cada uno como un videocitófono con su foto y su placa. Mezcla los 4
 // conjuntos intercalados. Autoplay 7 s, pausa al pasar el mouse o con foco.
 import { ICONOS, categoria, enlacesRedes, iniciales } from '../lib/constantes';
 import type { EmprendedorPublico, Fecha, Torre } from '../lib/db';
@@ -13,8 +13,8 @@ interface Props {
 }
 const { emprendedores, torres, proxima } = Astro.props;
 const torreDe = (id: string) => torres.find((t) => t.id === id) ?? torres[0];
-// Color del punto del carrusel = la cartulina del conjunto (ver muro.css)
-const STOCK_HEX: Record<string, string> = { mistral: '#B7E8D6', gregal: '#FF5A1F', austro: '#FF3CA7', cierzo: '#D2C4FF' };
+// Color del punto del carrusel = el LED del conjunto (ver citofono.css)
+const STOCK_HEX: Record<string, string> = { mistral: '#1E9C8C', gregal: '#E8641B', austro: '#E3287A', cierzo: '#7B3FE4' };
 
 // Intercala conjuntos para que el carrusel alterne cartulinas.
 const porTorre = torres.map((t) => emprendedores.filter((e) => e.torre === t.id));
@@ -26,9 +26,9 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
   slides.length > 0 && (
     <section class="vitrina" aria-roledescription="carrusel" aria-label="Vitrina de la feria">
       <div class="wrap">
-        <h2 class="vitrina-titulo">{proxima ? `Feria · ${fechaLarga(proxima.fecha)}` : 'Lo que trae cada viento'}</h2>
+        <h2 class="vitrina-titulo grabado">{proxima ? `Feria · ${fechaLarga(proxima.fecha)}` : 'Lo que trae cada viento'}</h2>
         {proxima && (
-          <p class="sello vitrina-sub">
+          <p class="vitrina-sub">
             {rangoHoras(proxima)} · El terminalito · {`${slides.length} ${slides.length === 1 ? 'emprendimiento te espera' : 'emprendimientos te esperan'}`}
           </p>
         )}
@@ -65,9 +65,9 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
                   )}
                 </div>
                 <div class="vitrina-info">
-                  <p class="sello chip">{t.nombre} · {cat.label}</p>
+                  <p class="rotulo chip">{t.nombre} · {cat.label}</p>
                   <h3>{e.nombre_emprendimiento}</h3>
-                  <p class="sello by">{`${e.nombre_vecino}${e.apartamento ? ` · ${e.apartamento}` : ''}`}</p>
+                  <p class="by">{`${e.nombre_vecino}${e.apartamento ? ` · ${e.apartamento}` : ''}`}</p>
                   <p class="corta">{e.descripcion_corta}</p>
                   {e.descripcion_larga && <p class="larga">{e.descripcion_larga}</p>}
                   <div class="vitrina-foot">
@@ -179,58 +179,65 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
 </script>
 
 <style>
-  .vitrina { padding: 40px 0 90px; }
-  .vitrina-titulo { font-size: clamp(52px, 7.4vw, 112px); margin-bottom: 10px; }
-  .vitrina-sub { font-size: 15px; margin-bottom: 28px; }
+  .vitrina { padding: 20px 0 80px; }
+  .vitrina-titulo { font-size: clamp(44px, 6vw, 88px); margin-bottom: 10px; }
+  .vitrina-sub { font-size: 17px; color: var(--grafito-suave); margin-bottom: 24px; }
 
   .vitrina-wrap { position: relative; }
   .vitrina-track {
     display: flex; gap: 24px;
     overflow-x: auto; scroll-snap-type: x mandatory;
-    padding: 20px 24px 36px; margin: 0 -24px;
+    padding: 12px 24px 30px; margin: 0 -24px;
     scrollbar-width: none;
   }
   .vitrina-track::-webkit-scrollbar { display: none; }
 
-  /* Un afiche por vista */
+  /* Un videocitófono por vista: pantalla con la foto + placa con los datos */
   .vitrina-slide {
     flex: 0 0 100%; scroll-snap-align: center;
-    display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    background: var(--stock, var(--papel)); color: var(--xerox);
-    box-shadow: var(--sombra-papel-alta);
+    display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 28px;
+    padding: 28px;
+    border-radius: var(--r-placa);
+    background:
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, .07) 0 1px, rgba(35, 39, 43, .035) 1px 2px, transparent 2px 4px),
+      linear-gradient(180deg, var(--acero-claro), var(--acero));
+    box-shadow: var(--sombra-placa);
   }
-  @media (max-width: 760px) { .vitrina-slide { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .vitrina-slide { grid-template-columns: 1fr; padding: 16px; gap: 18px; } }
 
-  .vitrina-img { position: relative; min-height: 440px; display: flex; align-items: center; justify-content: center; background: var(--xerox); }
+  .vitrina-img {
+    position: relative; min-height: 400px; border-radius: 8px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--lcd-fondo);
+    box-shadow: 0 0 0 4px var(--grafito), 0 0 0 7px var(--acero-borde), inset 0 4px 12px rgba(0, 0, 0, .6);
+  }
   .vitrina-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .iniciales { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 180px; line-height: .8; color: var(--stock); }
-  @media (max-width: 760px) { .vitrina-img { min-height: 0; aspect-ratio: 4 / 3; } .iniciales { font-size: 120px; } }
+  .iniciales { font-family: var(--f-lcd); font-size: 150px; line-height: .8; color: var(--lcd); }
+  @media (max-width: 760px) { .vitrina-img { min-height: 0; aspect-ratio: 4 / 3; } .iniciales { font-size: 110px; } }
 
-  .vitrina-info { padding: 40px 40px 34px; display: flex; flex-direction: column; min-width: 0; }
-  @media (max-width: 760px) { .vitrina-info { padding: 26px 20px 26px; } }
-  .chip { align-self: flex-start; background: var(--xerox); color: var(--stock, var(--papel)); padding: 6px 12px 4px; font-size: 13px; transform: rotate(-2deg); margin-bottom: 14px; }
-  .vitrina-info h3 { font-size: clamp(48px, 5.4vw, 80px); margin-bottom: 8px; overflow-wrap: anywhere; }
-  .by { font-size: 14px; margin-bottom: 18px; }
-  .corta { font-size: 19px; font-weight: 600; line-height: 1.4; margin-bottom: 12px; }
+  .vitrina-info { display: flex; flex-direction: column; min-width: 0; padding: 8px 4px; }
+  .chip { display: inline-flex; align-self: flex-start; gap: 8px; align-items: center; padding: 4px 10px; border-radius: 4px; background: var(--grafito); color: #F2F4F5; font-size: 14px; margin-bottom: 12px; }
+  .vitrina-info h3 { font-size: clamp(40px, 4.4vw, 64px); margin-bottom: 6px; overflow-wrap: anywhere; }
+  .by { font-size: 15px; color: var(--grafito-suave); margin-bottom: 16px; }
+  .corta { font-size: 19px; font-weight: 600; line-height: 1.4; margin-bottom: 10px; }
   .larga {
     font-size: 16px; line-height: 1.55; white-space: pre-line;
     display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
   }
-  .vitrina-foot { margin-top: auto; padding-top: 22px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .vitrina-foot { margin-top: auto; padding-top: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .socials { display: flex; gap: 4px; }
-  .socials a { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; }
-  .socials a:hover { background: var(--xerox); color: var(--stock, var(--papel)); }
+  .socials a { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
+  .socials a:hover { background: rgba(35, 39, 43, .1); }
   .socials .ico { width: 20px; height: 20px; }
 
-  .vitrina-btn { position: absolute; top: 45%; transform: translateY(-50%); z-index: 3; width: 56px; padding: 0; }
-  .vitrina-btn:hover { transform: translateY(-50%) rotate(-3deg); }
-  .vitrina-btn .ico { width: 24px; height: 24px; stroke-width: 2.6; }
-  .vitrina-btn.prev { left: -20px; }
-  .vitrina-btn.next { right: -20px; }
-  @media (max-width: 1360px) { .vitrina-btn.prev { left: 6px; } .vitrina-btn.next { right: 6px; } }
+  .vitrina-btn { position: absolute; top: 45%; transform: translateY(-50%); z-index: 3; width: 52px; padding: 0; }
+  .vitrina-btn .ico { width: 24px; height: 24px; stroke-width: 2.4; }
+  .vitrina-btn.prev { left: -18px; }
+  .vitrina-btn.next { right: -18px; }
+  @media (max-width: 1320px) { .vitrina-btn.prev { left: 6px; } .vitrina-btn.next { right: 6px; } }
   @media (max-width: 760px) { .vitrina-btn { top: 22%; } }
 
-  .vitrina-dots { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
-  .vitrina-dots :global(.vitrina-dot) { width: 16px; height: 16px; border: 2px solid var(--xerox); padding: 0; background: transparent; transition: background .2s ease, transform .25s var(--ease); }
-  .vitrina-dots :global(.vitrina-dot.activo) { background: var(--c); transform: rotate(45deg) scale(1.15); }
+  .vitrina-dots { display: flex; justify-content: center; gap: 10px; margin-top: 8px; }
+  .vitrina-dots :global(.vitrina-dot) { width: 14px; height: 14px; border-radius: 50%; border: 0; padding: 0; background: #9AA2A7; box-shadow: inset 0 -2px 2px rgba(0, 0, 0, .3); transition: background .2s ease, transform .25s var(--ease); }
+  .vitrina-dots :global(.vitrina-dot.activo) { background: var(--c); transform: scale(1.25); }
 </style>

@@ -14,7 +14,6 @@ const rumbo = (t: Torre) => t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace
 
 <footer class="footer">
   <div class="wrap">
-    <p class="lema" aria-hidden="true">Un muro. Cuatro vientos.</p>
     <div class="foot-grid">
       <div>
         <div class="foot-marca"><Molinete size={40} /> 4 Vientos</div>
@@ -29,7 +28,7 @@ const rumbo = (t: Torre) => t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace
             torres.map((t) => (
               <li>
                 <a href={feria ? `/#${t.id}` : '/#directorio'} data-conjunto={t.id}>
-                  <span class="marca-conjunto" aria-hidden="true" />
+                  <span class="led" aria-hidden="true" />
                   {t.nombre} · {rumbo(t)}
                 </a>
               </li>
@@ -47,7 +46,7 @@ const rumbo = (t: Torre) => t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace
         </ul>
       </nav>
     </div>
-    <div class="foot-bottom sello">
+    <div class="foot-bottom">
       <p>© {anio} Feria 4 Vientos · Con el respaldo de la Alcaldía Local</p>
       <p class="firma-jc">
         Sitio web hecho con amor por JuanCode
@@ -64,30 +63,17 @@ const rumbo = (t: Torre) => t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace
 </footer>
 
 <style>
-  .footer { background: var(--xerox); color: var(--papel); padding: 56px 0 36px; }
-  .lema {
-    font-family: var(--f-display); font-stretch: 62%; font-weight: 900; text-transform: uppercase;
-    font-size: clamp(56px, 10vw, 150px); line-height: .85; color: var(--verde);
-    margin-bottom: 48px;
-  }
-  .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 40px; margin-bottom: 44px; }
+  .footer { background: linear-gradient(180deg, #2C3136, var(--grafito)); color: #E9EDEF; padding: 56px 0 36px; }
+  .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
   @media (max-width: 800px) { .foot-grid { grid-template-columns: 1fr; gap: 30px; } }
-  .foot-marca {
-    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
-    font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 36px; text-transform: uppercase; line-height: 1;
-  }
-  .foot-texto { font-size: 15.5px; line-height: 1.55; max-width: 48ch; color: #D9D6CA; }
-  .foot-titulo { font-size: 30px; margin-bottom: 12px; color: var(--papel); }
+  .foot-marca { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; font-family: var(--f-placa); font-weight: 800; font-size: 32px; text-transform: uppercase; letter-spacing: .03em; line-height: 1; }
+  .foot-texto { font-size: 16px; line-height: 1.55; max-width: 48ch; color: #C9CFD2; }
+  .foot-titulo { font-size: 24px; margin-bottom: 12px; color: #F2F4F5; }
   ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
-  ul a { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; font-family: var(--f-sello); font-size: 15px; }
-  ul a:hover { color: var(--verde); text-decoration: underline; }
-  .marca-conjunto { width: 14px; height: 14px; background: var(--stock); flex: 0 0 auto; }
-  .foot-bottom {
-    display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-    padding-top: 20px; border-top: 2px solid #3B3B38;
-    font-size: 13px; color: #D9D6CA;
-  }
-  .firma-jc { display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; color: var(--papel); }
-  .cotiza { color: var(--verde); text-decoration: underline; }
+  ul a { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; font-size: 16px; }
+  ul a:hover { color: var(--luz); text-decoration: underline; }
+  .foot-bottom { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid #454C53; font-size: 14px; color: #C9CFD2; }
+  .firma-jc { display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; color: #F2F4F5; }
+  .cotiza { color: var(--luz); text-decoration: underline; }
   @media (max-width: 600px) { .foot-bottom { padding-right: 76px; } }
 </style>

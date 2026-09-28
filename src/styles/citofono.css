@@ -1,0 +1,164 @@
+/* ══════════════════════════════════════════════════════════════
+   Mundo "citófono de portería" de la landing pública (/ y /e/<slug>).
+   Todo vive bajo body.citofono: el panel y el registro siguen con los
+   tokens de global.css. Placas de acero atornilladas, plaquitas de nombre
+   retroiluminadas, pantalla LCD, teclas de caucho y el botón de llamar.
+   Esquinas: placas 10px · teclas 8px · plaquitas 4px · llamar redondo.
+   ══════════════════════════════════════════════════════════════ */
+
+body.citofono {
+  --pared: #DCE1E3;          /* pintura de portería */
+  --pared-oscura: #C9CFD2;
+  --acero-claro: #DDE2E5;
+  --acero: #BCC3C8;
+  --acero-borde: #8C949A;
+  --grafito: #23272B;        /* marco, grabado, texto */
+  --grafito-suave: #4A5157;
+  --caucho: #2E3338;
+  --luz: #FFF3D1;            /* plaquita retroiluminada */
+  --luz-fuerte: #FFE9A8;
+  --lcd-fondo: #16211A;
+  --lcd: #B8E986;
+  --llamar: #1FA35B;         /* SOLO para llamar (WhatsApp) */
+  --llamar-sombra: #13693A;
+
+  /* LED de cada conjunto: secundario, siempre junto a su nombre */
+  --led-mistral: #1E9C8C;
+  --led-gregal: #E8641B;
+  --led-austro: #E3287A;
+  --led-cierzo: #7B3FE4;
+
+  --f-placa: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --f-texto: 'Barlow', 'Segoe UI', sans-serif;
+  --f-lcd: 'VT323', 'Courier New', monospace;
+
+  --r-placa: 10px;
+  --r-tecla: 8px;
+  --r-plaquita: 4px;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+
+  --sombra-placa: inset 0 1px 0 rgba(255, 255, 255, .75), inset 0 -2px 0 rgba(35, 39, 43, .12), 0 2px 0 var(--acero-borde), 0 22px 34px -20px rgba(35, 39, 43, .6);
+
+  font-family: var(--f-texto);
+  font-weight: 500;
+  background: var(--pared);
+  color: var(--grafito);
+  line-height: 1.55;
+}
+
+body.citofono h1, body.citofono h2, body.citofono h3, body.citofono h4, body.citofono h5 {
+  font-family: var(--f-placa);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .015em;
+  line-height: .95;
+  color: inherit;
+  text-wrap: balance;
+}
+
+/* Superficies del navegador */
+body.citofono ::selection { background: var(--lcd-fondo); color: var(--lcd); }
+body.citofono { caret-color: var(--grafito); accent-color: var(--grafito); scrollbar-color: var(--grafito-suave) var(--pared-oscura); }
+body.citofono :focus-visible { outline: 3px solid var(--grafito); outline-offset: 3px; box-shadow: 0 0 0 6px var(--luz-fuerte); }
+body.citofono a { text-underline-offset: .2em; }
+
+body.citofono .wrap { max-width: 1280px; padding: 0 24px; }
+@media (max-width: 600px) { body.citofono .wrap { padding: 0 16px; } }
+
+/* ── Acero cepillado ── */
+.placa {
+  position: relative;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .07) 0 1px, rgba(35, 39, 43, .035) 1px 2px, transparent 2px 4px),
+    linear-gradient(180deg, var(--acero-claro) 0%, var(--acero) 100%);
+  border-radius: var(--r-placa);
+  box-shadow: var(--sombra-placa);
+  color: var(--grafito);
+}
+/* Cuatro tornillos en las esquinas */
+.tornillos::before, .tornillos::after {
+  content: ''; position: absolute; left: 14px; right: 14px; height: 14px; pointer-events: none;
+  background:
+    radial-gradient(circle at 7px 7px, #F4F6F7 0 2px, #9AA2A7 3px 5px, #6D757B 6px, transparent 7px) left / 14px 14px no-repeat,
+    radial-gradient(circle at 7px 7px, #F4F6F7 0 2px, #9AA2A7 3px 5px, #6D757B 6px, transparent 7px) right / 14px 14px no-repeat;
+}
+.tornillos::before { top: 12px; }
+.tornillos::after { bottom: 12px; }
+
+/* Texto grabado en el metal */
+.grabado { color: var(--grafito); text-shadow: 0 1px 0 rgba(255, 255, 255, .65); }
+
+/* ── Pantalla LCD ── */
+.lcd {
+  font-family: var(--f-lcd);
+  color: var(--lcd);
+  background: radial-gradient(120% 90% at 30% 20%, #1D2B22, var(--lcd-fondo));
+  border-radius: 6px;
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, .6), 0 0 0 3px var(--grafito), 0 0 0 5px var(--acero-borde);
+  text-shadow: 0 0 6px rgba(184, 233, 134, .35);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Teclas de caucho ── */
+.tecla {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 52px; padding: 10px 16px;
+  font-family: var(--f-placa); font-weight: 700; font-size: 20px; text-transform: uppercase; letter-spacing: .03em; line-height: 1;
+  color: #F2F4F5; background: linear-gradient(180deg, #3A4046, var(--caucho));
+  border: 0; border-radius: var(--r-tecla);
+  box-shadow: 0 4px 0 #15181B, 0 8px 14px -6px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .12);
+  transition: transform .12s ease, box-shadow .12s ease, background .2s ease, color .2s ease;
+  cursor: pointer; white-space: nowrap;
+}
+.tecla:hover { background: linear-gradient(180deg, #454C53, #33393F); }
+.tecla:active, .tecla[aria-pressed='true'] { transform: translateY(3px); box-shadow: 0 1px 0 #15181B, inset 0 1px 0 rgba(255, 255, 255, .08); }
+.tecla[aria-pressed='true'] { background: linear-gradient(180deg, var(--luz), var(--luz-fuerte)); color: var(--grafito); }
+.tecla svg { width: 20px; height: 20px; flex: 0 0 auto; }
+
+/* Botón de acero (acciones secundarias) */
+.boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 48px; padding: 10px 20px;
+  font-family: var(--f-placa); font-weight: 700; font-size: 19px; text-transform: uppercase; letter-spacing: .03em; line-height: 1;
+  color: var(--grafito); background: linear-gradient(180deg, #EEF1F2, #C6CCD0);
+  border: 0; border-radius: var(--r-tecla);
+  box-shadow: inset 0 1px 0 #fff, 0 3px 0 var(--acero-borde), 0 8px 14px -8px rgba(35, 39, 43, .5);
+  transition: transform .12s ease, box-shadow .12s ease;
+  cursor: pointer; white-space: nowrap;
+}
+.boton:active { transform: translateY(2px); box-shadow: inset 0 1px 0 #fff, 0 1px 0 var(--acero-borde); }
+.boton-tinta { color: #F2F4F5; background: linear-gradient(180deg, #3A4046, var(--grafito)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 3px 0 #111417, 0 8px 14px -8px rgba(0, 0, 0, .5); }
+.boton svg { width: 20px; height: 20px; }
+
+/* ── Botón de llamar: redondo, verde, solo para contactar ── */
+.llamar {
+  flex: 0 0 auto;
+  width: 60px; height: 60px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 35%, #2BC06F, var(--llamar) 60%);
+  color: #fff;
+  box-shadow: 0 4px 0 var(--llamar-sombra), 0 0 0 4px var(--acero-borde), 0 0 0 6px #E9EDEF, 0 10px 18px -6px rgba(19, 105, 58, .6);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.llamar:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--llamar-sombra), 0 0 0 4px var(--acero-borde), 0 0 0 6px #E9EDEF; }
+.llamar svg { width: 28px; height: 28px; fill: currentColor; }
+
+/* Íconos trazados, un solo grosor */
+.ico { width: 1.1em; height: 1.1em; flex: 0 0 auto; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ico-lleno { fill: currentColor; stroke: none; }
+
+/* LED del conjunto */
+[data-conjunto='mistral'] { --led: var(--led-mistral); }
+[data-conjunto='gregal'] { --led: var(--led-gregal); }
+[data-conjunto='austro'] { --led: var(--led-austro); }
+[data-conjunto='cierzo'] { --led: var(--led-cierzo); }
+.led { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--led, var(--grafito)); box-shadow: inset 0 -2px 2px rgba(0, 0, 0, .3), 0 0 0 2px rgba(35, 39, 43, .25); flex: 0 0 auto; }
+
+/* Etiqueta pequeña grabada */
+.rotulo { font-family: var(--f-placa); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+
+/* Encender: la placa se ilumina al cargar, una sola vez */
+@media (prefers-reduced-motion: no-preference) {
+  .encender { animation: encender .8s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 60ms); }
+  @keyframes encender { from { opacity: 0; transform: translateY(10px); filter: brightness(.7); } to { opacity: 1; transform: none; filter: none; } }
+}

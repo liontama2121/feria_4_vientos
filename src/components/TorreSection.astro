@@ -1,6 +1,6 @@
 ---
-// Solo con feria activa: una sección por conjunto (viento) con los que están EN LA FERIA.
-// El nombre va en una tira rasgada de su cartulina; los avisos, pegados debajo.
+// Solo con feria activa: una sección por conjunto con los que están EN LA FERIA.
+// Cabecera = placa de entrada del conjunto; debajo, sus plaquitas.
 import EmprendedorCard from './EmprendedorCard.astro';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
@@ -14,38 +14,34 @@ const n = emprendedores.length;
 
 <section class="conjunto-seccion" id={torre.id} data-conjunto={torre.id} aria-labelledby={`t-${torre.id}`}>
   <div class="wrap">
-    <div class="cabecera con-sombra">
-      <div class="hoja rasgado-ambos cabecera-papel">
-        <h2 id={`t-${torre.id}`}>{torre.nombre}</h2>
-        <div class="datos">
-          <p class="sello">{torre.rumbo}</p>
-          {torre.tagline && <p class="tagline">{torre.tagline}</p>}
-        </div>
-        <p class="conteo">
-          <span class="n">{n}</span>
-          <span class="sello">en la feria</span>
-        </p>
+    <div class="cabecera placa tornillos">
+      <div class="titulo">
+        <span class="led" aria-hidden="true"></span>
+        <h2 id={`t-${torre.id}`} class="grabado">{torre.nombre}</h2>
       </div>
+      <div class="datos">
+        <p class="rotulo">{torre.rumbo}</p>
+        {torre.tagline && <p class="tagline">{torre.tagline}</p>}
+      </div>
+      <p class="conteo lcd">
+        <span class="n">{String(n).padStart(2, '0')}</span>
+        <span>en la feria</span>
+      </p>
     </div>
 
     {
       n > 0 ? (
-        <div class="avisos">
-          {emprendedores.map((e, i) => (
-            <div style={`--r:${[-1.2, 0.8, -0.5, 1.4][i % 4]}deg`}>
-              <EmprendedorCard e={e} torre={torre} />
-            </div>
+        <div class="lista">
+          {emprendedores.map((e) => (
+            <EmprendedorCard e={e} torre={torre} />
           ))}
         </div>
       ) : (
-        <div class="vacio">
-          <p class="vacio-titulo">{torre.nombre} aún no tiene avisos en la feria</p>
+        <div class="vacio lcd">
+          <p class="vacio-titulo">{torre.nombre}: nadie en la feria todavía</p>
           <p>
-            ¿Vives en {torre.nombre} y tienes un negocio? Regístrate y el comité te suma. Mira también <a href="#directorio">todo el muro</a>.
+            ¿Vives en {torre.nombre} y tienes un negocio? <a href="/registro">Regístrate</a> y el comité te suma. Mira también el <a href="#muro">directorio</a>.
           </p>
-          <a class="boton boton-tinta" href="/registro">
-            Quiero estar aquí
-          </a>
         </div>
       )
     }
@@ -53,25 +49,19 @@ const n = emprendedores.length;
 </section>
 
 <style>
-  .conjunto-seccion { padding: 40px 0 90px; scroll-margin-top: 64px; }
-  .cabecera { margin-bottom: 40px; }
-  .cabecera-papel {
-    --borde-alto: 16px;
-    display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: end;
-    padding: 34px 32px 30px;
-    transform: rotate(-.8deg);
-  }
-  @media (max-width: 760px) { .cabecera-papel { grid-template-columns: 1fr; gap: 12px; padding: 30px 20px 26px; } }
-  h2 { font-size: clamp(72px, 11vw, 160px); }
-  .datos .sello { font-size: 14px; margin-bottom: 6px; }
+  .conjunto-seccion { padding: 20px 0 80px; scroll-margin-top: 64px; }
+  .cabecera { display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: center; padding: 40px 36px 36px; margin-bottom: 26px; }
+  @media (max-width: 760px) { .cabecera { grid-template-columns: 1fr; gap: 14px; padding: 40px 20px 30px; } }
+  .titulo { display: flex; align-items: center; gap: 14px; }
+  .titulo .led { width: 18px; height: 18px; }
+  h2 { font-size: clamp(56px, 8vw, 116px); }
+  .datos .rotulo { font-size: 14px; color: var(--grafito-suave); margin-bottom: 4px; }
   .tagline { font-size: 18px; line-height: 1.4; max-width: 44ch; }
-  .conteo { display: flex; align-items: baseline; gap: 8px; }
-  .n { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 84px; line-height: .8; font-variant-numeric: tabular-nums; }
-
-  .avisos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 38px 28px; align-items: start; }
-  @media (max-width: 700px) { .avisos { grid-template-columns: 1fr; } }
-
-  .vacio { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 28px; background: var(--papel); border: 3px dashed var(--xerox); max-width: 720px; }
-  .vacio-titulo { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 38px; text-transform: uppercase; line-height: .9; }
-  .vacio a:not(.boton) { text-decoration: underline; font-weight: 700; }
+  .conteo { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 22px; line-height: 1; text-transform: uppercase; }
+  .n { font-size: 56px; line-height: .8; }
+  .lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+  @media (max-width: 880px) { .lista { grid-template-columns: 1fr; } }
+  .vacio { padding: 20px 22px; font-size: 22px; line-height: 1.25; max-width: 760px; }
+  .vacio-titulo { font-size: 32px; text-transform: uppercase; margin-bottom: 6px; }
+  .vacio a { color: var(--luz); text-decoration: underline; }
 </style>

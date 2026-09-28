@@ -1,65 +1,50 @@
 ---
 // El corazón narrativo: el terminalito, kiosco cerrado por años que la asamblea recuperó.
-// Afiche tipográfico: sin ilustraciones inventadas (no hay fotos reales del lugar).
+// Placa conmemorativa grabada (no hay fotos reales del lugar: no se inventa ninguna).
 ---
 
 <section class="historia" id="historia" aria-labelledby="historia-titulo">
   <div class="wrap historia-grid">
-    <div class="afiche con-sombra">
-      <div class="hoja rasgado-ambos afiche-papel">
-        <span class="grapa" style="top:24px;left:34px;--g-rot:-10deg"></span>
-        <span class="grapa" style="top:30px;right:40px;--g-rot:6deg"></span>
-        <h2 id="historia-titulo">
-          <span class="linea l1">Recuperamos</span>
-          <span class="linea l2">el terminalito</span>
-        </h2>
-        <div class="antes-hoy">
-          <p class="tira-dato menta"><span class="sello">Antes</span> Portería auxiliar cerrada</p>
-          <p class="tira-dato naranja"><span class="sello">Hoy</span> Punto de encuentro de los 4 conjuntos</p>
+    <div class="conmemorativa placa tornillos">
+      <p class="rotulo">Conjuntos Residenciales 4 Vientos</p>
+      <h2 id="historia-titulo" class="grabado">Recuperamos el terminalito</h2>
+      <dl class="antes-hoy">
+        <div>
+          <dt class="rotulo">Antes</dt>
+          <dd>Portería auxiliar cerrada por años</dd>
         </div>
-      </div>
+        <div>
+          <dt class="rotulo">Hoy</dt>
+          <dd>Punto de encuentro de los cuatro conjuntos</dd>
+        </div>
+      </dl>
+      <p class="rotulo firma">Comité de la Feria 4 Vientos</p>
     </div>
 
     <div class="relato">
-      <p>
-        Durante años, el kiosco del terminalito estuvo cerrado. Era una portería auxiliar: una esquina olvidada que muchos pasábamos de largo sin mirar.
-      </p>
+      <p>Durante años, el kiosco del terminalito estuvo cerrado. Era una portería auxiliar: una esquina olvidada que muchos pasábamos de largo sin mirar.</p>
       <p>
         Los vecinos de los cuatro conjuntos decidieron recuperarlo. Hoy es el punto de encuentro donde se muestra lo que se hace con las manos, lo que se cocina con cariño y
         los servicios que ofrecen quienes viven aquí.
       </p>
       <p>La Feria 4 Vientos nace de ese acuerdo: convertir un espacio en desuso en un lugar de la comunidad, para la comunidad.</p>
-      <p class="sello firma">Comité de la Feria 4 Vientos</p>
     </div>
   </div>
 </section>
 
 <style>
-  .historia { padding: 40px 0 110px; }
-  .historia-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 56px; align-items: center; }
-  @media (max-width: 900px) { .historia-grid { grid-template-columns: 1fr; gap: 36px; } }
-
-  .afiche-papel {
-    --stock: var(--xerox); --borde-alto: 18px;
-    color: var(--papel);
-    padding: 72px 40px 56px;
-    transform: rotate(-1.2deg);
-  }
-  @media (max-width: 600px) { .afiche-papel { padding: 60px 20px 44px; } }
-  h2 { margin-bottom: 30px; }
-  .linea { display: block; }
-  .l1 { font-size: clamp(46px, 6.4vw, 96px); color: var(--papel); }
-  .l2 { font-size: clamp(58px, 9vw, 138px); color: var(--verde); }
-  .antes-hoy { display: flex; flex-direction: column; gap: 10px; }
-  .tira-dato {
-    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-    padding: 12px 16px; color: var(--xerox);
-    font-family: var(--f-display); font-stretch: 70%; font-weight: 800; font-size: 24px; text-transform: uppercase; line-height: 1.05;
-  }
-  .tira-dato .sello { font-size: 13px; }
-  .menta { background: var(--menta); transform: rotate(.8deg); }
-  .naranja { background: var(--naranja); transform: rotate(-.6deg); margin-left: 18px; }
-
+  .historia { padding: 30px 0 100px; }
+  .historia-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 52px; align-items: center; }
+  @media (max-width: 900px) { .historia-grid { grid-template-columns: 1fr; gap: 32px; } }
+  .conmemorativa { padding: 56px 48px 50px; text-align: center; }
+  @media (max-width: 600px) { .conmemorativa { padding: 46px 22px 40px; } }
+  .conmemorativa > .rotulo { font-size: 14px; color: var(--grafito-suave); }
+  h2 { font-size: clamp(48px, 6vw, 88px); margin: 14px 0 26px; }
+  .antes-hoy { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 26px; text-align: left; }
+  @media (max-width: 480px) { .antes-hoy { grid-template-columns: 1fr; } }
+  .antes-hoy > div { padding: 14px 16px; border-radius: 6px; background: rgba(35, 39, 43, .06); box-shadow: inset 0 2px 4px rgba(35, 39, 43, .18), 0 1px 0 rgba(255, 255, 255, .7); }
+  .antes-hoy dt { font-size: 13px; color: var(--grafito-suave); margin-bottom: 4px; }
+  .antes-hoy dd { font-family: var(--f-placa); font-weight: 700; font-size: 22px; text-transform: uppercase; line-height: 1.05; }
+  .firma { font-size: 13px; padding-top: 16px; border-top: 1px solid rgba(35, 39, 43, .25); display: inline-block; }
   .relato p { font-size: 18px; line-height: 1.6; margin-bottom: 18px; max-width: 58ch; }
-  .relato .firma { font-size: 14px; margin-top: 24px; padding-top: 14px; border-top: 2px solid var(--xerox); display: inline-block; }
 </style>

@@ -1,7 +1,7 @@
 ---
-// Directorio = el muro: TODOS los emprendimientos aprobados, estén o no en la feria.
-// Las tiras rasgadas filtran por categoría; el buscador vive en la hoja verde del Hero
-// (#dirBuscar). El filtro corre en el navegador sobre los avisos ya renderizados.
+// Directorio = la lista de plaquitas del citófono: TODOS los aprobados, estén o no en la feria.
+// El buscador (#dirBuscar) y el teclado de categorías viven en el panel del Hero.
+// El filtro corre en el navegador sobre las plaquitas ya renderizadas.
 import EmprendedorCard from './EmprendedorCard.astro';
 import { LIMITES, categoria } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
@@ -31,38 +31,15 @@ const mejores = lista
   .filter((e) => (e.calificacion?.total ?? 0) >= LIMITES.minVotosTop)
   .sort((a, b) => b.calificacion!.promedio - a.calificacion!.promedio || b.calificacion!.total - a.calificacion!.total)
   .slice(0, LIMITES.top);
-// Si TODOS son nuevos (o todos entran al top), la franja repetiría el muro entero: no se muestra.
+// Si TODOS son nuevos (o todos entran al top), la franja repetiría la lista entera: no se muestra.
 const nuevos = lista.filter((e) => e.nuevo);
 if (nuevos.length >= lista.length) nuevos.length = 0;
 if (mejores.length >= lista.length) mejores.length = 0;
-// Tiras por la categoría que se VE (un id desconocido cuenta como "Otros"), solo las que tienen emprendimientos.
 const catDe = (id: string) => categoria(id, Astro.locals.categorias);
-const categorias = Astro.locals.categorias
-  .map((c) => ({ ...c, n: lista.filter((e) => catDe(e.categoria).id === c.id).length }))
-  .filter((c) => c.n > 0);
-const hayFeria = lista.some((e) => e.en_feria);
-// Cartulinas descoloridas por el sol para las tiras (capas viejas del muro)
-const STOCKS = ['var(--lila)', 'var(--menta)', 'var(--rosa)', 'var(--naranja)'];
 ---
 
 <section class="directorio" id="directorio" aria-labelledby="dir-titulo">
   <div class="wrap">
-    <div class="tiras" role="group" aria-label="Filtrar por categoría">
-      <button type="button" class="tira tira-todas pegar" data-cat="" aria-pressed="true" style="--i:2">
-        <span class="tira-nombre">Todas</span>
-        <span class="sello tira-n">{lista.length}</span>
-      </button>
-      {
-        categorias.map((c, i) => (
-          <button type="button" class="tira pegar" data-cat={c.id} aria-pressed="false" style={`--i:${i + 3};--stock:${STOCKS[i % STOCKS.length]};--desfase:${(i % 3) * 3}%`}>
-            <span class="tira-nombre">{c.label}</span>
-            <span class="sello tira-n">{c.n}</span>
-            <svg class="ico tira-mas" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"></path></svg>
-          </button>
-        ))
-      }
-    </div>
-
     {
       lista.length > 0 && (
         <>
@@ -70,26 +47,22 @@ const STOCKS = ['var(--lila)', 'var(--menta)', 'var(--rosa)', 'var(--naranja)'];
             <div class="resaltados" id="dirResaltados">
               {mejores.length > 0 && (
                 <div class="franja">
-                  <h2 class="franja-titulo franja-negra">Lo mejor calificado</h2>
-                  <p class="sello franja-bajada">Lo que más recomiendan los vecinos.</p>
-                  <div class="muro-grid">
+                  <h2 class="franja-titulo">Los más recomendados</h2>
+                  <p class="franja-bajada">Lo que mejor califican los vecinos.</p>
+                  <div class="lista">
                     {mejores.map((e) => (
-                      <div class="dir-item">
-                        <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
-                      </div>
+                      <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
                     ))}
                   </div>
                 </div>
               )}
               {nuevos.length > 0 && (
                 <div class="franja">
-                  <h2 class="franja-titulo franja-verde">Recién pegados</h2>
-                  <p class="sello franja-bajada">Vecinos que acaban de abrir su emprendimiento. Dales una oportunidad.</p>
-                  <div class="muro-grid">
+                  <h2 class="franja-titulo">Recién llegados</h2>
+                  <p class="franja-bajada">Vecinos que acaban de abrir su emprendimiento. Dales una oportunidad.</p>
+                  <div class="lista">
                     {nuevos.map((e) => (
-                      <div class="dir-item">
-                        <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
-                      </div>
+                      <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
                     ))}
                   </div>
                 </div>
@@ -97,19 +70,14 @@ const STOCKS = ['var(--lila)', 'var(--menta)', 'var(--rosa)', 'var(--naranja)'];
             </div>
           )}
 
-          <div class="muro-head" id="muro">
-            <h2 id="dir-titulo">Todo el muro</h2>
-            <p class="sello dir-conteo" id="dirConteo" aria-live="polite">
+          <div class="dir-head" id="muro">
+            <h2 id="dir-titulo" class="grabado">Directorio</h2>
+            <p class="dir-conteo lcd" id="dirConteo" aria-live="polite">
               {`${lista.length} ${lista.length === 1 ? 'emprendimiento' : 'emprendimientos'}`}
             </p>
-            {hayFeria && (
-              <button type="button" class="boton sello-feria" id="dirSoloFeria" aria-pressed="false">
-                Solo los de la feria
-              </button>
-            )}
           </div>
 
-          <div class="muro-grid dir-grid-todos">
+          <div class="lista dir-grid-todos">
             {lista.map((e) => {
               const t = torreDe(e.torre);
               const cat = catDe(e.categoria);
@@ -124,11 +92,9 @@ const STOCKS = ['var(--lila)', 'var(--menta)', 'var(--rosa)', 'var(--naranja)'];
             })}
           </div>
 
-          <div class="vacio con-sombra" id="dirVacio" hidden>
-            <div class="hoja rasgado-ambos">
-              <p class="vacio-titulo">No hay avisos con eso</p>
-              <p>Prueba con otra palabra o toca “Todas”.</p>
-            </div>
+          <div class="vacio lcd" id="dirVacio" hidden>
+            <p class="vacio-titulo">Sin resultados</p>
+            <p>Prueba con otra palabra o toca “Todas” en el teclado.</p>
           </div>
         </>
       )
@@ -136,13 +102,11 @@ const STOCKS = ['var(--lila)', 'var(--menta)', 'var(--rosa)', 'var(--naranja)'];
 
     {
       lista.length === 0 && (
-        <div class="vacio con-sombra">
-          <div class="hoja rasgado-ambos">
-            <p class="vacio-titulo">El muro está esperando su primer aviso</p>
-            <p>
-              ¿Tienes un emprendimiento? <a href="#participar">Pega el tuyo</a>.
-            </p>
-          </div>
+        <div class="vacio lcd">
+          <p class="vacio-titulo">Directorio vacío</p>
+          <p>
+            ¿Tienes un emprendimiento? <a href="#participar">Registra el tuyo</a>.
+          </p>
         </div>
       )
     }
@@ -154,7 +118,7 @@ const STOCKS = ['var(--lila)', 'var(--menta)', 'var(--rosa)', 'var(--naranja)'];
   if (seccion) {
     const buscar = document.getElementById('dirBuscar') as HTMLInputElement | null;
     const soloFeria = document.getElementById('dirSoloFeria');
-    const tiras = Array.from(seccion.querySelectorAll<HTMLButtonElement>('.tira[data-cat]'));
+    const teclas = Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-filtro-cat]'));
     const items = Array.from(seccion.querySelectorAll<HTMLElement>('.dir-grid-todos .dir-item'));
     const resaltados = document.getElementById('dirResaltados');
     const conteo = document.getElementById('dirConteo');
@@ -184,91 +148,43 @@ const STOCKS = ['var(--lila)', 'var(--menta)', 'var(--rosa)', 'var(--naranja)'];
       // Al buscar o filtrar, las franjas estorban: solo se ve el resultado.
       if (resaltados) resaltados.hidden = !!(palabras.length || categoria || feria);
     }
+    const bajar = () => document.getElementById('muro')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 
     buscar?.addEventListener('input', filtrar);
-    tiras.forEach((t) =>
+    teclas.forEach((t) =>
       t.addEventListener('click', () => {
-        categoria = t.dataset.cat ?? '';
-        tiras.forEach((x) => x.setAttribute('aria-pressed', String(x === t)));
+        categoria = t.dataset.filtroCat ?? '';
+        teclas.forEach((x) => x.setAttribute('aria-pressed', String(x === t)));
         filtrar();
-        if (categoria) document.getElementById('muro')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        if (categoria) bajar();
       }),
     );
     soloFeria?.addEventListener('click', () => {
       soloFeria.setAttribute('aria-pressed', String(soloFeria.getAttribute('aria-pressed') !== 'true'));
       filtrar();
+      bajar();
     });
   }
 </script>
 
 <style>
-  .directorio { padding: 8px 0 110px; scroll-margin-top: 64px; }
+  .directorio { padding: 20px 0 100px; scroll-margin-top: 64px; }
 
-  /* Tiras rasgadas superpuestas: capas viejas del muro. La elegida se despega. */
-  .tiras { display: flex; flex-direction: column; margin: 0 0 64px; }
-  /* Escritorio: dos columnas de tiras, para que los avisos lleguen antes */
-  @media (min-width: 1000px) {
-    .tiras { display: grid; grid-template-columns: 1fr 1fr; column-gap: 26px; }
-    .tira-todas { grid-column: 1 / -1; }
-  }
-  .tira {
-    --borde-alto: 12px;
-    position: relative;
-    display: flex; align-items: center; gap: 18px;
-    width: calc(100% - var(--desfase, 0%)); margin-left: var(--desfase, 0%);
-    margin-top: -10px; min-height: 76px; padding: 18px 28px 14px;
-    background: var(--stock, var(--papel)); color: var(--xerox);
-    border: 0; text-align: left; cursor: pointer;
-    -webkit-mask: url('/muro/borde-arriba.svg') top left / 400px 12px repeat-x, url('/muro/borde-abajo.svg') bottom 0 left 211px / 400px 12px repeat-x, linear-gradient(#000 0 0) center / 100% calc(100% - 22px) no-repeat;
-    mask: url('/muro/borde-arriba.svg') top left / 400px 12px repeat-x, url('/muro/borde-abajo.svg') bottom 0 left 211px / 400px 12px repeat-x, linear-gradient(#000 0 0) center / 100% calc(100% - 22px) no-repeat;
-    transition: transform .45s var(--ease), background .2s ease, color .2s ease;
-  }
-  .tira:nth-child(odd) { transform: rotate(-.5deg); }
-  .tira:nth-child(even) { transform: rotate(.4deg); }
-  .tira:hover { transform: translateX(10px) rotate(-.8deg); }
-  .tira[aria-pressed='true'] { background: var(--xerox); color: var(--verde); transform: translateX(18px) rotate(-1.4deg); z-index: 2; }
-  .tira-todas { --stock: var(--papel); }
-  .tira-nombre {
-    flex: 1; min-width: 0;
-    font-family: var(--f-display); font-stretch: 62%; font-weight: 900; text-transform: uppercase;
-    font-size: clamp(34px, 4.2vw, 58px); line-height: .9;
-    overflow-wrap: anywhere;
-  }
-  .tira-n { font-size: 20px; font-variant-numeric: tabular-nums; }
-  .tira-mas { width: 30px; height: 30px; stroke-width: 2.6; transition: transform .35s var(--ease); }
-  .tira[aria-pressed='true'] .tira-mas { transform: rotate(45deg); }
-  @media (max-width: 600px) { .tira { padding: 16px 16px 12px; min-height: 64px; gap: 12px; } .tira-n { font-size: 17px; } }
-
-  .franja { margin-bottom: 72px; }
-  .franja-titulo {
-    display: inline-block; font-size: clamp(44px, 6vw, 84px);
-    padding: 14px 22px 8px; margin-bottom: 10px;
-    transform: rotate(-1.2deg);
-  }
-  .franja-negra { background: var(--xerox); color: var(--verde); }
-  .franja-verde { background: var(--verde); color: var(--xerox); transform: rotate(1deg); }
-  .franja-bajada { font-size: 15px; margin-bottom: 26px; }
+  .franja { margin-bottom: 56px; }
+  .franja-titulo { font-size: clamp(38px, 4.6vw, 60px); margin-bottom: 6px; }
+  .franja-bajada { font-size: 17px; color: var(--grafito-suave); margin-bottom: 22px; }
   .resaltados[hidden] { display: none; }
 
-  .muro-head { display: flex; align-items: baseline; gap: 20px; flex-wrap: wrap; margin-bottom: 28px; scroll-margin-top: 84px; }
-  .muro-head h2 { font-size: clamp(56px, 8vw, 116px); }
-  .dir-conteo { font-size: 16px; }
-  .sello-feria { margin-left: auto; }
-  .sello-feria[aria-pressed='true'] { background: var(--rosa); }
+  .dir-head { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 26px; scroll-margin-top: 84px; }
+  .dir-head h2 { font-size: clamp(48px, 6vw, 84px); }
+  .dir-conteo { font-size: 26px; line-height: 1; padding: 8px 14px; text-transform: uppercase; }
 
-  .muro-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 38px 28px; align-items: start; }
-  @media (max-width: 700px) { .muro-grid { grid-template-columns: 1fr; gap: 30px; } }
+  .lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+  @media (max-width: 880px) { .lista { grid-template-columns: 1fr; } }
   .dir-item[hidden] { display: none; }
-  /* Pegados a mano: ningún aviso queda derecho */
-  .dir-item:nth-child(4n + 1) { --r: -1.4deg; }
-  .dir-item:nth-child(4n + 2) { --r: .9deg; margin-top: 14px; }
-  .dir-item:nth-child(4n + 3) { --r: -.6deg; margin-top: 6px; }
-  .dir-item:nth-child(4n + 4) { --r: 1.6deg; }
-  @media (max-width: 700px) { .dir-item:nth-child(n) { margin-top: 0; } }
 
-  .vacio { max-width: 620px; margin: 20px auto 0; }
-  .vacio .hoja { --stock: var(--papel); padding: 40px 32px; text-align: center; transform: rotate(-1deg); }
-  .vacio-titulo { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 44px; text-transform: uppercase; line-height: .9; margin-bottom: 10px; }
-  .vacio a { text-decoration: underline; font-weight: 700; }
+  .vacio { max-width: 620px; margin: 20px auto 0; padding: 22px 24px; font-size: 24px; line-height: 1.2; }
+  .vacio-titulo { font-size: 40px; text-transform: uppercase; margin-bottom: 6px; }
+  .vacio a { text-decoration: underline; color: var(--luz); }
   .vacio[hidden] { display: none; }
 </style>
