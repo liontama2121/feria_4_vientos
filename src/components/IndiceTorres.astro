@@ -34,7 +34,7 @@ const { torres, conteo } = Astro.props;
   h2 { font-size: clamp(40px, 5vw, 72px); margin-bottom: 28px; }
   .conjuntos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
   @media (max-width: 900px) { .conjuntos { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 480px) { .conjuntos { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) { .conjuntos { gap: 12px; } .nombre { font-size: 30px; } .pasillo .toldo { height: 26px; --ancho: 20px; --feston: 8px; } .cuerpo { padding: 6px 12px 14px; } .rumbo { font-size: 13px; margin-bottom: 8px; } .conteo { font-size: 17px; } h2 { font-size: 36px; } }
   .pasillo { display: flex; flex-direction: column; background: var(--c); color: #fff; border-radius: var(--r-puesto); overflow: hidden; box-shadow: var(--sombra); transition: transform .3s var(--ease); }
   .pasillo:hover { transform: translateY(-4px); }
   .pasillo .toldo { display: block; --t1: var(--c); --t2: #fff; --ancho: 28px; --feston: 12px; height: 40px; }

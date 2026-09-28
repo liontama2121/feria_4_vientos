@@ -69,7 +69,8 @@ const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
 
     <a class="boton boton-pedir pedir" href={wsp} target="_blank" rel="noopener" aria-label={`Pedir por WhatsApp a ${e.nombre_emprendimiento}`}>
       <svg viewBox="0 0 24 24" class="ico ico-lleno" aria-hidden="true"><path d={ICONOS.whatsapp} /></svg>
-      Pídalo por WhatsApp
+      <span class="pedir-largo">Pídalo por WhatsApp</span>
+      <span class="pedir-corto" aria-hidden="true">Pedir</span>
     </a>
 
     <div class="puesto-pie">
@@ -148,6 +149,32 @@ const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
   .extras a:hover { background: color-mix(in srgb, var(--c) 18%, transparent); }
   .extras .ico { width: 20px; height: 20px; }
   .web { padding: 0 10px; font-weight: 800; font-size: 14.5px; text-decoration: underline; }
+
+  .pedir-corto { display: none; }
+
+  /* Celular, en la lista de todos (2 columnas): puesto compacto. Descripción y redes quedan en la ficha. */
+  @media (max-width: 640px) {
+    :global(.lista-compacta) .puesto { border-radius: 14px; }
+    :global(.lista-compacta) .toldo-puesto { height: 22px; --ancho: 18px; --feston: 7px; border-radius: 14px 14px 0 0; }
+    :global(.lista-compacta) .puesto-foto { aspect-ratio: 1; margin: -3px 6px 0; border-radius: 10px; }
+    :global(.lista-compacta) .iniciales { font-size: 52px; }
+    :global(.lista-compacta) .cat { font-size: 15px; left: 6px; bottom: 6px; padding: 3px 8px 3px 16px; }
+    :global(.lista-compacta) .cat::before { left: 6px; width: 5px; height: 5px; margin-top: -2.5px; }
+    :global(.lista-compacta) .nuevo { width: 58px; height: 58px; font-size: 11px; padding: 9px; right: -4px; top: 6px; }
+    :global(.lista-compacta) .puesto-cuerpo { padding: 8px 10px 10px; }
+    :global(.lista-compacta) .en-feria { font-size: 12px; padding: 2px 8px; margin-bottom: 4px; }
+    :global(.lista-compacta) h3 { font-size: 18px; line-height: 1.05; margin-bottom: 4px; }
+    :global(.lista-compacta) .quien { font-size: 12.5px; line-height: 1.3; margin-bottom: 6px; }
+    :global(.lista-compacta) .desc, :global(.lista-compacta) .extras { display: none; }
+    :global(.lista-compacta) .calif { min-height: 28px; margin-bottom: 6px; }
+    :global(.lista-compacta) .estrella { width: 13px; height: 13px; }
+    :global(.lista-compacta) .calif strong { font-size: 15px; }
+    :global(.lista-compacta) .pedir { min-height: 42px; padding: 8px 10px; font-size: 17px; gap: 6px; }
+    :global(.lista-compacta) .pedir-largo { display: none; }
+    :global(.lista-compacta) .pedir-corto { display: inline; }
+    :global(.lista-compacta) .puesto-pie { margin-top: 4px; justify-content: center; }
+    :global(.lista-compacta) .ver { font-size: 13.5px; min-height: 36px; padding: 4px 0; }
+  }
 
   /* Celular: la foto sigue grande; se recorta lo demás */
   @media (max-width: 640px) {

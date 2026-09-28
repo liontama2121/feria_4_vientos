@@ -77,7 +77,7 @@ const catDe = (id: string) => categoria(id, Astro.locals.categorias);
             </p>
           </div>
 
-          <div class="lista dir-grid-todos">
+          <div class="lista dir-grid-todos lista-compacta">
             {lista.map((e) => {
               const t = torreDe(e.torre);
               const cat = catDe(e.categoria);
@@ -194,7 +194,7 @@ const catDe = (id: string) => categoria(id, Astro.locals.categorias);
   .dir-conteo { font-size: 24px; transform: rotate(-3deg); background: var(--mango); }
 
   .lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 34px 26px; align-items: start; }
-  @media (max-width: 640px) { .lista { grid-template-columns: 1fr; gap: 28px; } }
+  @media (max-width: 640px) { .lista { grid-template-columns: 1fr; gap: 28px; } .lista-compacta { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; align-items: stretch; } .lista-compacta .dir-item { display: flex; } .lista-compacta .dir-item > :global(*) { flex: 1; } }
   .dir-item[hidden] { display: none; }
 
   .vacio { max-width: 620px; margin: 20px auto 0; padding: 26px 28px; text-align: center; font-size: 18px; }
