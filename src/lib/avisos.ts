@@ -2,8 +2,8 @@
 // Aún no hay envío automático: se guardan en la tabla `notificaciones` y el comité las manda
 // con un clic desde /admin/comite#notificaciones (wa.me con el texto listo).
 // Para automatizar (Twilio, Meta Cloud API o webhook a n8n), el punto único es `avisar()`.
-import { TORRES_BASE, type TorreId } from './constantes';
-import { crearNotificacion, type Cuenta, type Notificacion, type Registro } from './db';
+import { TORRES_BASE, motivoReporte, type TorreId } from './constantes';
+import { crearNotificacion, type Cuenta, type Notificacion, type Registro, type Reporte } from './db';
 
 const conjunto = (t: TorreId) => TORRES_BASE[t]?.nombre ?? t;
 /** "Mistral 402", o solo "Mistral" si no dio torre/apto. */
@@ -61,6 +61,19 @@ export function avisoCambios(db: D1Database, r: Registro, nota: string, origen: 
     mensaje: `Hola ${d.nombre_vecino} 👋 El comité revisó "${d.nombre_emprendimiento}" y te pide unos ajustes antes de publicarlo: ${nota}. Entra a ${origen}/admin, corrige y dale "Reenviar a revisión".`,
     whatsapp: d.whatsapp,
     email: r.owner_email ?? '',
+    slug: r.slug,
+  });
+}
+
+export function avisoReporte(db: D1Database, r: Registro, rep: Reporte) {
+  const d = r.publicado ?? r.borrador;
+  return avisar(db, {
+    para: 'admin',
+    tipo: 'reporte',
+    titulo: `⚠️ Reporte: ${d.nombre_emprendimiento}`,
+    mensaje: `Reportaron "${d.nombre_emprendimiento}" (${donde(d.torre, d.apartamento)}) por: ${motivoReporte(rep.motivo)}. ${rep.evidencias.length} foto(s) de evidencia.${rep.detalle ? ` Nota: ${rep.detalle}` : ''}`,
+    whatsapp: '',
+    email: '',
     slug: r.slug,
   });
 }

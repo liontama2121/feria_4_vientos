@@ -1,7 +1,7 @@
 // Saneo y validación de lo que llega del panel. Todo input del navegador pasa por aquí
 // antes de tocar D1, así la landing nunca recibe campos inesperados.
 import {
-  CATEGORIA_IDS,
+  ID_CATEGORIA,
   LIMITES,
   TORRE_IDS,
   datosVacios,
@@ -63,8 +63,9 @@ export function esTorre(v: unknown): v is TorreId {
   return typeof v === 'string' && (TORRE_IDS as readonly string[]).includes(v);
 }
 
+/** Solo el formato: las categorías viven en D1 y la UI solo ofrece las que existen; un id desconocido se ve como "Otros". */
 export function esCategoria(v: unknown): v is CategoriaId {
-  return typeof v === 'string' && (CATEGORIA_IDS as readonly string[]).includes(v);
+  return typeof v === 'string' && ID_CATEGORIA.test(v);
 }
 
 export function esEmail(v: unknown): v is string {

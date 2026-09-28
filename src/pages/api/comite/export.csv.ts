@@ -3,7 +3,7 @@
 // Acepta los mismos filtros que la tabla: ?torre=&categoria=&estado=&q=
 import type { APIRoute } from 'astro';
 import { categoria as cat } from '../../../lib/constantes';
-import { filaComite, listarRegistros, listarTorres, type FilaComite } from '../../../lib/db';
+import { filaComite, listarCategorias, listarRegistros, listarTorres, type FilaComite } from '../../../lib/db';
 
 const ETIQUETA_ESTADO: Record<FilaComite['estado_visible'], string> = {
   approved: 'Aprobado (en la landing)',
@@ -23,7 +23,7 @@ function celda(v: unknown) {
 
 export const GET: APIRoute = async ({ locals, url }) => {
   const db = locals.runtime.env.DB;
-  const [registros, torres] = await Promise.all([listarRegistros(db), listarTorres(db)]);
+  const [registros, torres, categorias] = await Promise.all([listarRegistros(db), listarTorres(db), listarCategorias(db)]);
   const f = {
     torre: url.searchParams.get('torre') ?? '',
     categoria: url.searchParams.get('categoria') ?? '',
@@ -49,7 +49,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
       r.vecino,
       nombreTorre(r.torre),
       r.apartamento,
-      cat(r.categoria).label,
+      cat(r.categoria, categorias).label,
       r.whatsapp.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1 $2 $3'),
       r.instagram,
       r.tiktok,

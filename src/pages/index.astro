@@ -16,21 +16,22 @@ import PatrocinadorJuanCode from '../components/PatrocinadorJuanCode.astro';
 import Footer from '../components/Footer.astro';
 import DetalleModal from '../components/DetalleModal.astro';
 import Directorio from '../components/Directorio.astro';
-import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres } from '../lib/db';
+import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres, resumenCalificaciones } from '../lib/db';
 import { feriasActivas } from '../lib/fechas';
 
 const db = Astro.locals.runtime.env.DB;
-const [torres, publicos, patrocinadores, todasLasFechas] = await Promise.all([
+const [torres, publicos, patrocinadores, todasLasFechas, calificaciones] = await Promise.all([
   listarTorres(db),
   listarPublicos(db),
   listarPatrocinadores(db),
   listarFechas(db),
+  resumenCalificaciones(db),
 ]);
 
 const fechas = feriasActivas(todasLasFechas);
 const hayFeria = fechas.length > 0;
 // Sin feria activa nadie lleva la etiqueta 🎪 (ni en el directorio ni en el modal).
-const emprendedores = hayFeria ? publicos : publicos.map((e) => ({ ...e, en_feria: false }));
+const emprendedores = publicos.map((e) => ({ ...e, en_feria: hayFeria && e.en_feria, calificacion: calificaciones[e.slug] }));
 
 const enFeria = emprendedores.filter((e) => e.en_feria);
 const porTorre = Object.fromEntries(torres.map((t) => [t.id, enFeria.filter((e) => e.torre === t.id)]));

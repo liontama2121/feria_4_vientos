@@ -1,7 +1,8 @@
 ---
-// Modal "Ver más": descripción larga, galería y redes. Se abre desde cualquier
-// botón con [data-detalle="slug"] (cards de torre y vitrina).
-import { categoria, dominioWeb, enlacesRedes, ICONOS } from '../lib/constantes';
+// Modal "Ver más": descripción larga, galería, redes, calificaciones y reporte. Se abre desde
+// cualquier botón con [data-detalle="slug"] (cards de torre y vitrina); con data-ir="calificar"
+// baja directo a las estrellas.
+import { categoria, dominioWeb, enlacesRedes, ICONOS, LIMITES, MOTIVOS_REPORTE } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
@@ -13,7 +14,7 @@ const { emprendedores, torres } = Astro.props;
 const datos = Object.fromEntries(
   emprendedores.map((e) => {
     const t = torres.find((x) => x.id === e.torre) ?? torres[0];
-    const cat = categoria(e.categoria);
+    const cat = categoria(e.categoria, Astro.locals.categorias);
     return [
       e.slug,
       {
@@ -32,6 +33,7 @@ const datos = Object.fromEntries(
         whatsapp: e.whatsapp,
         web: e.pagina_web,
         webDominio: e.pagina_web ? dominioWeb(e.pagina_web) : '',
+        calif: e.calificacion ?? { promedio: 0, total: 0, resenas: [] },
       },
     ];
   }),
@@ -59,15 +61,98 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
     </a>
     <div id="detalle-redes" class="redes"></div>
   </div>
+
+  <section class="opiniones" id="detalle-opiniones" aria-labelledby="opiniones-titulo">
+    <div class="opiniones-head">
+      <h4 id="opiniones-titulo">Calificaciones</h4>
+      <div class="resumen" id="calif-resumen"></div>
+    </div>
+    <div class="resenas" id="calif-resenas"></div>
+
+    <form class="calificar" id="form-calificar" novalidate>
+      <fieldset class="picker" id="calif-picker">
+        <legend id="calif-legend">¿Cómo te fue? Califica de 1 a 5</legend>
+        {
+          [1, 2, 3, 4, 5].map((n) => (
+            <label class="estrella">
+              <input type="radio" name="estrellas" value={n} required />
+              <span aria-hidden="true">★</span>
+              <span class="sr-only-f4v">{n} {n === 1 ? 'estrella' : 'estrellas'}</span>
+            </label>
+          ))
+        }
+      </fieldset>
+      <div class="fila">
+        <label class="campo">
+          <span>Tu nombre <small>(opcional)</small></span>
+          <input name="nombre" maxlength="60" autocomplete="given-name" placeholder="Ej: Laura" />
+        </label>
+        <label class="campo">
+          <span>Tu conjunto <small>(opcional)</small></span>
+          <select name="conjunto">
+            <option value="">Prefiero no decir</option>
+            {torres.map((t) => <option value={t.id}>{t.nombre}</option>)}
+          </select>
+        </label>
+      </div>
+      <label class="campo">
+        <span>Comentario <small>(opcional, se publica)</small></span>
+        <textarea name="comentario" rows="2" maxlength={LIMITES.comentario} placeholder="¿Qué te gustó? Sé respetuoso: es un vecino."></textarea>
+      </label>
+      <label class="trampa" aria-hidden="true">Sitio <input name="sitio" tabindex="-1" autocomplete="off" /></label>
+      <div class="acciones">
+        <button type="submit" class="btn-calificar">Enviar calificación</button>
+        <span class="msg" id="calif-msg" role="status" aria-live="polite"></span>
+      </div>
+    </form>
+
+    <details class="reportar" id="detalle-reportar">
+      <summary>⚑ Reportar un problema grave</summary>
+      <form id="form-reportar" novalidate data-max={LIMITES.evidencias}>
+        <p class="aviso">
+          Solo para cosas serias que afecten a la comunidad (estafa, peligro, acoso…). Es anónimo y privado: solo el comité ve el
+          reporte y las fotos, nunca el vecino ni la landing. Para una mala experiencia normal, usa las estrellas.
+        </p>
+        <label class="campo">
+          <span>Motivo</span>
+          <select name="motivo" required>
+            <option value="">Elige el motivo…</option>
+            {MOTIVOS_REPORTE.map((m) => <option value={m.id}>{m.label}</option>)}
+          </select>
+        </label>
+        <div class="campo">
+          <span>Fotos de evidencia <small>(1 a {LIMITES.evidencias}: capturas de chat, del pago, del producto…)</small></span>
+          <label class="subir-evidencia">
+            <input type="file" id="rep-fotos" accept="image/jpeg,image/png,image/webp" multiple />
+            <span>📷 Elegir fotos</span>
+          </label>
+          <div class="evidencias" id="rep-previas"></div>
+        </div>
+        <label class="campo">
+          <span>Nota <small>(opcional)</small></span>
+          <textarea name="detalle" rows="2" maxlength={LIMITES.detalleReporte} placeholder="Si quieres, cuéntale al comité en pocas palabras qué pasó."></textarea>
+        </label>
+        <label class="trampa" aria-hidden="true">Sitio <input name="sitio" tabindex="-1" autocomplete="off" /></label>
+        <div class="acciones">
+          <button type="submit" class="btn-reportar">Enviar reporte al comité</button>
+          <span class="msg" id="rep-msg" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+    </details>
+  </section>
 </dialog>
 
 <script type="application/json" id="detalle-datos" set:html={json} />
 
 <script>
+  import type { ResumenCalificaciones } from '../lib/db';
+  import { optimizarFoto } from '../lib/optimizarFoto';
+
   type Red = { red: 'whatsapp' | 'instagram' | 'tiktok' | 'facebook'; url: string; label: string };
   type Detalle = {
     nombre: string; vecino: string; apto: string; torre: string; color: string; claro: string;
     cat: string; emoji: string; corta: string; larga: string; fotos: string[]; redes: Red[]; whatsapp: string; web: string; webDominio: string;
+    calif: ResumenCalificaciones;
   };
 
   const { datos, iconos } = JSON.parse(document.getElementById('detalle-datos')!.textContent!) as {
@@ -152,12 +237,187 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
       }),
     );
 
+    actual = slug;
+    pintarCalif(d.calif);
+    prepararFormularios(slug);
     dialog.showModal();
   }
 
+  // ───── Calificaciones y reportes ─────
+  let actual = '';
+  const formCalif = $('form-calificar') as HTMLFormElement;
+  const formRep = $('form-reportar') as HTMLFormElement;
+  const califMsg = $('calif-msg');
+  const repMsg = $('rep-msg');
+  // Lo que este navegador ya calificó, solo para precargar el formulario (el servidor manda igual).
+  const CLAVE_LOCAL = 'f4v_calificaciones';
+  const leerMias = (): Record<string, number> => {
+    try {
+      return JSON.parse(localStorage.getItem(CLAVE_LOCAL) || '{}');
+    } catch {
+      return {};
+    }
+  };
+  const guardarMia = (slug: string, n: number) => {
+    try {
+      localStorage.setItem(CLAVE_LOCAL, JSON.stringify({ ...leerMias(), [slug]: n }));
+    } catch {
+      // Navegación privada o almacenamiento bloqueado: no pasa nada.
+    }
+  };
+
+  const estrellasTexto = (n: number) => '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
+  const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  function pintarCalif(c: ResumenCalificaciones) {
+    const resumen = $('calif-resumen');
+    if (!c.total) {
+      resumen.textContent = 'Aún nadie lo califica. ¡Sé el primero!';
+    } else {
+      const est = document.createElement('span');
+      est.className = 'est';
+      est.textContent = estrellasTexto(c.promedio);
+      const num = document.createElement('strong');
+      num.textContent = c.promedio.toFixed(1);
+      resumen.replaceChildren(est, num, ` · ${c.total} ${c.total === 1 ? 'calificación' : 'calificaciones'}`);
+    }
+    $('calif-resenas').replaceChildren(
+      ...c.resenas.map((r) => {
+        const art = document.createElement('article');
+        art.className = 'resena';
+        const cab = document.createElement('div');
+        cab.className = 'resena-cab';
+        const est = document.createElement('span');
+        est.className = 'est';
+        est.textContent = estrellasTexto(r.estrellas);
+        const quien = document.createElement('span');
+        quien.textContent = `${r.nombre || 'Vecino'}${r.conjunto ? ` · ${r.conjunto}` : ''} · ${fechaCorta(r.creado_at)}`;
+        cab.append(est, quien);
+        const p = document.createElement('p');
+        p.textContent = r.comentario;
+        art.append(cab, p);
+        return art;
+      }),
+    );
+  }
+
+  function prepararFormularios(slug: string) {
+    formCalif.reset();
+    formRep.reset();
+    califMsg.textContent = '';
+    repMsg.textContent = '';
+    ($('detalle-reportar') as HTMLDetailsElement).open = false;
+    evidencias = [];
+    pintarEvidencias();
+    const mia = leerMias()[slug];
+    $('calif-legend').textContent = mia ? `Ya calificaste con ${mia} ★. Puedes cambiarla:` : '¿Cómo te fue? Califica de 1 a 5';
+    if (mia) formCalif.querySelector<HTMLInputElement>(`input[name="estrellas"][value="${mia}"]`)!.checked = true;
+  }
+
+  async function enviar(url: string, datos: Record<string, unknown>) {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || 'No se pudo enviar. Intenta de nuevo.');
+    return j;
+  }
+
+  formCalif.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const campos = Object.fromEntries(new FormData(formCalif));
+    const estrellas = Number(campos.estrellas);
+    if (!estrellas) {
+      califMsg.textContent = 'Elige las estrellas primero.';
+      return;
+    }
+    const boton = formCalif.querySelector('button')!;
+    boton.disabled = true;
+    califMsg.textContent = 'Enviando…';
+    try {
+      const r = await enviar('/api/calificar', { ...campos, estrellas, slug: actual });
+      datos[actual].calif = r.resumen;
+      pintarCalif(r.resumen);
+      guardarMia(actual, estrellas);
+      $('calif-legend').textContent = `Ya calificaste con ${estrellas} ★. Puedes cambiarla:`;
+      califMsg.textContent = r.actualizada ? '✓ Actualizamos tu calificación. ¡Gracias!' : '✓ ¡Gracias por calificar!';
+      (formCalif.elements.namedItem('comentario') as HTMLTextAreaElement).value = '';
+    } catch (e) {
+      califMsg.textContent = (e as Error).message;
+    }
+    boton.disabled = false;
+  });
+
+  // Evidencias: se eligen (acumulando hasta el límite), se ven en miniatura y se pueden quitar.
+  const MAX_EVIDENCIAS = Number(formRep.dataset.max);
+  const inputFotos = $('rep-fotos') as HTMLInputElement;
+  let evidencias: File[] = [];
+  function pintarEvidencias() {
+    $('rep-previas').replaceChildren(
+      ...evidencias.map((f, i) => {
+        const fig = document.createElement('figure');
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(f);
+        img.alt = `Evidencia ${i + 1}`;
+        img.onload = () => URL.revokeObjectURL(img.src);
+        const quitar = document.createElement('button');
+        quitar.type = 'button';
+        quitar.textContent = '✕';
+        quitar.setAttribute('aria-label', `Quitar evidencia ${i + 1}`);
+        quitar.addEventListener('click', () => {
+          evidencias.splice(i, 1);
+          pintarEvidencias();
+        });
+        fig.append(img, quitar);
+        return fig;
+      }),
+    );
+  }
+  inputFotos.addEventListener('change', () => {
+    const nuevas = Array.from(inputFotos.files ?? []).filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type));
+    evidencias = [...evidencias, ...nuevas].slice(0, MAX_EVIDENCIAS);
+    repMsg.textContent = nuevas.length + evidencias.length > MAX_EVIDENCIAS ? `Máximo ${MAX_EVIDENCIAS} fotos.` : '';
+    inputFotos.value = '';
+    pintarEvidencias();
+  });
+
+  formRep.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(formRep);
+    if (!fd.get('motivo')) {
+      repMsg.textContent = 'Elige el motivo.';
+      return;
+    }
+    if (!evidencias.length) {
+      repMsg.textContent = 'Adjunta al menos una foto como evidencia.';
+      return;
+    }
+    const boton = formRep.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    boton.disabled = true;
+    repMsg.textContent = 'Preparando fotos…';
+    try {
+      fd.set('slug', actual);
+      for (const [i, f] of evidencias.entries()) {
+        const blob = await optimizarFoto(f);
+        fd.append('fotos', blob, `evidencia-${i + 1}.${blob.type === 'image/webp' ? 'webp' : blob.type === 'image/png' ? 'png' : 'jpg'}`);
+      }
+      repMsg.textContent = 'Enviando…';
+      const res = await fetch('/api/reportar', { method: 'POST', body: fd });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'No se pudo enviar. Intenta de nuevo.');
+      formRep.reset();
+      evidencias = [];
+      pintarEvidencias();
+      repMsg.textContent = '✓ Gracias. El comité lo revisará en privado.';
+    } catch (e) {
+      repMsg.textContent = (e as Error).message;
+    }
+    boton.disabled = false;
+  });
+
   document.addEventListener('click', (ev) => {
     const btn = (ev.target as HTMLElement).closest<HTMLElement>('[data-detalle]');
-    if (btn) abrir(btn.dataset.detalle!);
+    if (!btn) return;
+    abrir(btn.dataset.detalle!);
+    if (btn.dataset.ir === 'calificar') $('detalle-opiniones').scrollIntoView({ block: 'start' });
   });
   dialog.querySelector('[data-cerrar]')!.addEventListener('click', () => dialog.close());
   dialog.addEventListener('click', (ev) => {
@@ -223,4 +483,58 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
   }
   .redes :global(.red svg) { width: 16px; height: 16px; fill: currentColor; }
   .redes :global(.red-whatsapp) { background: var(--whatsapp); color: #fff; }
+
+  /* Calificaciones y reporte: ocupan todo el ancho bajo foto + texto. */
+  .opiniones { grid-column: 1 / -1; padding: 26px 30px 30px; border-top: 1px solid var(--linea); background: var(--crema); }
+  .opiniones-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .opiniones h4 { font-size: 20px; letter-spacing: -.02em; }
+  .resumen { font-size: 14px; font-weight: 700; color: var(--tinta-media); display: flex; align-items: center; gap: 6px; }
+  .resumen :global(.est), .resenas :global(.est) { color: #F5A524; letter-spacing: 1px; }
+  .resumen :global(strong) { color: var(--tinta); font-size: 16px; }
+  .resenas { display: grid; gap: 10px; margin-bottom: 18px; }
+  .resenas :global(.resena) { background: #fff; border-radius: 14px; padding: 12px 14px; }
+  .resenas :global(.resena-cab) { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12.5px; font-weight: 700; color: var(--tinta-suave); margin-bottom: 4px; }
+  .resenas :global(.resena p) { font-size: 14px; color: var(--tinta-media); white-space: pre-line; overflow-wrap: anywhere; }
+
+  .calificar { background: #fff; border-radius: 18px; padding: 18px; display: grid; gap: 12px; }
+  .picker { border: none; padding: 0; margin: 0; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .picker legend { font-family: var(--display); font-weight: 800; font-size: 14.5px; margin-bottom: 6px; padding: 0; width: 100%; }
+  .estrella { cursor: pointer; font-size: 34px; line-height: 1; color: var(--linea-fuerte); transition: transform .1s ease, color .1s ease; }
+  .estrella input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .estrella:has(input:checked), .estrella:has(~ .estrella input:checked) { color: #F5A524; }
+  .picker:hover .estrella { color: var(--linea-fuerte); }
+  .picker .estrella:hover, .picker .estrella:has(~ .estrella:hover) { color: #F5A524; transform: scale(1.08); }
+  .estrella:has(input:focus-visible) { outline: 2px solid var(--t); outline-offset: 2px; border-radius: 6px; }
+  .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 560px) { .fila { grid-template-columns: 1fr; } }
+  .campo { display: grid; gap: 4px; font-size: 13px; font-weight: 700; color: var(--tinta-media); }
+  .campo small { font-weight: 600; color: var(--tinta-suave); }
+  .campo input, .campo select, .campo textarea {
+    width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--linea-fuerte);
+    background: #fff; font: inherit; font-weight: 500; color: var(--tinta);
+  }
+  .campo textarea { resize: vertical; }
+  .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .acciones { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .btn-calificar, .btn-reportar {
+    padding: 11px 18px; border-radius: 999px; border: none;
+    font-family: var(--display); font-weight: 800; font-size: 14px; color: #fff;
+  }
+  .btn-calificar { background: var(--t); }
+  .btn-reportar { background: #B42318; }
+  .btn-calificar:disabled, .btn-reportar:disabled { opacity: .6; }
+  .msg { font-size: 13.5px; font-weight: 700; color: var(--tinta-media); }
+
+  .reportar { margin-top: 16px; }
+  .reportar summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #B42318; display: inline-block; }
+  .reportar form { margin-top: 10px; display: grid; gap: 12px; background: #fff; border: 1px solid #FECDCA; border-radius: 18px; padding: 18px; }
+  .subir-evidencia { position: relative; justify-self: start; cursor: pointer; }
+  .subir-evidencia input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .subir-evidencia span { display: inline-block; padding: 10px 16px; border-radius: 12px; border: 1.5px dashed #F04438; color: #B42318; font-weight: 800; background: #FEF3F2; }
+  .subir-evidencia:has(input:focus-visible) span { outline: 2px solid #B42318; outline-offset: 2px; }
+  .evidencias { display: flex; gap: 8px; flex-wrap: wrap; }
+  .evidencias :global(figure) { position: relative; width: 72px; height: 72px; margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--linea-fuerte); }
+  .evidencias :global(img) { width: 100%; height: 100%; object-fit: cover; }
+  .evidencias :global(button) { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(26, 22, 51, .75); color: #fff; font-size: 11px; font-weight: 800; }
+  .aviso { font-size: 13px; color: var(--tinta-media); background: #FEF3F2; border-radius: 12px; padding: 10px 12px; }
 </style>

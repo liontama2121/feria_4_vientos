@@ -9,7 +9,7 @@ import Layout from '../../layouts/Layout.astro';
 import PanelTopbar from '../../components/PanelTopbar.astro';
 import PanelSinAcceso from '../../components/PanelSinAcceso.astro';
 import { puedeEditar, registroPermitido } from '../../lib/api';
-import { CATEGORIAS, ICONOS, LIMITES, iniciales } from '../../lib/constantes';
+import { ICONOS, LIMITES, iniciales } from '../../lib/constantes';
 import { crearEmprendimiento, listarTorres, obtenerRegistro, resumenPanel } from '../../lib/db';
 import { MENSAJES, SITIO, linkWhatsApp } from '../../lib/sitio';
 
@@ -37,6 +37,8 @@ const torres = await listarTorres(db);
 const resumen = registro ? resumenPanel(registro) : null;
 const d = resumen?.borrador;
 const torreActual = torres.find((t) => t.id === d?.torre) ?? torres[0];
+// Se ofrecen las visibles, más la que ya tenga el emprendimiento aunque el comité la haya ocultado.
+const categorias = Astro.locals.categorias.filter((c) => !c.oculta || c.id === d?.categoria);
 
 const datosJson = JSON.stringify({
   resumen,
@@ -44,7 +46,7 @@ const datosJson = JSON.stringify({
   editable,
   comiteWhatsapp: SITIO.comiteWhatsapp,
   torres,
-  categorias: CATEGORIAS,
+  categorias,
   limites: LIMITES,
   iconos: ICONOS,
 }).replace(/</g, '\\u003c');
@@ -212,7 +214,7 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                     Categoría <span class="req">●</span>
                   </span>
                   <div class="chips" id="chipsCategoria" role="radiogroup" aria-labelledby="lblCat">
-                    {CATEGORIAS.map((c) => (
+                    {categorias.map((c) => (
                       <button type="button" class="chip" role="radio" aria-checked={(c.id === d.categoria) ? 'true' : 'false'} data-categoria={c.id}>
                         <span class="em">{c.emoji}</span> {c.label}
                       </button>

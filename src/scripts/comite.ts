@@ -1,7 +1,8 @@
 // Lógica de /admin/comite. Todo se pinta desde los datos en memoria y cada acción
 // llama a /api/comite/* y actualiza solo lo que cambió.
-import type { Cuenta, EstadoVisible, Fecha, FilaComite, Notificacion, Patrocinador, Torre } from '../lib/db';
+import type { Calificacion, Cuenta, EstadoReporte, EstadoVisible, Fecha, FilaComite, Notificacion, Patrocinador, Reporte, Torre } from '../lib/db';
 import { estaActiva as estaActivaEn } from '../lib/fechas';
+import { CATEGORIA_COMODIN, categoria, type Categoria } from '../lib/constantes';
 
 interface DatosComite {
   filas: FilaComite[];
@@ -10,12 +11,19 @@ interface DatosComite {
   fechas: Fecha[];
   cuentas: Cuenta[];
   notificaciones: Notificacion[];
+  calificaciones: Calificacion[];
+  reportes: Reporte[];
+  motivos: { id: string; label: string }[];
   /** Correos de ADMIN_EMAILS: al activar esas cuentas tendrán acceso total. */
   admins: string[];
-  categorias: { id: string; label: string; emoji: string }[];
+  categorias: Categoria[];
+  /** Emprendimientos (cualquier estado) por id de categoría. */
+  usosCategorias: Record<string, number>;
+  /** Las base no se borran, solo se ocultan. */
+  categoriasBase: string[];
 }
 
-const TABS = ['emprendedores', 'cuentas', 'notificaciones', 'torres', 'patrocinadores', 'fechas'] as const;
+const TABS = ['emprendedores', 'cuentas', 'resenas', 'notificaciones', 'categorias', 'torres', 'patrocinadores', 'fechas'] as const;
 type Tab = (typeof TABS)[number];
 type Attrs = Record<string, unknown> & { class?: string; text?: string | number; on?: Record<string, (ev: Event) => void>; style?: string };
 
@@ -62,7 +70,7 @@ export function iniciarComite() {
   const D = JSON.parse(nodo.textContent) as DatosComite;
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   const torreDe = (id: string | null) => D.torres.find((t) => t.id === id) ?? D.torres[0];
-  const catDe = (id: string) => D.categorias.find((c) => c.id === id) ?? D.categorias[D.categorias.length - 1];
+  const catDe = (id: string) => categoria(id, D.categorias);
 
   function toast(msg: string, tipo: 'ok' | 'error' | 'info' = 'info', enlace?: { href: string; texto: string }) {
     const t = h(
@@ -127,6 +135,9 @@ export function iniciarComite() {
     set('emprendedores', pendientes ? `${pendientes} por revisar` : String(D.filas.length));
     set('cuentas', cuentas ? `${cuentas} por activar` : String(D.cuentas.length));
     set('notificaciones', avisos ? `${avisos} por enviar` : '');
+    const reportes = D.reportes.filter((r) => r.estado === 'abierto').length;
+    set('resenas', reportes ? `${reportes} ⚠️` : String(D.calificaciones.length));
+    set('categorias', String(D.categorias.filter((c) => !c.oculta).length));
     set('torres', String(D.torres.length));
     set('patrocinadores', String(D.patrocinadores.length));
     set('fechas', D.fechas.some(estaActiva) ? 'activa' : String(D.fechas.length));
@@ -473,7 +484,14 @@ export function iniciarComite() {
                 { class: 'fila-acciones' },
                 n.whatsapp ? h('a', { class: 'btn btn-sm btn-wsp', href: wsp(n.whatsapp, n.mensaje), target: '_blank', rel: 'noopener', text: 'Abrir WhatsApp', on: { click: () => !n.enviada && marcar() } }) : null,
                 n.email ? h('a', { class: 'btn btn-ghost btn-sm', href: `mailto:${n.email}?subject=${encodeURIComponent(`Feria 4 Vientos · ${n.titulo}`)}&body=${encodeURIComponent(n.mensaje)}`, text: 'Correo' }) : null,
-                n.slug && !paraVecino ? h('a', { class: 'btn btn-ghost btn-sm', href: '#emprendedores', text: 'Revisar', on: { click: () => irA('emprendedores') } }) : null,
+                n.slug && !paraVecino
+                  ? h('a', {
+                      class: 'btn btn-ghost btn-sm',
+                      href: n.tipo === 'reporte' ? '#resenas' : '#emprendedores',
+                      text: 'Revisar',
+                      on: { click: () => irA(n.tipo === 'reporte' ? 'resenas' : 'emprendedores') },
+                    })
+                  : null,
                 h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: 'Copiar', on: { click: copiar } }),
                 h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: n.enviada ? 'Marcar pendiente' : 'Marcar enviada', on: { click: marcar } }),
               ),
@@ -484,6 +502,155 @@ export function iniciarComite() {
     badges();
   }
   [fBuscar, fTorre, fCategoria, fEstado, fFeria].forEach((el) => el.addEventListener('input', renderEmprendedores));
+
+  // ───────────────────────── Reseñas y reportes ─────────────────────────
+  const filaDe = (slug: string) => D.filas.find((f) => f.slug === slug);
+  const nombreDe = (slug: string) => filaDe(slug)?.nombre || slug;
+  const motivoDe = (id: string) => D.motivos.find((m) => m.id === id)?.label ?? id;
+  const estrellas = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n);
+  const ETIQUETA_REPORTE: Record<EstadoReporte, string> = { abierto: 'Abierto', resuelto: 'Resuelto', descartado: 'Descartado' };
+
+  function tarjetaReporte(rep: Reporte) {
+    const fila = filaDe(rep.slug);
+    const visible = fila?.estado_visible === 'approved';
+    const nota = inp(rep.nota, { maxlength: 400, placeholder: 'Nota del comité (qué se hizo)' });
+    const cerrar = async (estado: EstadoReporte) => {
+      try {
+        const r = await api<{ reporte: Reporte }>('/api/comite/resenas', 'PATCH', { tipo: 'reporte', id: rep.id, estado, nota: nota.value });
+        D.reportes = D.reportes.map((x) => (x.id === rep.id ? r.reporte : x));
+        toast(estado === 'abierto' ? 'Reporte reabierto' : `Reporte ${ETIQUETA_REPORTE[estado].toLowerCase()} ✓`, 'ok');
+        renderResenas();
+      } catch (e) {
+        toast((e as Error).message, 'error');
+      }
+    };
+    const abierto = rep.estado === 'abierto';
+    return h(
+      'article',
+      { class: `noti reporte${abierto ? '' : ' cerrado'}` },
+      h(
+        'div',
+        {},
+        h('div', { class: 'motivo', text: `⚠️ ${motivoDe(rep.motivo)}` }),
+        h('h3', { text: `${nombreDe(rep.slug)}${fila ? ` · ${ETIQUETA[fila.estado_visible]}` : ' · (eliminado)'}` }),
+        rep.detalle ? h('p', { text: rep.detalle }) : null,
+        rep.evidencias.length
+          ? h(
+              'div',
+              { class: 'evidencias-comite' },
+              ...rep.evidencias.map((k, i) => {
+                const src = `/api/comite/evidencia/${k}`;
+                return h('a', { href: src, target: '_blank', rel: 'noopener', title: `Abrir evidencia ${i + 1}` }, h('img', { src, alt: `Evidencia ${i + 1}`, loading: 'lazy' }));
+              }),
+            )
+          : null,
+        h('div', {
+          class: 'sub',
+          text: `${fechaCorta(rep.creado_at)} · ${rep.evidencias.length} foto(s)${
+            abierto ? '' : ` · ${ETIQUETA_REPORTE[rep.estado]} por ${rep.revisado_por ?? ''}${rep.nota ? ` — ${rep.nota}` : ''}`
+          }`,
+        }),
+        abierto ? h('div', { style: 'margin-top:8px' }, nota) : null,
+      ),
+      h(
+        'div',
+        { class: 'fila-acciones' },
+        fila && visible
+          ? h('button', {
+              type: 'button',
+              class: 'btn btn-peligro btn-sm',
+              text: 'Ocultar emprendimiento',
+              title: 'Lo saca de la landing sin borrarlo',
+              on: {
+                click: async () => {
+                  if (!(await confirmar(`“${nombreDe(rep.slug)}” dejará de salir en la landing hasta que lo vuelvas a mostrar.`, 'Sí, ocultar'))) return;
+                  if (await accion(rep.slug, { accion: 'visible', valor: false }, `${nombreDe(rep.slug)} oculto de la landing`)) renderResenas();
+                },
+              },
+            })
+          : null,
+        fila ? h('a', { class: 'btn btn-ghost btn-sm', href: `/admin?slug=${encodeURIComponent(rep.slug)}`, text: 'Ver ficha' }) : null,
+        abierto
+          ? h('button', { type: 'button', class: 'btn btn-primary btn-sm', text: '✓ Resuelto', on: { click: () => cerrar('resuelto') } })
+          : h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: 'Reabrir', on: { click: () => cerrar('abierto') } }),
+        abierto ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: 'Descartar', on: { click: () => cerrar('descartado') } }) : null,
+      ),
+    );
+  }
+
+  const fResBuscar = $<HTMLInputElement>('fResBuscar');
+  const fResEstrellas = $<HTMLSelectElement>('fResEstrellas');
+
+  function tarjetaCalificacion(c: Calificacion) {
+    const alternar = async () => {
+      try {
+        await api('/api/comite/resenas', 'PATCH', { tipo: 'calificacion', id: c.id, oculta: !c.oculta });
+        c.oculta = !c.oculta;
+        toast(c.oculta ? 'Calificación oculta de la landing' : 'Calificación visible ✓', 'ok');
+        renderResenas();
+      } catch (e) {
+        toast((e as Error).message, 'error');
+      }
+    };
+    const borrar = async () => {
+      if (!(await confirmar('Se borrará esta calificación para siempre (cuenta para el promedio). Ocultarla es reversible.'))) return;
+      try {
+        await api('/api/comite/resenas', 'DELETE', { id: c.id });
+        D.calificaciones = D.calificaciones.filter((x) => x.id !== c.id);
+        toast('Calificación borrada', 'ok');
+        renderResenas();
+      } catch (e) {
+        toast((e as Error).message, 'error');
+      }
+    };
+    return h(
+      'article',
+      { class: `noti calif-fila${c.oculta ? ' oculta' : ''}` },
+      h(
+        'div',
+        {},
+        h('h3', {}, h('span', { class: 'est', text: estrellas(c.estrellas) }), ` · ${nombreDe(c.slug)}`),
+        c.comentario ? h('p', { text: c.comentario }) : null,
+        h('div', {
+          class: 'sub',
+          text: `${c.nombre || 'Sin nombre'}${c.conjunto ? ` · ${c.conjunto}` : ''} · ${fechaCorta(c.creado_at)}${c.oculta ? ' · oculta' : ''}`,
+        }),
+      ),
+      h(
+        'div',
+        { class: 'fila-acciones' },
+        h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: c.oculta ? 'Mostrar' : 'Ocultar', on: { click: alternar } }),
+        h('button', { type: 'button', class: 'btn btn-peligro btn-sm', text: 'Borrar', on: { click: borrar } }),
+      ),
+    );
+  }
+
+  function renderResenas() {
+    const abiertos = D.reportes.filter((r) => r.estado === 'abierto');
+    const cerrados = D.reportes.filter((r) => r.estado !== 'abierto');
+    $('contadorReportes').textContent = String(abiertos.length);
+    $('listaReportes').replaceChildren(
+      ...(abiertos.length ? abiertos.map(tarjetaReporte) : [h('div', { class: 'vacio-lista', text: 'Sin reportes abiertos. 🙌' })]),
+    );
+    $('listaReportesCerrados').replaceChildren(
+      ...(cerrados.length ? cerrados.map(tarjetaReporte) : [h('div', { class: 'vacio-lista', text: 'Todavía no hay reportes cerrados.' })]),
+    );
+
+    const q = fResBuscar.value.trim().toLowerCase();
+    const filtro = fResEstrellas.value;
+    const lista = D.calificaciones.filter((c) => {
+      if (filtro === 'bajas' && c.estrellas > 2) return false;
+      if (filtro === 'altas' && c.estrellas < 4) return false;
+      if (filtro === '3' && c.estrellas !== 3) return false;
+      if (filtro === 'ocultas' && !c.oculta) return false;
+      return !q || `${nombreDe(c.slug)} ${c.nombre} ${c.comentario}`.toLowerCase().includes(q);
+    });
+    $('listaCalificaciones').replaceChildren(
+      ...(lista.length ? lista.map(tarjetaCalificacion) : [h('div', { class: 'vacio-lista', text: 'No hay calificaciones con ese filtro.' })]),
+    );
+    badges();
+  }
+  [fResBuscar, fResEstrellas].forEach((el) => el.addEventListener('input', renderResenas));
 
   // ───────────────────────── Nuevo emprendimiento ─────────────────────────
   const dlgNuevo = $<HTMLDialogElement>('dlgNuevo');
@@ -767,6 +934,72 @@ export function iniciarComite() {
     nuevo.querySelector('input')?.focus();
   });
 
+  // ───────────────────────── Categorías ─────────────────────────
+  function editorCategoria(c: Categoria | null) {
+    const base: Categoria = c ?? { id: '', label: '', emoji: '🏷️', orden: 500, oculta: false };
+    const usos = D.usosCategorias[base.id] ?? 0;
+    const esBase = D.categoriasBase.includes(base.id);
+    const f = {
+      emoji: inp(base.emoji, { maxlength: 16, class: 'emoji-inp', 'aria-label': 'Emoji' }),
+      label: inp(base.label, { maxlength: 40, placeholder: 'Ej: Mascotas' }),
+      orden: inp(base.orden, { type: 'number', step: 10 }),
+      oculta: h('input', { type: 'checkbox', checked: base.oculta, disabled: base.id === CATEGORIA_COMODIN }) as HTMLInputElement,
+    };
+    const guardar = async () => {
+      try {
+        const nueva = await api<Categoria>('/api/comite/contenido', 'PUT', {
+          coleccion: 'categorias',
+          item: { id: base.id, label: f.label.value, emoji: f.emoji.value, orden: Number(f.orden.value), oculta: f.oculta.checked },
+        });
+        D.categorias = [...D.categorias.filter((x) => x.id !== nueva.id), nueva].sort((a, b) => a.orden - b.orden || a.label.localeCompare(b.label, 'es'));
+        toast(`${nueva.emoji} ${nueva.label} guardada ✓`, 'ok');
+        renderCategorias();
+      } catch (e) {
+        toast((e as Error).message, 'error');
+      }
+    };
+    const borrar = async () => {
+      if (!(await confirmar(`Se borrará la categoría “${base.label}”.`))) return;
+      try {
+        await api('/api/comite/contenido', 'DELETE', { coleccion: 'categorias', id: base.id });
+        D.categorias = D.categorias.filter((x) => x.id !== base.id);
+        toast('Categoría borrada', 'ok');
+        renderCategorias();
+      } catch (e) {
+        toast((e as Error).message, 'error');
+      }
+    };
+    return h(
+      'div',
+      { class: `card cat-fila${base.oculta ? ' oculta' : ''}` },
+      campo('Emoji', f.emoji),
+      campo('Nombre', f.label),
+      campo('Orden', f.orden),
+      h(
+        'div',
+        {},
+        h('label', { class: 'check', title: base.id === CATEGORIA_COMODIN ? '“Otros” siempre está disponible' : '' }, f.oculta, 'Oculta'),
+        base.id ? h('div', { class: 'usos', text: `${usos} emprendimiento${usos === 1 ? '' : 's'}${esBase ? ' · base' : ''}` }) : null,
+      ),
+      h(
+        'div',
+        { class: 'editor-acciones', style: 'margin-top:0' },
+        base.id && !esBase && !usos ? h('button', { type: 'button', class: 'btn btn-peligro btn-sm', text: 'Borrar', on: { click: borrar } }) : null,
+        h('button', { type: 'button', class: 'btn btn-primary btn-sm', text: base.id ? 'Guardar' : 'Crear', on: { click: guardar } }),
+      ),
+    );
+  }
+
+  function renderCategorias() {
+    $('listaCategorias').replaceChildren(...D.categorias.map((c) => editorCategoria(c)));
+    badges();
+  }
+  $('btnNuevaCategoria').addEventListener('click', () => {
+    const nueva = editorCategoria(null);
+    $('listaCategorias').prepend(nueva);
+    nueva.querySelectorAll('input')[1]?.focus();
+  });
+
   // ───────────────────────── Fechas ─────────────────────────
   const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
 
@@ -919,7 +1152,9 @@ export function iniciarComite() {
   // ───────────────────────── Arranque ─────────────────────────
   renderEmprendedores();
   renderCuentas();
+  renderResenas();
   renderNotificaciones();
+  renderCategorias();
   renderTorres();
   renderPatrocinadores();
   renderFechas();

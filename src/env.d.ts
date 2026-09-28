@@ -29,5 +29,7 @@ declare namespace App {
   interface Locals extends Runtime {
     /** Quien tiene sesión (comité, admin por ADMIN_EMAILS o vecino); null si no hay. */
     usuario: import('./lib/db').Usuario | null;
+    /** Categorías vigentes (D1 + base), cargadas por el middleware en cada request. */
+    categorias: import('./lib/constantes').Categoria[];
   }
 }

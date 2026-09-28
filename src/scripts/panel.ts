@@ -2,8 +2,9 @@
 // Estado único en memoria (`estado`) → todo se re-pinta desde ahí: vista previa, chip del
 // usuario, contador de fotos, pasos completos y color de torre.
 // Vecino: edita solo en draft / changes_requested y manda a revisión. Admin: edita y publica.
-import { ESTADOS_EDITABLES, dominioWeb, iniciales, type CategoriaId, type DatosEmprendimiento, type TorreId } from '../lib/constantes';
+import { ESTADOS_EDITABLES, categoria, dominioWeb, iniciales, type CategoriaId, type DatosEmprendimiento, type TorreId } from '../lib/constantes';
 import type { Notificacion, ResumenPanel, Rol, Torre } from '../lib/db';
+import { optimizarFoto } from '../lib/optimizarFoto';
 
 type Vista = 'emprendimiento' | 'fotos' | 'redes' | 'publicacion' | 'configuracion';
 type Red = 'whatsapp' | 'instagram' | 'tiktok' | 'facebook';
@@ -71,7 +72,7 @@ export function iniciarPanel() {
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   const $$ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => Array.from(root.querySelectorAll<T>(sel));
   const torreDe = (id: string) => D.torres.find((t) => t.id === id) ?? D.torres[0];
-  const categoriaDe = (id: string) => D.categorias.find((c) => c.id === id) ?? D.categorias[D.categorias.length - 1];
+  const categoriaDe = (id: string) => categoria(id, D.categorias);
   const fotos = () => [estado.foto_principal, ...estado.galeria].filter(Boolean);
   const maxFotos = LIM.galeria + 1;
 
@@ -652,46 +653,6 @@ export function iniciarPanel() {
     fileInput.value = '';
   });
 
-  /**
-   * Reduce a máx. 1200 px y re-codifica a WEBP (o JPEG si el navegador no sabe WEBP).
-   * Si aún pesa más del límite, baja calidad y tamaño hasta que quepa.
-   */
-  async function optimizar(file: File): Promise<Blob> {
-    let bmp: ImageBitmap;
-    try {
-      bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    } catch {
-      return file;
-    }
-    const intentos: [number, number][] = [
-      [LIM.fotoLado, 0.8],
-      [LIM.fotoLado, 0.65],
-      [1000, 0.6],
-      [800, 0.55],
-    ];
-    let mejor: Blob = file;
-    try {
-      for (const [lado, calidad] of intentos) {
-        const escala = Math.min(1, lado / Math.max(bmp.width, bmp.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(bmp.width * escala);
-        canvas.height = Math.round(bmp.height * escala);
-        const ctx = canvas.getContext('2d')!;
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-        const aBlob = (tipo: string) => new Promise<Blob | null>((r) => canvas.toBlob(r, tipo, calidad));
-        let blob = await aBlob('image/webp');
-        if (!blob || blob.type !== 'image/webp') blob = await aBlob('image/jpeg');
-        if (blob && blob.size < mejor.size) mejor = blob;
-        if (mejor.size <= LIM.fotoBytes) break;
-      }
-    } finally {
-      bmp.close();
-    }
-    return mejor;
-  }
-
   async function subir(archivos: FileList | File[]) {
     if (!editable) return;
     const libres = maxFotos - fotos().length - subiendo;
@@ -715,7 +676,7 @@ export function iniciarPanel() {
       subiendo++;
       renderFotos();
       try {
-        const blob = await optimizar(f);
+        const blob = await optimizarFoto(f);
         if (blob.size > LIM.fotoBytes) throw new Error(`No pudimos aligerar “${f.name}” lo suficiente. Prueba con otra foto o una captura de pantalla.`);
         const ext = blob.type === 'image/webp' ? 'webp' : blob.type === 'image/png' ? 'png' : 'jpg';
         const fd = new FormData();

@@ -4,9 +4,11 @@
 // - Si la base está vacía, se siembra con las content collections de src/content/.
 import { getCollection } from 'astro:content';
 import {
+  CATEGORIAS_BASE,
   LIMITES,
   TORRES_BASE,
   datosVacios,
+  type Categoria,
   type DatosEmprendimiento,
   type EstadoCuenta,
   type EstadoEmprendimiento,
@@ -104,7 +106,7 @@ export interface Notificacion {
   creado_at: string;
   /** A quién va: el comité (admin) o el vecino. */
   para: Rol;
-  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada';
+  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte';
   titulo: string;
   mensaje: string;
   /** Celular de 10 dígitos (sin +57) al que hay que mandar el mensaje, si aplica. */
@@ -114,7 +116,49 @@ export interface Notificacion {
   enviada: boolean;
 }
 
-export type EmprendedorPublico = DatosEmprendimiento & { slug: string };
+export type EmprendedorPublico = DatosEmprendimiento & {
+  slug: string;
+  calificacion?: ResumenCalificaciones;
+  /** Primera aprobación (ISO). */
+  publicado_desde?: string | null;
+  /** Aprobado por primera vez hace menos de LIMITES.diasNuevo días. */
+  nuevo?: boolean;
+};
+
+/** Calificación de un visitante (sin cuenta). Una por navegador y emprendimiento; volver a calificar la reemplaza. */
+export interface Calificacion {
+  id: string;
+  slug: string;
+  estrellas: number;
+  nombre: string;
+  conjunto: string;
+  comentario: string;
+  creado_at: string;
+  oculta: boolean;
+}
+
+/** Lo que ve la landing de cada emprendimiento: promedio, total y las últimas reseñas con texto. */
+export interface ResumenCalificaciones {
+  promedio: number;
+  total: number;
+  resenas: Pick<Calificacion, 'estrellas' | 'nombre' | 'conjunto' | 'comentario' | 'creado_at'>[];
+}
+
+export type EstadoReporte = 'abierto' | 'resuelto' | 'descartado';
+
+export interface Reporte {
+  id: string;
+  slug: string;
+  motivo: string;
+  detalle: string;
+  /** Keys de R2 (`reportes/<uuid>.webp`). Privadas: solo el comité las ve por /api/comite/evidencia/…, nunca por /media. */
+  evidencias: string[];
+  creado_at: string;
+  estado: EstadoReporte;
+  nota: string;
+  revisado_at: string | null;
+  revisado_por: string | null;
+}
 
 // ───────────────────────── Esquema ─────────────────────────
 
@@ -168,6 +212,35 @@ const ESQUEMA = [
     slug TEXT,
     enviada INTEGER NOT NULL DEFAULT 0
   )`,
+  // `visitante` = cookie anónima del navegador; `ip` = hash de la IP (nunca la IP en claro), solo para frenar abusos.
+  `CREATE TABLE IF NOT EXISTS calificaciones (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL,
+    visitante TEXT NOT NULL,
+    ip TEXT NOT NULL DEFAULT '',
+    estrellas INTEGER NOT NULL,
+    nombre TEXT NOT NULL DEFAULT '',
+    conjunto TEXT NOT NULL DEFAULT '',
+    comentario TEXT NOT NULL DEFAULT '',
+    creado_at TEXT NOT NULL,
+    oculta INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (slug, visitante)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_calificaciones_slug ON calificaciones(slug)`,
+  `CREATE TABLE IF NOT EXISTS reportes (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL,
+    visitante TEXT NOT NULL,
+    ip TEXT NOT NULL DEFAULT '',
+    motivo TEXT NOT NULL,
+    detalle TEXT NOT NULL DEFAULT '',
+    evidencias TEXT NOT NULL DEFAULT '[]',
+    creado_at TEXT NOT NULL,
+    estado TEXT NOT NULL DEFAULT 'abierto',
+    nota TEXT NOT NULL DEFAULT '',
+    revisado_at TEXT,
+    revisado_por TEXT
+  )`,
 ];
 
 const ahora = () => new Date().toISOString();
@@ -212,9 +285,14 @@ async function migrar(db: D1Database) {
     ['enviado_at', 'TEXT'],
     ['revisado_at', 'TEXT'],
     ['revisado_por', 'TEXT'],
+    // Primera vez que se aprobó: de aquí sale la etiqueta "Nuevo" (re-aprobar no la renueva).
+    ['primera_publicacion_at', 'TEXT'],
   ];
   // Agregar columnas con default no afecta al código viejo: se hace siempre.
   const stmts = columnas.filter(([n]) => !hay.has(n)).map(([n, tipo]) => db.prepare(`ALTER TABLE emprendedores ADD COLUMN ${n} ${tipo}`));
+  // Bases locales que alcanzaron la primera versión de `reportes` (con contacto y sin evidencias).
+  const { results: colsReportes } = await db.prepare(`PRAGMA table_info(reportes)`).all<{ name: string }>();
+  if (!colsReportes.some((c) => c.name === 'evidencias')) stmts.push(db.prepare(`ALTER TABLE reportes ADD COLUMN evidencias TEXT NOT NULL DEFAULT '[]'`));
   if (esPreviewSobreProduccion) {
     if (stmts.length) await db.batch(stmts);
     return;
@@ -231,6 +309,8 @@ async function migrar(db: D1Database) {
         WHERE estado = 'rechazado'`,
     ),
     db.prepare(`UPDATE emprendedores SET estado = 'pending_review', enviado_at = COALESCE(enviado_at, borrador_at, creado_at) WHERE estado = 'pendiente'`),
+    // Los que ya estaban publicados antes de existir la columna: su mejor aproximación es publicado_at.
+    db.prepare(`UPDATE emprendedores SET primera_publicacion_at = publicado_at WHERE primera_publicacion_at IS NULL AND publicado IS NOT NULL AND publicado_at IS NOT NULL`),
     // Antes de existir `en_feria`, todo emprendimiento era de la feria.
     db.prepare(
       `UPDATE emprendedores
@@ -260,10 +340,10 @@ async function sembrar(db: D1Database) {
     stmts.push(
       db
         .prepare(
-          `INSERT OR IGNORE INTO emprendedores (slug, owner_email, estado, borrador, publicado, borrador_at, publicado_at, revisado_at, revisado_por, creado_at)
-           VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT OR IGNORE INTO emprendedores (slug, owner_email, estado, borrador, publicado, borrador_at, publicado_at, primera_publicacion_at, revisado_at, revisado_por, creado_at)
+           VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .bind(e.id, estado, json, aprobado ? json : null, t, aprobado ? t : null, aprobado ? t : null, aprobado ? 'semilla' : null, t),
+        .bind(e.id, estado, json, aprobado ? json : null, t, aprobado ? t : null, aprobado ? t : null, aprobado ? t : null, aprobado ? 'semilla' : null, t),
     );
   }
   for (const torre of torres) {
@@ -284,7 +364,7 @@ async function sembrar(db: D1Database) {
 
 // ───────────────────────── Contenido (torres, patrocinadores, fechas) ─────────────────────────
 
-type Coleccion = 'torres' | 'patrocinadores' | 'fechas';
+type Coleccion = 'torres' | 'patrocinadores' | 'fechas' | 'categorias';
 
 function contenidoStmt(db: D1Database, coleccion: Coleccion, id: string, data: unknown, soloSiNoExiste = false) {
   const verbo = soloSiNoExiste ? 'INSERT OR IGNORE' : 'INSERT OR REPLACE';
@@ -343,6 +423,29 @@ export async function guardarFecha(db: D1Database, f: Fecha) {
 
 export async function borrarFecha(db: D1Database, id: string) {
   await db.prepare(`DELETE FROM contenido WHERE coleccion = 'fechas' AND id = ?`).bind(id).run();
+}
+
+/** Las de D1 + las base que falten (así nunca desaparece una categoría base), en orden. */
+export async function listarCategorias(db: D1Database): Promise<Categoria[]> {
+  const guardadas = await listarContenido<Categoria>(db, 'categorias');
+  const faltan = CATEGORIAS_BASE.filter((b) => !guardadas.some((c) => c.id === b.id)).map((b) => ({ ...b, oculta: false }));
+  return [...guardadas, ...faltan].sort((a, b) => a.orden - b.orden || a.label.localeCompare(b.label, 'es'));
+}
+
+export async function guardarCategoria(db: D1Database, c: Categoria) {
+  await contenidoStmt(db, 'categorias', c.id, c).run();
+}
+
+export async function borrarCategoria(db: D1Database, id: string) {
+  await db.prepare(`DELETE FROM contenido WHERE coleccion = 'categorias' AND id = ?`).bind(id).run();
+}
+
+/** Cuántos emprendimientos (en cualquier estado) usan cada categoría. */
+export async function usosCategorias(db: D1Database): Promise<Record<string, number>> {
+  const { results } = await db
+    .prepare(`SELECT json_extract(borrador, '$.categoria') AS id, COUNT(*) AS n FROM emprendedores GROUP BY id`)
+    .all<{ id: string | null; n: number }>();
+  return Object.fromEntries(results.filter((r) => r.id).map((r) => [r.id, r.n]));
 }
 
 // ───────────────────────── Emprendedores ─────────────────────────
@@ -414,16 +517,29 @@ export async function listarRegistros(db: D1Database): Promise<Registro[]> {
  */
 export async function listarPublicos(db: D1Database): Promise<EmprendedorPublico[]> {
   const { results } = await db
-    .prepare(`SELECT slug, publicado FROM emprendedores WHERE estado = 'approved' AND publicado IS NOT NULL`)
-    .all<{ slug: string; publicado: string }>();
+    .prepare(`SELECT slug, publicado, primera_publicacion_at FROM emprendedores WHERE estado = 'approved' AND publicado IS NOT NULL`)
+    .all<{ slug: string; publicado: string; primera_publicacion_at: string | null }>();
+  const corte = new Date(Date.now() - LIMITES.diasNuevo * 24 * 60 * 60 * 1000).toISOString();
   return results
     .map((r) => {
       const e = { ...datosVacios(), ...JSON.parse(r.publicado), slug: r.slug } as EmprendedorPublico;
       // Registros de antes del límite de 3 fotos pueden traer más: la landing muestra solo 3.
-      return { ...e, galeria: e.galeria.slice(0, LIMITES.galeria) };
+      return {
+        ...e,
+        galeria: e.galeria.slice(0, LIMITES.galeria),
+        publicado_desde: r.primera_publicacion_at,
+        nuevo: !!r.primera_publicacion_at && r.primera_publicacion_at >= corte,
+      };
     })
     .filter((e) => e.publicado)
-    .sort((a, b) => Number(b.destacado) - Number(a.destacado) || a.nombre_emprendimiento.localeCompare(b.nombre_emprendimiento, 'es'));
+    // Destacados primero; luego los nuevos (el más reciente arriba) para darles visibilidad.
+    .sort(
+      (a, b) =>
+        Number(b.destacado) - Number(a.destacado) ||
+        Number(b.nuevo) - Number(a.nuevo) ||
+        (a.nuevo && b.nuevo ? (b.publicado_desde ?? '').localeCompare(a.publicado_desde ?? '') : 0) ||
+        a.nombre_emprendimiento.localeCompare(b.nombre_emprendimiento, 'es'),
+    );
 }
 
 export async function guardarBorrador(db: D1Database, slug: string, datos: DatosEmprendimiento) {
@@ -457,11 +573,12 @@ export async function aprobarRegistro(db: D1Database, slug: string, datos: Datos
     .prepare(
       `UPDATE emprendedores
           SET borrador = ?, publicado = ?, borrador_at = ?, publicado_at = ?,
+              primera_publicacion_at = COALESCE(primera_publicacion_at, ?),
               estado = 'approved', motivo_rechazo = '', nota_cambios = '',
               revisado_at = ?, revisado_por = ?
         WHERE slug = ?`,
     )
-    .bind(json, json, t, t, t, revisor, slug)
+    .bind(json, json, t, t, t, t, revisor, slug)
     .run();
   return t;
 }
@@ -497,7 +614,8 @@ export async function marcarCampo(db: D1Database, slug: string, campo: 'destacad
 }
 
 export async function borrarRegistro(db: D1Database, slug: string) {
-  await db.prepare(`DELETE FROM emprendedores WHERE slug = ?`).bind(slug).run();
+  // Los reportes se conservan como historial; las calificaciones se van con el emprendimiento.
+  await db.batch([db.prepare(`DELETE FROM emprendedores WHERE slug = ?`).bind(slug), db.prepare(`DELETE FROM calificaciones WHERE slug = ?`).bind(slug)]);
 }
 
 // ───────────────────────── Nuevos emprendimientos ─────────────────────────
@@ -614,6 +732,126 @@ export async function listarNotificaciones(db: D1Database, limite = 200): Promis
 
 export async function marcarNotificacion(db: D1Database, id: string, enviada: boolean) {
   await db.prepare(`UPDATE notificaciones SET enviada = ? WHERE id = ?`).bind(enviada ? 1 : 0, id).run();
+}
+
+// ───────────────────────── Calificaciones y reportes ─────────────────────────
+// Cualquier visitante califica (sin login) y sale al instante; el comité puede ocultar.
+// Los reportes solo los ve el comité.
+
+interface FilaCalificacion extends Omit<Calificacion, 'oculta'> {
+  oculta: number;
+}
+
+/** Cuántas acciones (calificar o reportar) hizo esta IP desde `desde`. Sirve para frenar ráfagas. */
+export async function contarRecientes(db: D1Database, tabla: 'calificaciones' | 'reportes', ip: string, desde: string) {
+  const r = await db.prepare(`SELECT COUNT(*) AS n FROM ${tabla} WHERE ip = ? AND creado_at >= ?`).bind(ip, desde).first<{ n: number }>();
+  return r?.n ?? 0;
+}
+
+/** Guarda o reemplaza la calificación de este navegador. Devuelve true si ya existía (se actualizó). */
+export async function guardarCalificacion(
+  db: D1Database,
+  c: Pick<Calificacion, 'slug' | 'estrellas' | 'nombre' | 'conjunto' | 'comentario'> & { visitante: string; ip: string },
+) {
+  const previa = await db.prepare(`SELECT id FROM calificaciones WHERE slug = ? AND visitante = ?`).bind(c.slug, c.visitante).first<{ id: string }>();
+  // Al cambiar su calificación se conserva `oculta`: si el comité la ocultó, sigue oculta.
+  await db
+    .prepare(
+      `INSERT INTO calificaciones (id, slug, visitante, ip, estrellas, nombre, conjunto, comentario, creado_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (slug, visitante) DO UPDATE SET
+         ip = excluded.ip, estrellas = excluded.estrellas, nombre = excluded.nombre,
+         conjunto = excluded.conjunto, comentario = excluded.comentario, creado_at = excluded.creado_at`,
+    )
+    .bind(crypto.randomUUID(), c.slug, c.visitante, c.ip, c.estrellas, c.nombre, c.conjunto, c.comentario, ahora())
+    .run();
+  return !!previa;
+}
+
+/** Resumen por emprendimiento para la landing (solo calificaciones visibles). */
+export async function resumenCalificaciones(db: D1Database, soloSlug?: string, porSlug = 6): Promise<Record<string, ResumenCalificaciones>> {
+  const filtro = soloSlug ? 'AND slug = ?' : '';
+  const stmt = db.prepare(`SELECT slug, estrellas, nombre, conjunto, comentario, creado_at FROM calificaciones WHERE oculta = 0 ${filtro} ORDER BY creado_at DESC`);
+  const { results } = await (soloSlug ? stmt.bind(soloSlug) : stmt)
+    .all<Pick<Calificacion, 'slug' | 'estrellas' | 'nombre' | 'conjunto' | 'comentario' | 'creado_at'>>();
+  const out: Record<string, ResumenCalificaciones & { suma: number }> = {};
+  for (const r of results) {
+    const s = (out[r.slug] ??= { promedio: 0, total: 0, suma: 0, resenas: [] });
+    s.total++;
+    s.suma += r.estrellas;
+    if (r.comentario && s.resenas.length < porSlug) {
+      s.resenas.push({ estrellas: r.estrellas, nombre: r.nombre, conjunto: r.conjunto, comentario: r.comentario, creado_at: r.creado_at });
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(out).map(([slug, { suma, ...s }]) => [slug, { ...s, promedio: Math.round((suma / s.total) * 10) / 10 }]),
+  );
+}
+
+export async function listarCalificaciones(db: D1Database, limite = 300): Promise<Calificacion[]> {
+  const { results } = await db
+    .prepare(`SELECT id, slug, estrellas, nombre, conjunto, comentario, creado_at, oculta FROM calificaciones ORDER BY creado_at DESC LIMIT ?`)
+    .bind(limite)
+    .all<FilaCalificacion>();
+  return results.map((c) => ({ ...c, oculta: c.oculta === 1 }));
+}
+
+export async function ocultarCalificacion(db: D1Database, id: string, oculta: boolean) {
+  await db.prepare(`UPDATE calificaciones SET oculta = ? WHERE id = ?`).bind(oculta ? 1 : 0, id).run();
+}
+
+export async function borrarCalificacion(db: D1Database, id: string) {
+  await db.prepare(`DELETE FROM calificaciones WHERE id = ?`).bind(id).run();
+}
+
+const COLS_REPORTE = `id, slug, motivo, detalle, evidencias, creado_at, estado, nota, revisado_at, revisado_por`;
+const aReporte = (f: Omit<Reporte, 'evidencias'> & { evidencias: string }): Reporte => ({ ...f, evidencias: JSON.parse(f.evidencias || '[]') });
+
+export async function crearReporte(
+  db: D1Database,
+  r: Pick<Reporte, 'slug' | 'motivo' | 'detalle' | 'evidencias'> & { visitante: string; ip: string },
+): Promise<Reporte> {
+  const nuevo: Reporte = {
+    id: crypto.randomUUID(),
+    slug: r.slug,
+    motivo: r.motivo,
+    detalle: r.detalle,
+    evidencias: r.evidencias,
+    creado_at: ahora(),
+    estado: 'abierto',
+    nota: '',
+    revisado_at: null,
+    revisado_por: null,
+  };
+  await db
+    .prepare(
+      `INSERT INTO reportes (id, slug, visitante, ip, motivo, detalle, evidencias, creado_at, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'abierto')`,
+    )
+    .bind(nuevo.id, r.slug, r.visitante, r.ip, r.motivo, r.detalle, JSON.stringify(r.evidencias), nuevo.creado_at)
+    .run();
+  return nuevo;
+}
+
+export async function listarReportes(db: D1Database, limite = 300): Promise<Reporte[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT ${COLS_REPORTE} FROM reportes
+        ORDER BY CASE estado WHEN 'abierto' THEN 0 ELSE 1 END, creado_at DESC LIMIT ?`,
+    )
+    .bind(limite)
+    .all<Parameters<typeof aReporte>[0]>();
+  return results.map(aReporte);
+}
+
+export async function revisarReporte(db: D1Database, id: string, estado: EstadoReporte, nota: string, revisor: string) {
+  const t = estado === 'abierto' ? null : ahora();
+  await db
+    .prepare(`UPDATE reportes SET estado = ?, nota = ?, revisado_at = ?, revisado_por = ? WHERE id = ?`)
+    .bind(estado, nota, t, estado === 'abierto' ? null : revisor, id)
+    .run();
+  const f = await db.prepare(`SELECT ${COLS_REPORTE} FROM reportes WHERE id = ?`).bind(id).first<Parameters<typeof aReporte>[0]>();
+  return f ? aReporte(f) : null;
 }
 
 // ───────────────────────── Vistas para panel y comité ─────────────────────────
