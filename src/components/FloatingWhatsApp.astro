@@ -19,4 +19,7 @@ import { MENSAJES, linkWhatsApp } from '../lib/sitio';
   .whatsapp-flotante:hover { transform: scale(1.1); }
   .whatsapp-flotante svg { width: 30px; height: 30px; fill: #fff; }
   @media (max-width: 500px) { .whatsapp-flotante { bottom: 16px; right: 16px; } }
+
+  /* En la plaza: el mismo verde de pedir, con borde de letrero */
+  :global(body.plaza) .whatsapp-flotante { background: var(--pedir); border: 3px solid var(--pedir-oscuro); box-shadow: 0 4px 0 var(--pedir-oscuro), 0 14px 24px -10px rgba(23, 138, 67, .6); }
 </style>

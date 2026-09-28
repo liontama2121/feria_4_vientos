@@ -12,55 +12,40 @@ const { torres, feria } = Astro.props;
 
 <nav class="nav" aria-label="Principal">
   <div class="wrap nav-inner">
-    <a href="/" class="nav-marca">
+    <a href="/" class="nav-marca" aria-label="4 Vientos, inicio">
       <Molinete size={34} />
-      4 Vientos
+      <span>4 Vientos</span>
     </a>
-    <div class="nav-torres">
-      {
-        feria && torres.map((t) => (
-          <a href={`#${t.id}`} class="nav-torre" style={`--t:${t.color_hex};--t-claro:${t.color_claro}`}>
-            <span class="dot" />
-            {t.nombre}
-          </a>
-        ))
-      }
-    </div>
+    {
+      feria && (
+        <div class="nav-conjuntos">
+          {torres.map((t) => (
+            <a href={`#${t.id}`} class="nav-conjunto" data-conjunto={t.id}>
+              {t.nombre}
+            </a>
+          ))}
+        </div>
+      )
+    }
     <div class="nav-acciones">
-      <a href="#directorio" class="nav-dir">Directorio</a>
-      <a href="/admin" class="nav-panel">Panel</a>
+      <a href="#muro" class="nav-link">Puestos</a>
+      <a href="#participar" class="nav-link nav-ocultable">Participar</a>
+      <a href="/admin" class="boton nav-panel">Panel</a>
     </div>
   </div>
 </nav>
 
 <style>
-  .nav {
-    position: sticky; top: 0; z-index: 50;
-    background: rgba(255, 247, 234, .82);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid var(--linea);
-  }
-  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 14px; padding-bottom: 14px; }
-  .nav-marca { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; letter-spacing: -.01em; }
-  .nav-torres { display: flex; gap: 10px; }
-  .nav-torre {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 12px; border-radius: 999px;
-    font-family: var(--display); font-size: 12.5px; font-weight: 700;
-    background: var(--t-claro); color: var(--t);
-    transition: transform .15s ease;
-  }
-  .nav-torre:hover { transform: translateY(-1px); }
-  .nav-torre .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--t); }
-  .nav-panel {
-    font-family: var(--display); font-size: 13px; font-weight: 700;
-    padding: 8px 16px; border-radius: 999px;
-    background: #fff; border: 1px solid var(--linea-fuerte);
-  }
-  .nav-panel:hover { background: var(--crema-alt); }
-  .nav-acciones { display: flex; align-items: center; gap: 8px; }
-  .nav-dir { font-family: var(--display); font-size: 13px; font-weight: 700; padding: 8px 12px; color: var(--tinta-media); }
-  .nav-dir:hover { color: var(--tinta); }
-  @media (max-width: 900px) { .nav-torres { display: none; } }
+  .nav { position: sticky; top: 0; z-index: 50; background: var(--tinta); color: var(--papel); }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; }
+  .nav-marca { display: flex; align-items: center; gap: 10px; white-space: nowrap; font-family: var(--f-letrero); font-size: 28px; line-height: 1; }
+  .nav-conjuntos { display: flex; gap: 6px; }
+  .nav-conjunto { padding: 6px 14px; border-radius: 999px; background: var(--c); color: #fff; font-family: var(--f-letrero); font-size: 17px; }
+  .nav-conjunto:hover { filter: brightness(1.1); }
+  .nav-acciones { display: flex; align-items: center; gap: 4px; }
+  .nav-link { font-family: var(--f-letrero); font-size: 20px; padding: 10px 12px; min-height: 44px; display: inline-flex; align-items: center; }
+  .nav-link:hover { color: var(--mango); }
+  .nav-panel { min-height: 42px; padding: 6px 18px; font-size: 18px; margin-left: 6px; border-color: var(--mango); background: var(--mango); box-shadow: 0 3px 0 #B8860B; }
+  @media (max-width: 1000px) { .nav-conjuntos { display: none; } }
+  @media (max-width: 520px) { .nav-ocultable { display: none; } .nav-marca { font-size: 24px; } }
 </style>

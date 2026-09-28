@@ -9,74 +9,74 @@ interface Props {
 }
 const { torres, feria } = Astro.props;
 const anio = 2026;
+const rumbo = (t: Torre) => t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace(/^./, (c) => c.toUpperCase());
 ---
 
 <footer class="footer">
+  <div class="toldo" style="--t1:var(--mango);--t2:var(--tinta)" aria-hidden="true"></div>
   <div class="wrap">
     <div class="foot-grid">
-      <div class="foot-col">
-        <div class="foot-marca"><Molinete size={36} /> 4 Vientos</div>
-        <p>
-          Feria de emprendimientos de los residentes de los {SITIO.conjunto}. {torres.map((t) => t.nombre).join(', ')} — un espacio recuperado por y para la comunidad.
+      <div>
+        <div class="foot-marca"><Molinete size={40} /> 4 Vientos</div>
+        <p class="foot-texto">
+          Feria de emprendimientos de los residentes de los {SITIO.conjunto}: {torres.map((t) => t.nombre).join(', ')}. Un espacio recuperado por y para la comunidad.
         </p>
       </div>
-      <div class="foot-col">
-        <h5>Los 4 conjuntos</h5>
+      <nav aria-label="Los 4 conjuntos">
+        <h2 class="foot-titulo">Los 4 conjuntos</h2>
         <ul>
           {
             torres.map((t) => (
               <li>
-                <a href={feria ? `/#${t.id}` : '/#directorio'}>
-                  {t.nombre} · {t.rumbo.replace(/^(Torre|Conjunto)\s+/i, '').replace(/^./, (c) => c.toUpperCase())}
+                <a href={feria ? `/#${t.id}` : '/#directorio'} data-conjunto={t.id}>
+                  <span class="punto" aria-hidden="true" />
+                  {t.nombre} · {rumbo(t)}
                 </a>
               </li>
             ))
           }
         </ul>
-      </div>
-      <div class="foot-col">
-        <h5>Contacto</h5>
+      </nav>
+      <nav aria-label="Contacto">
+        <h2 class="foot-titulo">Contacto</h2>
         <ul>
           <li><a href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">WhatsApp del comité</a></li>
           <li><a href={`https://instagram.com/${SITIO.instagram}`} target="_blank" rel="noopener">Instagram @{SITIO.instagram}</a></li>
+          <li><a href="/registro">Registrar mi emprendimiento</a></li>
           <li><a href="/admin">Panel del comité</a></li>
         </ul>
-      </div>
+      </nav>
     </div>
     <div class="foot-bottom">
-      <div>© {anio} Feria 4 Vientos · Con el respaldo de la Alcaldía Local</div>
-      <div class="firma-jc">
-        <span class="hecho">Sitio web hecho con amor por JuanCode</span>
+      <p>© {anio} Feria 4 Vientos · Con el respaldo de la Alcaldía Local</p>
+      <p class="firma-jc">
+        Sitio web hecho con amor por JuanCode
         {
           SITIO.juancodeUrl && (
             <a class="cotiza" href={SITIO.juancodeUrl} target="_blank" rel="noopener">
-              Cotiza tu página web con JuanCode →
+              Cotice su página web
             </a>
           )
         }
-      </div>
+      </p>
     </div>
   </div>
 </footer>
 
 <style>
-  .footer { padding: 60px 0 40px; background: linear-gradient(180deg, var(--crema) 0%, var(--gregal-claro) 100%); border-top: 1px solid var(--linea); }
-  .foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-  @media (max-width: 720px) { .foot-grid { grid-template-columns: 1fr; gap: 28px; } }
-  .foot-marca { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-family: var(--display); font-weight: 800; }
-  .foot-col p, .foot-col a { font-size: 14px; color: var(--tinta-media); }
-  .foot-col a:hover { color: var(--tinta); }
-  .foot-col h5 { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--tinta-suave); margin-bottom: 12px; }
-  .foot-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-  .foot-bottom {
-    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-    padding-top: 24px; border-top: 1px solid var(--linea);
-    font-size: 13.5px; color: var(--tinta-suave); font-weight: 600;
-  }
-  .firma-jc { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-  @media (max-width: 720px) { .firma-jc { align-items: flex-start; } }
-  .cotiza { font-family: var(--display); font-weight: 800; font-size: 13.5px; color: #D946EF; }
-  .cotiza:hover { text-decoration: underline; }
-  .hecho { background: var(--grad-juancode); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
-  @media (max-width: 500px) { .foot-bottom { padding-right: 70px; } }
+  .footer { background: linear-gradient(var(--papel) 0 16px, var(--tinta) 16px); color: #EDEAF5; padding: 0 0 36px; }
+  .footer .toldo { transform: scaleY(-1); margin-bottom: 40px; }
+  .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+  @media (max-width: 800px) { .foot-grid { grid-template-columns: 1fr; gap: 30px; } }
+  .foot-marca { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; font-family: var(--f-letrero); font-size: 32px; line-height: 1; }
+  .foot-texto { font-size: 16px; line-height: 1.55; max-width: 48ch; color: #D6D1E4; }
+  .foot-titulo { font-size: 24px; margin-bottom: 12px; color: var(--mango); }
+  ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  ul a { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; font-size: 16px; font-weight: 600; }
+  ul a:hover { color: var(--mango); text-decoration: underline; }
+  .punto { width: 12px; height: 12px; border-radius: 50%; background: var(--c); flex: 0 0 auto; }
+  .foot-bottom { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid #3E3563; font-size: 14px; color: #D6D1E4; }
+  .firma-jc { display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; color: #fff; }
+  .cotiza { color: var(--mango); text-decoration: underline; }
+  @media (max-width: 600px) { .foot-bottom { padding-right: 76px; } }
 </style>

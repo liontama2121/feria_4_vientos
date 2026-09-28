@@ -19,31 +19,29 @@ Todo en español (es-CO). Sitio web patrocinado por **JuanCode** (solo el sitio,
 - **Patrocinadores**: Alcaldía Local de Fontibón (oficial: espacio y logística, logo real en `public/logos/`), Consejo del Conjunto / Junta directiva (gestión interna), Casa de Cultura Local (aliado cultural). **JuanCode** solo patrocina el sitio web → sección propia + footer "Sitio web hecho con amor por JuanCode".
 - Única fecha cargada: sábado 26 de septiembre de 2026, 9 a.m. a 1 p.m. (vacunación de mascotas y niños, deporte). Debajo de las fechas siempre sale "Pronto vendrán más ferias". Nuevas fechas se agregan en `/admin/comite#fechas`.
 
-## Identidad (fuente de verdad: `video-feria-4-vientos.html`, gana sobre los mockups)
+## Identidad: "la plaza de mercado" (rediseño 2026-09-28; detalle en DESIGN.md)
 
-Tokens en `src/styles/global.css` (`:root`) y `tailwind.config.mjs` (colores nativos `bg-mistral`, `text-austro-claro`, …):
+Todo el sitio (landing, registro, login, panel y comité) usa el mundo plaza: `src/styles/plaza.css`, importado en `Layout.astro`, todo bajo `body.plaza` (el Layout lo pone siempre). `plaza.css` reasigna los tokens viejos de `global.css` (`--crema`, `--mistral`, `--display`, `--serif`…), así `panel.css` y las páginas del panel heredan la plaza sin tocarlos.
 
 ```
---crema #FFF7EA (fondo base)   --tinta #1A1633   --tinta-suave #6B6880   --tinta-media #45405F
---{torre} / --{torre}-claro / --{torre}-medio
---grad-vientos  (mistral→gregal→austro→cierzo)
---grad-juancode linear-gradient(120deg, #06B6D4 0%, #D946EF 55%, #8B5CF6 100%)
-Display: Plus Jakarta Sans 600/700/800 · Serif acento: Instrument Serif itálica · Cuerpo: Manrope 500/600/700
+--papel #FFFDF8  --tinta #20183A  --mango #FFC93C (marca)  --pedir #22B45A (SOLO "Pídalo por WhatsApp")
+Conjuntos: hierbabuena #1E9C8C Mistral · lulo #FF8A1F Gregal · pitahaya #FF3F80 Austro · mora #7B3FE4 Cierzo
+Letreros: Lilita One · Texto: Figtree · Escrito a mano: Caveat Brush (la clase .serif ahora es letra a mano)
 ```
 
 Reglas de diseño que NO se rompen:
-1. **Nada de fondos negros/oscuros.** Base crema.
-2. **Cada conjunto (viento) es su propia sección** con su color pleno y solo muestra los que están en la feria. Los emprendedores NO se mezclan salvo en la vitrina y en el directorio (ahí se busca, no se recorre por viento).
-3. **Vitrina = "Feria · <fecha>"** (carrusel): título con la fecha de la próxima feria; TODOS los que están en la feria, **uno a uno** (una diapositiva grande por emprendimiento con foto, descripción corta + larga, redes y "Ver fotos y contacto"), 4 conjuntos intercalados; autoplay 7 s, pausa al hover/foco, botones circulares, dot activo del color de la torre.
-4. **Itálica serif** solo en palabras clave de títulos: *viento(s)*, *cada viento*, *el terminalito*, *próxima feria*, *todos*… (clase `.serif`).
-5. **JuanCode** es la ÚNICA sección con degradado eléctrico fuerte.
-6. "Con el respaldo de": 3 cards; la destacada (Alcaldía) más grande con acento Cierzo; comunitario → Mistral; cultural → Austro.
-7. Botón flotante WhatsApp `#25D366` en todas las páginas públicas (en el panel se oculta para no tapar la barra de acciones).
-8. Footer: izq. "© 2026 Feria 4 Vientos · Con el respaldo de la Alcaldía Local", der. "Sitio web hecho con amor por JuanCode" con gradiente JuanCode en el texto.
-9. Logo = molinete de 4 aspas (`src/components/Molinete.astro`, `public/favicon.svg`).
-10. **Directorio** (`Directorio.astro`, `#directorio`): todos los aprobados; los **nuevos primero** y luego orden alfabético, buscador sin tildes, chips por categoría con conteo y chip "🎪 Solo en la feria". Las cards de quienes están en la feria llevan la etiqueta 🎪. Arriba de la lista, dos franjas que se esconden al buscar/filtrar: "⭐ Lo mejor calificado" (top `LIMITES.top`, mínimo `LIMITES.minVotosTop` calificaciones) y "🌱 Recién llegados".
-12. **Nuevo**: etiqueta "🌱 Nuevo" en la card durante `LIMITES.diasNuevo` (5) días desde la PRIMERA aprobación (`emprendedores.primera_publicacion_at`, se fija con COALESCE en `aprobarRegistro`; re-aprobar no la renueva). Los nuevos van después de los destacados en la vitrina y primero en el directorio.
-11. **Logo** = molinete + "4 Vientos" (sin "Feria") en menú, footer, hero y panel. El nombre del evento en textos sigue siendo "Feria 4 Vientos".
+1. **Las fotos de los emprendimientos mandan**: siempre grandes y a todo color, nunca filtradas ni en miniatura.
+2. Cada emprendimiento es un **puesto** (`EmprendedorCard`): toldo de rayas del color de su conjunto (`.toldo`), foto 4:3, etiqueta de categoría a mano, nombre en letrero, botón verde "Pídalo por WhatsApp". Nuevos: estrella "¡Recién llegado!" (`.estallido`).
+3. El color de un conjunto va siempre junto a su nombre (nunca solo el color). `[data-conjunto]` pone `--c`.
+4. Tono de "usted", como en la plaza ("¿Qué se le ofrece, vecino?").
+5. Esquinas: puestos y letreros 18px, etiquetas 10px, botones píldora que se hunden al presionar.
+6. **Directorio primero** (`Directorio.astro`, `#directorio`/`#muro`): todos los aprobados, nuevos primero y luego alfabético; buscador (`#dirBuscar`) y etiquetas de categoría viven en el letrero del Hero (`button[data-filtro-cat]`, "Solo los de la feria"). Franjas "Los favoritos del barrio" (top `LIMITES.top`, mínimo `LIMITES.minVotosTop` votos) y "Recién llegados" se esconden al buscar y si repetirían la lista entera.
+7. **Nuevo** = `LIMITES.diasNuevo` (5) días desde la PRIMERA aprobación (`primera_publicacion_at`).
+8. Feria solo con feria activa: índice por conjunto, vitrina "Feria · <fecha>" (carrusel uno a uno, autoplay 7 s) y una sección por conjunto.
+9. Logo = molinete de 4 aspas + "4 Vientos" (`Molinete.astro`, `public/favicon.svg`), intocable. Evento: "Feria 4 Vientos".
+10. Footer: "© 2026 Feria 4 Vientos · Con el respaldo de la Alcaldía Local" y "Sitio web hecho con amor por JuanCode". JuanCode patrocina solo el sitio.
+11. Botón flotante de WhatsApp del comité en páginas públicas (oculto en el panel).
+12. Contexto de producto en `PRODUCT.md`; sistema visual en `DESIGN.md`. Opciones descartadas del rediseño: ramas `feat/rediseno` (muro de volantes) y `feat/rediseno-2` (citófono).
 
 ## Stack y arquitectura
 

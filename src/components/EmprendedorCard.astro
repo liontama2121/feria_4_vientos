@@ -1,166 +1,151 @@
 ---
-import { ICONOS, categoria, dominioWeb, enlacesRedes } from '../lib/constantes';
+// Un emprendimiento = un puesto de la plaza: su toldo de rayas del color de su conjunto, la
+// FOTO grande y a todo color, el letrero con el nombre y el botón para pedir por WhatsApp.
+import { ICONOS, categoria, dominioWeb, enlacesRedes, iniciales } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
   e: EmprendedorPublico;
   torre: Torre;
-  /** En el directorio: muestra la etiqueta 🎪 En la feria. */
+  /** Muestra el letrerito "En la feria". */
   enFeria?: boolean;
 }
 const { e, torre, enFeria = false } = Astro.props;
 const cat = categoria(e.categoria, Astro.locals.categorias);
-const redes = enlacesRedes(e);
+// Instagram, TikTok, Facebook; el WhatsApp es el botón grande.
+const redes = enlacesRedes(e).filter((r) => r.red !== 'whatsapp');
 const calif = e.calificacion;
 const llenas = calif ? Math.round(calif.promedio) : 0;
+const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
+  `Hola ${e.nombre_vecino.split(' ')[0]} 👋 Te vi en la plaza de la Feria 4 Vientos y quiero hacerle un pedido o saber más de ${e.nombre_emprendimiento}.`,
+)}`;
 ---
 
-<article class="emp-card" style={`--t:${torre.color_hex};--t-claro:${torre.color_claro}`}>
-  <div class="emp-foto">
-    {
-      (e.nuevo || enFeria) && (
-        <div class="badges">
-          {e.nuevo && <span class="badge-nuevo">🌱 Nuevo</span>}
-          {enFeria && <span class="badge-feria">🎪 En la feria</span>}
-        </div>
-      )
-    }
+<article class="puesto" data-conjunto={torre.id}>
+  <div class="toldo toldo-puesto" aria-hidden="true"></div>
+  {e.nuevo && <span class="estallido nuevo" aria-label="Recién llegado">¡Recién llegado!</span>}
+
+  <button type="button" class="puesto-foto" data-detalle={e.slug} aria-label={`Ver fotos y detalles de ${e.nombre_emprendimiento}`}>
     {
       e.foto_principal ? (
-        <img src={e.foto_principal} alt={`Foto de ${e.nombre_emprendimiento}`} loading="lazy" decoding="async" />
+        <img src={e.foto_principal} alt="" loading="lazy" decoding="async" />
       ) : (
-        <span class="emoji" aria-hidden="true">{e.emoji_placeholder || cat.emoji}</span>
+        <span class="iniciales" aria-hidden="true">{iniciales(e.nombre_emprendimiento || e.nombre_vecino)}</span>
       )
     }
-  </div>
-  <div class="emp-body">
-    <span class="cat">{cat.emoji} {cat.label}</span>
-    <h3>{e.nombre_emprendimiento}</h3>
-    <div class="by">{e.nombre_vecino}{e.apartamento && ` · Apto ${e.apartamento}`}</div>
+    <span class="etiqueta cat">{cat.label}</span>
+  </button>
+
+  <div class="puesto-cuerpo">
+    {enFeria && <p class="en-feria">En la feria</p>}
+    <h3>
+      <button type="button" data-detalle={e.slug}>{e.nombre_emprendimiento}</button>
+    </h3>
+    <p class="quien">
+      {e.nombre_vecino} · <strong class="conjunto">{torre.nombre}{e.apartamento && ` ${e.apartamento}`}</strong>
+    </p>
+    <p class="desc">{e.descripcion_corta}</p>
+
     <button type="button" class="calif" data-detalle={e.slug} data-ir="calificar">
       {
         calif && calif.total > 0 ? (
-          <>
-            <span class="estrellas" aria-hidden="true">{'★'.repeat(llenas)}<span class="vacias">{'★'.repeat(5 - llenas)}</span></span>
+          <span class="calif-datos">
+            <span class="estrellas" aria-hidden="true">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <svg viewBox="0 0 24 24" class:list={['estrella', { llena: n <= llenas }]}>
+                  <path d="M12 2.8l2.8 6 6.5.7-4.9 4.4 1.4 6.4L12 17l-5.8 3.3 1.4-6.4-4.9-4.4 6.5-.7z" />
+                </svg>
+              ))}
+            </span>
             <strong>{calif.promedio.toFixed(1)}</strong>
-            <span class="n">({calif.total})</span>
+            <span class="cuantos">({calif.total})</span>
             <span class="sr-only-f4v">{`Calificación ${calif.promedio.toFixed(1)} de 5, ${calif.total} ${calif.total === 1 ? 'voto' : 'votos'}. Calificar`}</span>
-          </>
+          </span>
         ) : (
-          <span class="primero">☆ Sé el primero en calificar</span>
+          <span class="primero">Sea el primero en calificar</span>
         )
       }
     </button>
-    <p>{e.descripcion_corta}</p>
-    <div class="emp-foot">
-      <div class="socials">
+
+    <a class="boton boton-pedir pedir" href={wsp} target="_blank" rel="noopener" aria-label={`Pedir por WhatsApp a ${e.nombre_emprendimiento}`}>
+      <svg viewBox="0 0 24 24" class="ico ico-lleno" aria-hidden="true"><path d={ICONOS.whatsapp} /></svg>
+      Pídalo por WhatsApp
+    </a>
+
+    <div class="puesto-pie">
+      <button type="button" class="ver" data-detalle={e.slug}>Ver fotos y más</button>
+      <div class="extras">
+        {redes.map((r) => (
+          <a href={r.url} target="_blank" rel="noopener" aria-label={`${r.label} de ${e.nombre_emprendimiento}`}>
+            <svg viewBox="0 0 24 24" class="ico ico-lleno" aria-hidden="true">
+              <path d={ICONOS[r.red]} />
+            </svg>
+          </a>
+        ))}
         {
-          redes.map((r) => (
-            <a href={r.url} target="_blank" rel="noopener" aria-label={`${r.label} de ${e.nombre_emprendimiento}`}>
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d={ICONOS[r.red]} />
-              </svg>
+          e.pagina_web && (
+            <a class="web" href={e.pagina_web} target="_blank" rel="noopener" title={dominioWeb(e.pagina_web)}>
+              Página web
             </a>
-          ))
+          )
         }
       </div>
-      <button type="button" class="emp-cta" data-detalle={e.slug}>Ver más</button>
     </div>
-    {
-      e.pagina_web && (
-        <a class="emp-web" href={e.pagina_web} target="_blank" rel="noopener" aria-label={`Entrar a la página web de ${e.nombre_emprendimiento}`}>
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d={ICONOS.web} />
-          </svg>
-          <span>
-            Entra aquí <small>{dominioWeb(e.pagina_web)}</small>
-          </span>
-          <span aria-hidden="true">→</span>
-        </a>
-      )
-    }
   </div>
 </article>
 
 <style>
-  .emp-card {
-    background: #fff;
-    border-radius: var(--radio);
-    overflow: hidden;
-    display: grid; grid-template-columns: 150px 1fr;
-    box-shadow: 0 8px 22px rgba(26, 22, 51, .06);
-    transition: transform .25s ease, box-shadow .25s ease;
+  .puesto {
+    position: relative; display: flex; flex-direction: column;
+    background: var(--papel); border-radius: var(--r-puesto);
+    box-shadow: var(--sombra);
+    transition: transform .35s var(--ease), box-shadow .35s var(--ease);
   }
-  .emp-card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(26, 22, 51, .12); }
-  @media (max-width: 500px) { .emp-card { grid-template-columns: 1fr; } }
+  .puesto:hover { transform: translateY(-5px); box-shadow: var(--sombra-alta); }
+  .toldo-puesto {
+    --t1: var(--c); --ancho: 30px; --feston: 12px; height: 44px;
+    border-radius: var(--r-puesto) var(--r-puesto) 0 0;
+    transform-origin: top;
+    transition: transform .5s var(--ease);
+  }
+  @media (prefers-reduced-motion: no-preference) { .puesto:hover .toldo-puesto { transform: scaleY(1.12); } }
+  .nuevo { position: absolute; top: 18px; right: -12px; z-index: 3; transform: rotate(12deg); }
 
-  .emp-foto {
-    position: relative; min-height: 170px;
-    display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(140deg, color-mix(in srgb, var(--t) 45%, var(--t-claro)), var(--t-claro));
+  .puesto-foto {
+    position: relative; display: block; margin: -6px 12px 0; padding: 0; border: 0; cursor: pointer;
+    aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden;
+    background: var(--c);
   }
-  .emp-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .emp-foto::after {
-    content: ''; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(160deg, transparent 55%, color-mix(in srgb, var(--t) 30%, transparent));
-  }
-  .emoji { font-size: 64px; }
-  .badges { position: absolute; top: 10px; left: 10px; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-  .badge-feria, .badge-nuevo {
-    padding: 4px 10px; border-radius: 999px;
-    background: #fff; color: var(--t);
-    font-family: var(--display); font-size: 11px; font-weight: 800;
-    box-shadow: 0 4px 12px rgba(26, 22, 51, .15);
-  }
-  .badge-nuevo { background: var(--mistral); color: #fff; }
-  @media (max-width: 500px) { .emp-foto { min-height: 200px; } }
+  .puesto-foto img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s var(--ease); }
+  .puesto-foto:hover img { transform: scale(1.05); }
+  .iniciales { display: grid; place-items: center; width: 100%; height: 100%; font-family: var(--f-letrero); font-size: 96px; color: #fff; }
+  .cat { position: absolute; left: 10px; bottom: 10px; transform: rotate(-3deg); font-size: 21px; }
 
-  .emp-body { padding: 22px; display: flex; flex-direction: column; }
-  .cat {
-    font-family: var(--display); font-size: 10.5px; font-weight: 800; letter-spacing: .18em;
-    text-transform: uppercase; color: var(--t); margin-bottom: 8px;
-  }
-  h3 { font-size: 21px; margin-bottom: 3px; }
-  .by { font-size: 12.5px; color: var(--tinta-suave); margin-bottom: 8px; font-weight: 600; }
-  .calif {
-    align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
-    margin-bottom: 12px; padding: 0; border: none; background: none;
-    font-size: 13px; font-weight: 700; color: var(--tinta-media); cursor: pointer;
-  }
-  .calif .estrellas { color: #F5A524; letter-spacing: 1px; font-size: 14px; }
-  .calif .vacias { color: var(--linea-fuerte); }
-  .calif strong { color: var(--tinta); }
-  .calif .n { color: var(--tinta-suave); font-weight: 600; }
-  .calif .primero { color: var(--t); font-size: 12.5px; }
+  .puesto-cuerpo { padding: 16px 18px 18px; display: flex; flex-direction: column; flex: 1; }
+  .en-feria { align-self: flex-start; margin-bottom: 8px; padding: 3px 12px; border-radius: 999px; background: var(--pitahaya); color: #fff; font-family: var(--f-letrero); font-size: 16px; }
+  h3 { font-size: clamp(28px, 2.6vw, 34px); margin-bottom: 6px; }
+  h3 button { all: unset; cursor: pointer; overflow-wrap: anywhere; }
+  h3 button:hover { text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--c); }
+  h3 button:focus-visible { outline: 3px solid var(--tinta); outline-offset: 3px; border-radius: 6px; }
+  .quien { font-size: 15.5px; font-weight: 600; color: var(--tinta-suave); margin-bottom: 10px; }
+  .conjunto { color: var(--c); font-weight: 800; filter: brightness(.82); }
+  .desc { font-size: 16px; line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+  .calif { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; font-weight: 700; margin-bottom: 12px; }
+  .estrellas { display: inline-flex; gap: 1px; }
+  .estrella { width: 19px; height: 19px; fill: none; stroke: #E0A800; stroke-width: 1.8; }
+  .estrella.llena { fill: var(--mango); }
+  .calif strong { font-family: var(--f-letrero); font-size: 20px; font-weight: 400; }
+  .cuantos { font-size: 14px; color: var(--tinta-suave); }
+  .primero { font-family: var(--f-mano); font-size: 21px; color: var(--tinta-suave); }
   .calif:hover .primero, .calif:hover strong { text-decoration: underline; }
-  p { font-size: 14px; color: var(--tinta-media); margin-bottom: 16px; flex: 1; }
-  .emp-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .socials { display: flex; gap: 6px; }
-  .socials a {
-    width: 32px; height: 32px; border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: var(--t-claro); color: var(--t);
-    transition: transform .15s ease;
-  }
-  .socials a:hover { transform: translateY(-2px); }
-  .socials svg { width: 14px; height: 14px; }
-  .emp-cta {
-    font-family: var(--display); font-size: 12.5px; font-weight: 700;
-    padding: 9px 16px; border-radius: 999px; border: none;
-    background: var(--t); color: #fff;
-    transition: transform .15s ease;
-  }
-  .emp-cta:hover { transform: translateY(-1px); }
-  .emp-web {
-    display: flex; align-items: center; gap: 12px;
-    margin-top: 16px; padding: 14px 18px; border-radius: 16px;
-    background: var(--t); color: #fff;
-    font-family: var(--display); font-weight: 800; font-size: 16px;
-    box-shadow: 0 10px 24px color-mix(in srgb, var(--t) 35%, transparent);
-    transition: transform .15s ease, box-shadow .15s ease;
-  }
-  .emp-web:hover { transform: translateY(-2px); box-shadow: 0 14px 30px color-mix(in srgb, var(--t) 45%, transparent); }
-  .emp-web svg { width: 22px; height: 22px; flex: 0 0 auto; }
-  .emp-web span:first-of-type { flex: 1; display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
-  .emp-web small { font-family: var(--body); font-weight: 600; font-size: 12px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .pedir { width: 100%; margin-top: auto; }
+  .puesto-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .ver { border: 0; background: none; padding: 8px 0; min-height: 40px; cursor: pointer; font-weight: 800; font-size: 15.5px; color: var(--tinta); text-decoration: underline; text-decoration-thickness: 2px; text-decoration-color: var(--c); }
+  .extras { display: flex; align-items: center; gap: 2px; }
+  .extras a { min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; color: var(--tinta); }
+  .extras a:hover { background: color-mix(in srgb, var(--c) 18%, transparent); }
+  .extras .ico { width: 20px; height: 20px; }
+  .web { padding: 0 10px; font-weight: 800; font-size: 14.5px; text-decoration: underline; }
 </style>

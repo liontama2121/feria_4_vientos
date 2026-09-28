@@ -1,5 +1,7 @@
 ---
 import '../styles/global.css';
+// Mundo 'plaza de mercado' en TODO el sitio (landing, registro, login, panel y comité).
+import '../styles/plaza.css';
 import FloatingWhatsApp from '../components/FloatingWhatsApp.astro';
 import { SITIO } from '../lib/sitio';
 
@@ -37,7 +39,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url).toString(
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#FFF7EA" />
+    <meta name="theme-color" content="#FFC93C" />
     {noindex ? <meta name="robots" content="noindex, nofollow" /> : <link rel="canonical" href={canonical} />}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
@@ -59,12 +61,9 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url).toString(
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Instrument+Serif:ital@1&family=Manrope:wght@500;600;700&display=swap"
-    />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Figtree:wght@400;500;600;700;800&family=Caveat+Brush&display=swap" />
   </head>
-  <body class={bodyClass} data-torre={torre}>
+  <body class:list={[bodyClass, "plaza"]} data-torre={torre}>
     <slot />
     {whatsapp && <FloatingWhatsApp />}
   </body>

@@ -1,0 +1,249 @@
+/* ══════════════════════════════════════════════════════════════
+   Mundo "plaza de mercado" de la landing pública (/ y /e/<slug>).
+   Todo vive bajo body.plaza: el panel y el registro siguen con los
+   tokens de global.css. Colores de fruta, toldos de rayas, letreros
+   pintados a mano, etiquetas escritas en cartulina. Las fotos de los
+   emprendimientos van SIEMPRE grandes y a todo color.
+   Esquinas: puestos y letreros 18px · etiquetas 10px · botones píldora.
+   ══════════════════════════════════════════════════════════════ */
+
+body.plaza {
+  --papel: #FFFDF8;
+  --tinta: #20183A;
+  --tinta-suave: #4B4463;
+  --mango: #FFC93C;       /* marca: toldo principal, hero */
+  --mango-claro: #FFE7A3;
+  --hierbabuena: #1E9C8C; /* Mistral */
+  --lulo: #FF8A1F;        /* Gregal */
+  --pitahaya: #FF3F80;    /* Austro */
+  --mora: #7B3FE4;        /* Cierzo */
+  --pedir: #22B45A;       /* SOLO para pedir por WhatsApp */
+  --pedir-oscuro: #178A43;
+
+  --f-letrero: 'Lilita One', 'Arial Rounded MT Bold', sans-serif;
+  --f-texto: 'Figtree', 'Segoe UI', sans-serif;
+  --f-mano: 'Caveat Brush', 'Comic Sans MS', cursive;
+
+  --r-puesto: 18px;
+  --r-etiqueta: 10px;
+  --sombra: 0 2px 0 rgba(32, 24, 58, .06), 0 16px 30px -16px rgba(32, 24, 58, .45);
+  --sombra-alta: 0 2px 0 rgba(32, 24, 58, .08), 0 26px 40px -18px rgba(32, 24, 58, .55);
+  --ease: cubic-bezier(.16, 1, .3, 1);
+
+  font-family: var(--f-texto);
+  font-weight: 500;
+  background: var(--papel);
+  color: var(--tinta);
+  line-height: 1.55;
+}
+
+body.plaza h1, body.plaza h2, body.plaza h3, body.plaza h4, body.plaza h5 {
+  font-family: var(--f-letrero);
+  font-weight: 400;
+  letter-spacing: .005em;
+  line-height: 1;
+  color: inherit;
+  text-wrap: balance;
+}
+
+/* Superficies del navegador */
+body.plaza ::selection { background: var(--mango); color: var(--tinta); }
+body.plaza { caret-color: var(--pitahaya); accent-color: var(--pitahaya); scrollbar-color: var(--tinta-suave) #F1EDE3; }
+body.plaza :focus-visible { outline: 3px solid var(--tinta); outline-offset: 3px; box-shadow: 0 0 0 7px var(--mango); border-radius: 8px; }
+body.plaza a { text-underline-offset: .2em; }
+
+body.plaza .wrap { max-width: 1280px; padding: 0 24px; }
+@media (max-width: 600px) { body.plaza .wrap { padding: 0 16px; } }
+
+/* Color por conjunto, siempre junto a su nombre */
+[data-conjunto='mistral'] { --c: var(--hierbabuena); }
+[data-conjunto='gregal'] { --c: var(--lulo); }
+[data-conjunto='austro'] { --c: var(--pitahaya); }
+[data-conjunto='cierzo'] { --c: var(--mora); }
+
+/* ── Toldo de rayas con borde festoneado ── */
+.toldo {
+  --t1: var(--c, var(--pitahaya));
+  --t2: #FFFFFF;
+  --ancho: 44px;
+  --feston: 16px;
+  height: 64px;
+  background: repeating-linear-gradient(90deg, var(--t1) 0 var(--ancho), var(--t2) var(--ancho) calc(var(--ancho) * 2));
+  -webkit-mask: radial-gradient(circle at calc(var(--ancho) / 2) 0, #000 calc(var(--ancho) / 2), transparent calc(var(--ancho) / 2 + .5px)) bottom left / var(--ancho) var(--feston) repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - var(--feston)) no-repeat;
+  mask: radial-gradient(circle at calc(var(--ancho) / 2) 0, #000 calc(var(--ancho) / 2), transparent calc(var(--ancho) / 2 + .5px)) bottom left / var(--ancho) var(--feston) repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - var(--feston)) no-repeat;
+}
+
+/* ── Letrero pintado ── */
+.letrero {
+  background: var(--papel);
+  color: var(--tinta);
+  border: 4px solid var(--tinta);
+  border-radius: var(--r-puesto);
+  box-shadow: var(--sombra);
+}
+
+/* ── Etiqueta de cartulina escrita a mano ── */
+.etiqueta {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px 6px 22px;
+  font-family: var(--f-mano); font-size: 22px; line-height: 1;
+  background: var(--papel); color: var(--tinta);
+  border-radius: var(--r-etiqueta);
+  box-shadow: 0 1px 0 rgba(32, 24, 58, .1), 0 8px 14px -8px rgba(32, 24, 58, .45);
+}
+.etiqueta::before { content: ''; position: absolute; left: 8px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: rgba(32, 24, 58, .55); box-shadow: inset 0 1px 1px rgba(0, 0, 0, .4); }
+
+/* ── Botones ── */
+.boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 50px; padding: 10px 24px;
+  font-family: var(--f-letrero); font-size: 20px; line-height: 1;
+  color: var(--tinta); background: var(--papel);
+  border: 3px solid var(--tinta); border-radius: 999px;
+  box-shadow: 0 4px 0 var(--tinta);
+  transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
+  cursor: pointer; white-space: nowrap;
+}
+.boton:hover { background: var(--mango-claro); }
+.boton:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--tinta); }
+.boton-tinta { background: var(--tinta); color: var(--papel); }
+.boton-tinta:hover { background: #33295A; }
+.boton-pedir { background: var(--pedir); color: #fff; border-color: var(--pedir-oscuro); box-shadow: 0 4px 0 var(--pedir-oscuro); }
+.boton-pedir:hover { background: #26C263; }
+.boton-pedir:active { box-shadow: 0 1px 0 var(--pedir-oscuro); }
+.boton svg { width: 22px; height: 22px; flex: 0 0 auto; }
+
+/* Íconos trazados, un solo grosor */
+.ico { width: 1.1em; height: 1.1em; flex: 0 0 auto; stroke: currentColor; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ico-lleno { fill: currentColor; stroke: none; }
+
+/* Estrella de oferta: "¡Recién llegado!" */
+.estallido {
+  display: inline-grid; place-items: center; text-align: center;
+  width: 96px; height: 96px; padding: 14px;
+  font-family: var(--f-letrero); font-size: 17px; line-height: .95;
+  color: var(--tinta); background: var(--mango);
+  -webkit-mask: url('/plaza/estallido.svg') center / contain no-repeat;
+  mask: url('/plaza/estallido.svg') center / contain no-repeat;
+}
+
+/* Entrada: los puestos se abren al cargar, una sola vez */
+@media (prefers-reduced-motion: no-preference) {
+  .abrir { animation: abrir .7s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 60ms); }
+  @keyframes abrir { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Paneles, registro y login: heredan la plaza reasignando los
+   tokens de global.css (panel.css y las páginas los usan).
+   ══════════════════════════════════════════════════════════════ */
+body.plaza {
+  --crema: var(--papel);
+  --crema-alt: #FFF3D6;
+  --tinta-media: #3C3456;
+  --linea: rgba(32, 24, 58, .1);
+  --linea-fuerte: rgba(32, 24, 58, .24);
+
+  --mistral: var(--hierbabuena); --mistral-claro: #C9F0E8; --mistral-medio: #7FD6C8;
+  --gregal: var(--lulo);         --gregal-claro: #FFE2C4;  --gregal-medio: #FFB877;
+  --austro: var(--pitahaya);     --austro-claro: #FFD6E4;  --austro-medio: #FF93B7;
+  --cierzo: var(--mora);         --cierzo-claro: #E6DAFF;  --cierzo-medio: #B394F2;
+  --whatsapp: var(--pedir);
+  --grad-vientos: linear-gradient(90deg, var(--hierbabuena), var(--lulo), var(--pitahaya), var(--mora));
+
+  --display: var(--f-letrero);
+  --body: var(--f-texto);
+  --serif: var(--f-mano);
+  --radio: var(--r-puesto);
+  --radio-sm: 12px;
+
+  /* Lilita tiene un solo peso: nada de negritas falsas */
+  font-synthesis: none;
+}
+/* Texto sobre el color del conjunto: tinta en los claros, blanco en los oscuros */
+body.plaza { --torre-texto: #fff; }
+body.plaza[data-torre='gregal'], body.plaza[data-torre='austro'] { --torre-texto: var(--tinta); }
+
+/* Las palabras clave en "serif" pasan a ser letra escrita a mano */
+body.plaza .serif { font-style: normal; font-weight: 400; letter-spacing: 0; }
+
+/* Botones de global.css / panel.css: píldoras de letrero que se hunden al presionar */
+body.plaza .btn {
+  font-family: var(--f-letrero); font-weight: 400; letter-spacing: .01em;
+  border: 2.5px solid var(--tinta); border-radius: 999px;
+  box-shadow: 0 3px 0 var(--tinta);
+  transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
+}
+body.plaza .btn:hover { transform: none; }
+body.plaza .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--tinta); }
+body.plaza .btn-primary { background: var(--torre, var(--tinta)); color: var(--torre-texto, #fff); }
+body.plaza:not([data-torre]) .btn-primary, body.plaza.comite .btn-primary { background: var(--tinta); color: var(--papel); }
+body.plaza .btn-ghost { background: var(--papel); color: var(--tinta); }
+body.plaza .btn-ghost:hover { background: var(--mango-claro); }
+body.plaza .btn-wsp { background: var(--pedir); color: #fff; border-color: var(--pedir-oscuro); box-shadow: 0 3px 0 var(--pedir-oscuro); }
+body.plaza .btn-peligro { background: var(--papel); color: #B42318; border-color: #B42318; box-shadow: 0 3px 0 #B42318; }
+
+/* ── Panel del vecino y del comité ── */
+body.plaza.panel::before { display: none; }
+body.plaza .topbar {
+  background: var(--tinta); color: var(--papel);
+  backdrop-filter: none; -webkit-backdrop-filter: none; border-bottom: 0;
+}
+/* Toldo del color del conjunto bajo la barra */
+body.plaza .topbar::after {
+  content: ''; display: block; height: 30px;
+  background: repeating-linear-gradient(90deg, var(--torre, var(--pitahaya)) 0 32px, #fff 32px 64px);
+  -webkit-mask: radial-gradient(circle at 16px 0, #000 16px, transparent 16.5px) bottom left / 32px 12px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 12px) no-repeat;
+  mask: radial-gradient(circle at 16px 0, #000 16px, transparent 16.5px) bottom left / 32px 12px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 12px) no-repeat;
+  transition: background .3s ease;
+}
+body.plaza .brand { font-size: 22px; font-weight: 400; }
+body.plaza .brand span { color: var(--mango); font-family: var(--f-mano); font-size: 22px; }
+body.plaza .user-chip { background: var(--papel); border: 0; color: var(--tinta); }
+body.plaza .user-chip .avatar { background: var(--torre); color: var(--torre-texto, #fff); font-weight: 400; }
+body.plaza .top-btn { background: transparent; border: 2px solid rgba(255, 253, 248, .5); color: var(--papel); font-family: var(--f-letrero); font-weight: 400; font-size: 15px; }
+body.plaza .top-btn:hover { background: var(--mango); border-color: var(--mango); color: var(--tinta); }
+
+body.plaza .sidebar-card, body.plaza .card {
+  background: var(--papel);
+  border: 2px solid var(--tinta);
+  box-shadow: 0 2px 0 rgba(32, 24, 58, .08), 0 14px 26px -18px rgba(32, 24, 58, .5);
+}
+body.plaza .sidebar-title { font-family: var(--f-mano); font-size: 22px; letter-spacing: 0; font-weight: 400; color: var(--tinta); }
+body.plaza .sidebar-nav a { font-weight: 700; color: var(--tinta); }
+body.plaza .sidebar-nav a:hover { background: var(--mango-claro); }
+body.plaza .sidebar-nav a.active { background: var(--torre); color: var(--torre-texto, #fff); }
+body.plaza .sidebar-nav a.active .badge { background: var(--papel); color: var(--tinta); }
+body.plaza .sidebar-help { background: var(--mango); border: 2px solid var(--tinta); }
+body.plaza .sidebar-help h4 { color: var(--tinta); }
+body.plaza .sidebar-help .wsp { background: var(--pedir); color: #fff; border-color: var(--pedir-oscuro); }
+
+body.plaza .title-eyebrow { font-family: var(--f-mano); font-size: 24px; letter-spacing: 0; font-weight: 400; margin-bottom: 2px; }
+body.plaza .page-head h1 { font-size: 40px; letter-spacing: 0; }
+body.plaza .card-head h2 { font-size: 26px; }
+body.plaza .card-head .step { background: var(--torre); color: var(--torre-texto, #fff); font-weight: 400; font-size: 18px; }
+
+body.plaza .field > label, body.plaza .field .label { font-family: var(--f-texto); font-weight: 800; font-size: 13.5px; color: var(--tinta); }
+body.plaza .field input, body.plaza .field select, body.plaza .field textarea, body.plaza .input-prefix { border: 2px solid var(--tinta); }
+body.plaza .field .input-prefix input { border: 0; }
+body.plaza .chip { font-family: var(--f-texto); font-weight: 700; border: 2px solid var(--tinta); }
+body.plaza .chip[aria-checked='true'] { background: var(--torre); color: var(--torre-texto, #fff); border-color: var(--tinta); }
+body.plaza .torre-opt { border: 2px solid var(--tinta); }
+body.plaza .torre-opt .n { font-weight: 400; font-size: 19px; }
+body.plaza .estado { border: 2px solid var(--tinta); border-radius: 14px; }
+
+/* ── Registro, login, gracias y "sin acceso": la entrada de la plaza ── */
+body.plaza .sin-acceso {
+  min-height: 100dvh; align-content: start; padding: 110px 16px 48px;
+  background: var(--mango);
+}
+/* Toldo grande arriba, como en la portada */
+body.plaza .sin-acceso::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 70px;
+  background: repeating-linear-gradient(90deg, var(--pitahaya) 0 56px, #fff 56px 112px);
+  -webkit-mask: radial-gradient(circle at 28px 0, #000 28px, transparent 28.5px) bottom left / 56px 20px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 20px) no-repeat;
+  mask: radial-gradient(circle at 28px 0, #000 28px, transparent 28.5px) bottom left / 56px 20px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 20px) no-repeat;
+}
+body.plaza .sin-acceso .card { border: 4px solid var(--tinta); box-shadow: 0 2px 0 rgba(32, 24, 58, .08), 0 26px 40px -18px rgba(32, 24, 58, .55); }
+body.plaza .sin-acceso h1 { font-size: 40px; }

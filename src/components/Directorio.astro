@@ -1,8 +1,7 @@
 ---
-// Directorio: TODOS los emprendimientos aprobados, estén o no en la feria, para buscar por
-// nombre o filtrar por categoría (comida, servicios, oficios…). Es la segunda excepción a
-// "los conjuntos no se mezclan" (la otra es la vitrina): aquí se busca, no se recorre por viento.
-// El filtro corre en el navegador sobre las cards ya renderizadas (sin llamadas al servidor).
+// Directorio = los puestos de la plaza: TODOS los aprobados, estén o no en la feria.
+// El buscador (#dirBuscar) y las etiquetas de categoría viven en el letrero del Hero.
+// El filtro corre en el navegador sobre los puestos ya renderizados.
 import EmprendedorCard from './EmprendedorCard.astro';
 import { LIMITES, categoria } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
@@ -32,136 +31,98 @@ const mejores = lista
   .filter((e) => (e.calificacion?.total ?? 0) >= LIMITES.minVotosTop)
   .sort((a, b) => b.calificacion!.promedio - a.calificacion!.promedio || b.calificacion!.total - a.calificacion!.total)
   .slice(0, LIMITES.top);
+// Si TODOS son nuevos (o todos entran al top), la franja repetiría la lista entera: no se muestra.
 const nuevos = lista.filter((e) => e.nuevo);
-// Chips por la categoría que se VE (un id desconocido cuenta como "Otros"), solo las que tienen emprendimientos.
+if (nuevos.length >= lista.length) nuevos.length = 0;
+if (mejores.length >= lista.length) mejores.length = 0;
 const catDe = (id: string) => categoria(id, Astro.locals.categorias);
-const categorias = Astro.locals.categorias
-  .map((c) => ({ ...c, n: lista.filter((e) => catDe(e.categoria).id === c.id).length }))
-  .filter((c) => c.n > 0);
-const hayFeria = lista.some((e) => e.en_feria);
 ---
 
-{
-  lista.length > 0 && (
-    <section class="directorio" id="directorio">
-      <div class="wrap">
-        <div class="dir-head">
-          <span class="kicker">Directorio · todos los emprendimientos</span>
-          <h2>
-            Encuentra lo que necesitas entre <span class="serif">todos</span>.
-          </h2>
-          <p>Comida, servicios, oficios, belleza… Busca por nombre o elige una categoría.{hayFeria && ' Los que llevan 🎪 estarán en la feria.'}</p>
-        </div>
-
-        <div class="dir-controles">
-          <label class="buscador">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-            <span class="sr-only-f4v">Buscar emprendimiento</span>
-            <input type="search" id="dirBuscar" placeholder="Ej: arepas, plomero, uñas, yoga…" autocomplete="off" />
-          </label>
-
-          <div class="chips" role="group" aria-label="Filtrar por categoría">
-            <button type="button" class="chip" data-cat="" aria-pressed="true">
-              Todas <span class="n">{lista.length}</span>
-            </button>
-            {
-              categorias.map((c) => (
-                <button type="button" class="chip" data-cat={c.id} aria-pressed="false">
-                  {c.emoji} {c.label} <span class="n">{c.n}</span>
-                </button>
-              ))
-            }
-            {
-              hayFeria && (
-                <button type="button" class="chip chip-feria" id="dirSoloFeria" aria-pressed="false">
-                  🎪 Solo en la feria
-                </button>
-              )
-            }
-          </div>
-        </div>
-
-        {
-          (mejores.length > 0 || nuevos.length > 0) && (
-            <div class="dir-resaltados" id="dirResaltados">
+<section class="directorio" id="directorio" aria-labelledby="dir-titulo">
+  <div class="wrap">
+    {
+      lista.length > 0 && (
+        <>
+          {(mejores.length > 0 || nuevos.length > 0) && (
+            <div class="resaltados" id="dirResaltados">
               {mejores.length > 0 && (
-                <div class="franja franja-top">
-                  <div class="franja-head">
-                    <h3>⭐ Lo mejor <span class="serif">calificado</span></h3>
-                    <p>Lo que más recomiendan los vecinos.</p>
-                  </div>
-                  <div class="dir-grid">
+                <div class="franja">
+                  <h2 class="franja-titulo">Los favoritos del barrio</h2>
+                  <p class="franja-bajada">Lo que mejor califican los vecinos.</p>
+                  <div class="lista">
                     {mejores.map((e) => (
-                      <div class="dir-item">
-                        <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
-                      </div>
+                      <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
                     ))}
                   </div>
                 </div>
               )}
               {nuevos.length > 0 && (
-                <div class="franja franja-nuevos">
-                  <div class="franja-head">
-                    <h3>🌱 Recién <span class="serif">llegados</span></h3>
-                    <p>Vecinos que acaban de abrir su emprendimiento. ¡Dales una oportunidad!</p>
-                  </div>
-                  <div class="dir-grid">
+                <div class="franja">
+                  <h2 class="franja-titulo">Recién llegados</h2>
+                  <p class="franja-bajada">Vecinos que acaban de abrir su emprendimiento. Dales una oportunidad.</p>
+                  <div class="lista">
                     {nuevos.map((e) => (
-                      <div class="dir-item">
-                        <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
-                      </div>
+                      <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
                     ))}
                   </div>
                 </div>
               )}
-              <h3 class="todos-titulo">Todos los emprendimientos</h3>
             </div>
-          )
-        }
+          )}
 
-        <p class="dir-conteo" id="dirConteo" aria-live="polite">
-          {`${lista.length} ${lista.length === 1 ? 'emprendimiento' : 'emprendimientos'}`}
-        </p>
+          <div class="dir-head" id="muro">
+            <h2 id="dir-titulo">Todos los puestos</h2>
+            <p class="dir-conteo etiqueta" id="dirConteo" aria-live="polite">
+              {`${lista.length} ${lista.length === 1 ? 'emprendimiento' : 'emprendimientos'}`}
+            </p>
+          </div>
 
-        <div class="dir-grid dir-grid-todos">
-          {
-            lista.map((e) => {
+          <div class="lista dir-grid-todos">
+            {lista.map((e) => {
               const t = torreDe(e.torre);
               const cat = catDe(e.categoria);
               const texto = normalizar(
-                [e.nombre_emprendimiento, e.nombre_vecino, e.descripcion_corta, e.descripcion_larga, cat?.label ?? '', t.nombre, e.instagram].join(' '),
+                [e.nombre_emprendimiento, e.nombre_vecino, e.descripcion_corta, e.descripcion_larga, cat.label, t.nombre, e.instagram].join(' '),
               );
               return (
                 <div class="dir-item" data-cat={cat.id} data-feria={e.en_feria ? '1' : '0'} data-texto={texto}>
                   <EmprendedorCard e={e} torre={t} enFeria={e.en_feria} />
                 </div>
               );
-            })
-          }
-        </div>
+            })}
+          </div>
 
-        <div class="dir-vacio" id="dirVacio" hidden>
-          <span aria-hidden="true">🔎</span>
-          <p>No encontramos emprendimientos con esa búsqueda. Prueba con otra palabra o elige “Todas”.</p>
+          <div class="vacio letrero" id="dirVacio" hidden>
+            <p class="vacio-titulo">No encontramos eso</p>
+            <p>Pruebe con otra palabra o toque “Todo” en las etiquetas.</p>
+          </div>
+        </>
+      )
+    }
+
+    {
+      lista.length === 0 && (
+        <div class="vacio letrero">
+          <p class="vacio-titulo">La plaza está esperando su primer puesto</p>
+          <p>
+            ¿Tiene un emprendimiento? <a href="#participar">Ponga su puesto</a>.
+          </p>
         </div>
-      </div>
-    </section>
-  )
-}
+      )
+    }
+  </div>
+</section>
 
 <script>
   const seccion = document.getElementById('directorio');
   if (seccion) {
-    const buscar = document.getElementById('dirBuscar') as HTMLInputElement;
+    const buscar = document.getElementById('dirBuscar') as HTMLInputElement | null;
     const soloFeria = document.getElementById('dirSoloFeria');
-    const chips = Array.from(seccion.querySelectorAll<HTMLButtonElement>('.chip[data-cat]'));
+    const teclas = Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-filtro-cat]'));
     const items = Array.from(seccion.querySelectorAll<HTMLElement>('.dir-grid-todos .dir-item'));
     const resaltados = document.getElementById('dirResaltados');
-    const conteo = document.getElementById('dirConteo')!;
-    const vacio = document.getElementById('dirVacio')!;
+    const conteo = document.getElementById('dirConteo');
+    const vacio = document.getElementById('dirVacio');
     let categoria = '';
     const normalizar = (s: string) =>
       s
@@ -171,7 +132,7 @@ const hayFeria = lista.some((e) => e.en_feria);
         .trim();
 
     function filtrar() {
-      const palabras = normalizar(buscar.value).split(/\s+/).filter(Boolean);
+      const palabras = normalizar(buscar?.value ?? '').split(/\s+/).filter(Boolean);
       const feria = soloFeria?.getAttribute('aria-pressed') === 'true';
       let n = 0;
       for (const it of items) {
@@ -182,78 +143,48 @@ const hayFeria = lista.some((e) => e.en_feria);
         it.hidden = !ok;
         if (ok) n++;
       }
-      conteo.textContent = `${n} ${n === 1 ? 'emprendimiento' : 'emprendimientos'}`;
-      vacio.hidden = n > 0;
+      if (conteo) conteo.textContent = `${n} ${n === 1 ? 'emprendimiento' : 'emprendimientos'}`;
+      if (vacio) vacio.hidden = n > 0;
       // Al buscar o filtrar, las franjas estorban: solo se ve el resultado.
       if (resaltados) resaltados.hidden = !!(palabras.length || categoria || feria);
     }
+    const bajar = () => document.getElementById('muro')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 
-    buscar.addEventListener('input', filtrar);
-    chips.forEach((c) =>
-      c.addEventListener('click', () => {
-        categoria = c.dataset.cat ?? '';
-        chips.forEach((x) => x.setAttribute('aria-pressed', String(x === c)));
+    buscar?.addEventListener('input', filtrar);
+    teclas.forEach((t) =>
+      t.addEventListener('click', () => {
+        categoria = t.dataset.filtroCat ?? '';
+        teclas.forEach((x) => x.setAttribute('aria-pressed', String(x === t)));
         filtrar();
+        if (categoria) bajar();
       }),
     );
     soloFeria?.addEventListener('click', () => {
       soloFeria.setAttribute('aria-pressed', String(soloFeria.getAttribute('aria-pressed') !== 'true'));
       filtrar();
+      bajar();
     });
   }
 </script>
 
 <style>
-  .directorio { padding: 100px 0 90px; scroll-margin-top: 60px; }
-  .dir-head { text-align: center; max-width: 680px; margin: 0 auto 32px; }
-  .dir-head h2 { font-size: clamp(32px, 4.2vw, 52px); letter-spacing: -.035em; margin: 10px 0 12px; }
-  .dir-head p { color: var(--tinta-media); font-size: 16px; }
+  .directorio { padding: 56px 0 100px; scroll-margin-top: 64px; }
 
-  .dir-controles { display: flex; flex-direction: column; gap: 16px; align-items: center; margin-bottom: 18px; }
-  .buscador {
-    width: 100%; max-width: 560px;
-    display: flex; align-items: center; gap: 10px;
-    padding: 0 18px; border-radius: 999px;
-    background: #fff; border: 1px solid var(--linea-fuerte);
-    box-shadow: 0 8px 22px rgba(26, 22, 51, .06);
-  }
-  .buscador:focus-within { border-color: var(--cierzo); box-shadow: 0 0 0 4px color-mix(in srgb, var(--cierzo) 18%, transparent); }
-  .buscador svg { width: 20px; height: 20px; color: var(--tinta-suave); flex: 0 0 auto; }
-  .buscador input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; padding: 15px 0; font: inherit; font-size: 16px; color: var(--tinta); }
+  .franja { margin-bottom: 64px; }
+  .franja-titulo { font-size: clamp(40px, 5vw, 64px); margin-bottom: 6px; }
+  .franja-bajada { font-family: var(--f-mano); font-size: 24px; color: var(--tinta-suave); margin-bottom: 24px; }
+  .resaltados[hidden] { display: none; }
 
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 14px; border-radius: 999px;
-    border: 1px solid var(--linea-fuerte); background: #fff; color: var(--tinta-media);
-    font-family: var(--display); font-size: 13px; font-weight: 700;
-    transition: transform .15s ease, background .15s ease;
-  }
-  .chip:hover { transform: translateY(-1px); }
-  .chip .n { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--crema-alt); color: var(--tinta-suave); }
-  .chip[aria-pressed='true'] { background: var(--tinta); border-color: var(--tinta); color: var(--crema); }
-  .chip[aria-pressed='true'] .n { background: rgba(255, 255, 255, .18); color: var(--crema); }
-  .chip-feria[aria-pressed='true'] { background: var(--austro); border-color: var(--austro); color: #fff; }
+  .dir-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 28px; scroll-margin-top: 84px; }
+  .dir-head h2 { font-size: clamp(48px, 6vw, 84px); }
+  .dir-conteo { font-size: 24px; transform: rotate(-3deg); background: var(--mango); }
 
-  .dir-conteo { text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); margin-bottom: 22px; }
-  .dir-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-  @media (max-width: 760px) { .dir-grid { grid-template-columns: 1fr; } }
+  .lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 34px 26px; align-items: start; }
+  @media (max-width: 640px) { .lista { grid-template-columns: 1fr; gap: 28px; } }
   .dir-item[hidden] { display: none; }
-  .dir-item :global(.emp-card) { height: 100%; }
 
-  .dir-resaltados[hidden] { display: none; }
-  .franja { border-radius: calc(var(--radio) + 6px); padding: 26px; margin-bottom: 26px; }
-  .franja-top { background: linear-gradient(135deg, #FFF4CC, #FFE7B0); }
-  .franja-nuevos { background: linear-gradient(135deg, var(--mistral-claro), color-mix(in srgb, var(--mistral-claro) 55%, #fff)); }
-  .franja-head { margin-bottom: 16px; }
-  .franja-head h3 { font-size: clamp(22px, 2.6vw, 28px); letter-spacing: -.02em; }
-  .franja-head p { color: var(--tinta-media); font-size: 14.5px; }
-  .franja-top .serif { color: #B7791F; }
-  .franja-nuevos .serif { color: var(--mistral); }
-  @media (max-width: 500px) { .franja { padding: 18px; } }
-  .todos-titulo { text-align: center; font-size: 20px; margin: 8px 0 4px; }
-
-  .dir-vacio { text-align: center; padding: 40px 20px; border-radius: var(--radio); background: #fff; border: 2px dashed var(--linea-fuerte); color: var(--tinta-media); }
-  .dir-vacio[hidden] { display: none; }
-  .dir-vacio span { font-size: 40px; display: block; margin-bottom: 8px; }
+  .vacio { max-width: 620px; margin: 20px auto 0; padding: 26px 28px; text-align: center; font-size: 18px; }
+  .vacio-titulo { font-family: var(--f-letrero); font-size: 34px; line-height: 1; margin-bottom: 8px; }
+  .vacio a { text-decoration: underline; font-weight: 700; }
+  .vacio[hidden] { display: none; }
 </style>

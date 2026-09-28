@@ -19,6 +19,7 @@ import DetalleModal from './DetalleModal.astro';
 import Directorio from './Directorio.astro';
 import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres, resumenCalificaciones, type EmprendedorPublico } from '../lib/db';
 import { feriasActivas } from '../lib/fechas';
+import { categoria } from '../lib/constantes';
 
 interface Props {
   /** Emprendimiento cuya ficha se abre al cargar (link /e/<slug>). */
@@ -49,6 +50,13 @@ const porTorre = Object.fromEntries(torres.map((t) => [t.id, enFeria.filter((e) 
 const conteo = Object.fromEntries(torres.map((t) => [t.id, porTorre[t.id].length]));
 // Vitrina "Feria · <fecha>": todos los de la feria uno a uno (destacados primero); si nadie está en la feria, todos.
 const baseVitrina = enFeria.length ? enFeria : emprendedores;
+// Teclado del citófono: categorías con al menos un emprendimiento (un id desconocido cuenta como "Otros").
+const catDe = (id: string) => categoria(id, Astro.locals.categorias);
+const teclas = Astro.locals.categorias
+  .map((c) => ({ id: c.id, label: c.label, n: emprendedores.filter((e) => catDe(e.categoria).id === c.id).length }))
+  .filter((c) => c.n > 0);
+// Primer vistazo: fotos reales de emprendimientos (primero los que tienen foto; destacados y nuevos van adelante).
+const vitrinaHero = [...emprendedores.filter((e) => e.foto_principal), ...emprendedores.filter((e) => !e.foto_principal)].slice(0, 4);
 
 // Sin caché: lo que el comité publica se ve apenas se recarga la página.
 Astro.response.headers.set('Cache-Control', 'no-store');
@@ -57,7 +65,7 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 <Layout title={meta?.title} description={meta?.description} image={meta?.image}>
   <Nav torres={torres} feria={hayFeria} />
   <main>
-    <Hero proxima={fechas[0]} torres={torres} />
+    <Hero proxima={fechas[0]} torres={torres} total={emprendedores.length} teclas={teclas} feria={enFeria.length > 0} vitrina={vitrinaHero} />
     <Directorio emprendedores={emprendedores} torres={torres} />
     {
       hayFeria && (

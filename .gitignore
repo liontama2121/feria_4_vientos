@@ -21,3 +21,8 @@ npm-debug.log*
 # sistema
 .DS_Store
 Thumbs.db
+
+# impeccable: capturas y referencias locales
+.impeccable/review/
+.impeccable/ref/
+.impeccable/questions/
