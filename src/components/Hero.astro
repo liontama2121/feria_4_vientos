@@ -157,7 +157,25 @@ const GIROS = [-4, 3, -2, 5];
   .conteo { grid-column: 1 / -1; text-align: center; font-family: var(--f-mano); font-size: 26px; line-height: 1.1; }
   .conteo-num { font-family: var(--f-letrero); font-size: 44px; color: var(--pitahaya); }
   @media (max-width: 920px) { .puesto-vitrina { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; } .producto:nth-child(2), .producto:nth-child(4) { margin-top: 12px; } .producto-nombre { display: none; } }
-  @media (max-width: 520px) { .puesto-vitrina { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* Celular: fila deslizable de fotos, baja, para que los puestos lleguen antes */
+  @media (max-width: 640px) {
+    .hero { padding-bottom: 28px; }
+    .toldo-grande { height: 54px; --ancho: 42px; --feston: 16px; }
+    .hero-grid { gap: 22px; padding-top: 14px; }
+    h1 { font-size: 44px; margin-bottom: 12px; }
+    .bajada { font-size: 17px; margin-bottom: 18px; }
+    .buscar-label { font-size: 24px; }
+    .buscar input { min-height: 52px; font-size: 17px; }
+    .buscar .boton { min-height: 52px; }
+    .cat { font-size: 19px; min-height: 40px; padding: 4px 12px 4px 20px; }
+    .puesto-vitrina { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 6px 16px 10px; scrollbar-width: none; }
+    .puesto-vitrina::-webkit-scrollbar { display: none; }
+    .producto, .producto:nth-child(2), .producto:nth-child(4) { flex: 0 0 40%; margin-top: 0; scroll-snap-align: start; }
+    .conteo { flex: 0 0 auto; align-self: center; text-align: left; font-size: 20px; max-width: 30%; }
+    .conteo-num { display: block; font-size: 38px; line-height: 1; }
+    .aviso-feria { margin-top: 18px; padding: 12px 16px; font-size: 16px; }
+    .aviso-titulo { font-size: 30px; }
+  }
 
   .aviso-feria {
     display: flex; align-items: center; gap: 18px; flex-wrap: wrap;

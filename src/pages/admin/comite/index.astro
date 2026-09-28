@@ -404,7 +404,7 @@ const TABS = [
 
 <style is:global>
   .comite-layout { grid-template-columns: 240px minmax(0, 1fr); }
-  @media (max-width: 860px) { .comite-layout { grid-template-columns: 1fr; } }
+  @media (max-width: 860px) { .comite-layout { grid-template-columns: minmax(0, 1fr); } }
 
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
   @media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
@@ -423,7 +423,10 @@ const TABS = [
     display: grid; grid-template-columns: 56px minmax(0, 1.6fr) minmax(0, 1fr) auto; gap: 14px; align-items: center;
     background: #fff; border: 1px solid var(--linea); border-radius: 16px; padding: 12px 14px;
   }
-  @media (max-width: 760px) { .fila { grid-template-columns: 48px minmax(0, 1fr); } .fila .fila-acciones { grid-column: 1 / -1; justify-content: flex-start; } }
+  /* Tableta: los botones bajan a su propia fila para no apretar la información */
+  @media (max-width: 1280px) { .fila { grid-template-columns: 56px minmax(0, 1.6fr) minmax(0, 1fr); } .fila .fila-acciones { grid-column: 1 / -1; justify-content: flex-start; } }
+  /* Celular: foto + datos; etiquetas debajo de los datos (no en la columna de la foto) */
+  @media (max-width: 760px) { .fila { grid-template-columns: 48px minmax(0, 1fr); } .fila .meta { grid-column: 2; } }
   .fila .mini-foto {
     width: 56px; height: 56px; border-radius: 12px; overflow: hidden;
     display: flex; align-items: center; justify-content: center; font-size: 28px;

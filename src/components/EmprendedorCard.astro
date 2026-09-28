@@ -148,4 +148,19 @@ const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
   .extras a:hover { background: color-mix(in srgb, var(--c) 18%, transparent); }
   .extras .ico { width: 20px; height: 20px; }
   .web { padding: 0 10px; font-weight: 800; font-size: 14.5px; text-decoration: underline; }
+
+  /* Celular: la foto sigue grande; se recorta lo demás */
+  @media (max-width: 640px) {
+    .toldo-puesto { height: 32px; --ancho: 26px; --feston: 10px; }
+    .puesto-foto { margin: -4px 10px 0; }
+    .nuevo { right: 4px; top: 8px; width: 78px; height: 78px; font-size: 14px; }
+    .puesto-cuerpo { padding: 12px 14px 14px; }
+    h3 { font-size: 26px; }
+    .quien { font-size: 14.5px; margin-bottom: 6px; }
+    .desc { -webkit-line-clamp: 2; font-size: 15px; margin-bottom: 8px; }
+    .calif:has(.primero) { display: none; }
+    .calif { margin-bottom: 8px; }
+    .pedir { min-height: 48px; font-size: 18px; }
+    .puesto-pie { margin-top: 6px; }
+  }
 </style>

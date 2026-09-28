@@ -247,3 +247,23 @@ body.plaza .sin-acceso::before {
 }
 body.plaza .sin-acceso .card { border: 4px solid var(--tinta); box-shadow: 0 2px 0 rgba(32, 24, 58, .08), 0 26px 40px -18px rgba(32, 24, 58, .55); }
 body.plaza .sin-acceso h1 { font-size: 40px; }
+
+/* ── Paneles en celular y tableta ── */
+@media (max-width: 760px) {
+  body.plaza .topbar-inner { gap: 8px; padding: 8px 12px; }
+  body.plaza .brand { font-size: 19px; white-space: nowrap; gap: 8px; }
+  body.plaza .brand .molinete { width: 28px; height: 28px; }
+  body.plaza .top-actions { gap: 6px; min-width: 0; }
+  body.plaza .top-btn { white-space: nowrap; padding: 6px 10px; font-size: 13px; }
+  /* Del chip del usuario queda solo la inicial */
+  body.plaza .user-chip { padding: 3px; }
+  body.plaza .user-chip > div:not(.avatar) { display: none; }
+  body.plaza .topbar::after { height: 22px; }
+  body.plaza .page-head h1 { font-size: 30px; }
+  body.plaza .title-eyebrow { font-size: 21px; }
+  body.plaza .card-head h2 { font-size: 22px; }
+}
+/* Celular angosto: del logo queda el molinete (el enlace conserva su title) */
+@media (max-width: 420px) {
+  body.plaza .brand > div { display: none; }
+}

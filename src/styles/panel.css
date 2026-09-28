@@ -69,7 +69,9 @@ body.panel::before {
   display: grid; grid-template-columns: 240px minmax(0, 1fr) 380px; gap: 28px;
 }
 @media (max-width: 1200px) { .layout { grid-template-columns: 220px minmax(0, 1fr); } .preview-col { display: none; } }
-@media (max-width: 860px) { .layout { grid-template-columns: 1fr; padding: 16px; } }
+/* minmax(0,1fr): la barra de secciones deslizable no puede ensanchar la columna en celular */
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; } }
+.layout > * { min-width: 0; }
 
 /* ═════════ Sidebar ═════════ */
 .sidebar { position: sticky; top: 84px; align-self: start; }
