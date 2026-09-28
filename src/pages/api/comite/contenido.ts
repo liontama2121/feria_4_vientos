@@ -1,23 +1,27 @@
-// Edición de torres, patrocinadores y fechas desde /admin/comite.
+// Edición de torres, patrocinadores, fechas y categorías desde /admin/comite.
 import type { APIRoute } from 'astro';
 import { error, json, leerJson } from '../../../lib/api';
-import { TIPOS_PATROCINADOR } from '../../../lib/constantes';
+import { CATEGORIAS_BASE, CATEGORIA_COMODIN, TIPOS_PATROCINADOR, type Categoria } from '../../../lib/constantes';
 import {
+  borrarCategoria,
   borrarFecha,
   borrarPatrocinador,
+  guardarCategoria,
   guardarFecha,
   guardarPatrocinador,
   guardarTorre,
+  listarCategorias,
   listarFechas,
   listarPatrocinadores,
   listarTorres,
+  usosCategorias,
   type Fecha,
   type Patrocinador,
   type Torre,
 } from '../../../lib/db';
 import { esTorre, texto, urlFoto } from '../../../lib/validacion';
 
-type Coleccion = 'torres' | 'patrocinadores' | 'fechas';
+type Coleccion = 'torres' | 'patrocinadores' | 'fechas' | 'categorias';
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 
 function slugDe(s: string) {
@@ -108,6 +112,30 @@ export const PUT: APIRoute = async ({ locals, request }) => {
     return json(f);
   }
 
+  if (body.coleccion === 'categorias') {
+    const label = texto(i.label, 40);
+    if (!label) return error('Ponle nombre a la categoría.');
+    const existentes = await listarCategorias(db);
+    let id = texto(i.id, 40);
+    if (!id) {
+      // Nueva: el id sale del nombre y no puede chocar con otra.
+      id = slugDe(label).slice(0, 40) || 'categoria';
+      if (existentes.some((c) => c.id === id)) return error(`Ya existe una categoría “${label}”.`);
+    } else if (!existentes.some((c) => c.id === id)) return error('Categoría desconocida.', 404);
+    if (existentes.some((c) => c.id !== id && c.label.toLowerCase() === label.toLowerCase())) return error(`Ya existe una categoría “${label}”.`);
+    const orden = Number(i.orden);
+    const c: Categoria = {
+      id,
+      label,
+      emoji: texto(i.emoji, 16) || '🏷️',
+      orden: Number.isFinite(orden) ? Math.round(orden) : 500,
+      // El comodín “Otros” siempre se puede elegir.
+      oculta: id === CATEGORIA_COMODIN ? false : i.oculta === true,
+    };
+    await guardarCategoria(db, c);
+    return json(c);
+  }
+
   return error('Colección desconocida.');
 };
 
@@ -117,6 +145,11 @@ export const DELETE: APIRoute = async ({ locals, request }) => {
   const db = locals.runtime.env.DB;
   if (body.coleccion === 'fechas') await borrarFecha(db, body.id);
   else if (body.coleccion === 'patrocinadores') await borrarPatrocinador(db, body.id);
-  else return error('Esa colección no se puede borrar.');
+  else if (body.coleccion === 'categorias') {
+    if (CATEGORIAS_BASE.some((c) => c.id === body.id)) return error('Las categorías base no se borran; ocúltala.');
+    const n = (await usosCategorias(db))[body.id] ?? 0;
+    if (n) return error(`La usan ${n} emprendimiento(s). Cámbiales la categoría u ocúltala.`, 409);
+    await borrarCategoria(db, body.id);
+  } else return error('Esa colección no se puede borrar.');
   return json({ ok: true });
 };

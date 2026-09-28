@@ -1,6 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { COOKIE_SESION, borrarSesion, leerSesion, usuarioComite, usuarioDeCuenta } from './lib/auth';
-import { asegurarDb, esPreviewSobreProduccion, obtenerCuenta } from './lib/db';
+import { asegurarDb, esPreviewSobreProduccion, listarCategorias, obtenerCuenta } from './lib/db';
+import { CATEGORIAS_BASE } from './lib/constantes';
 import { error } from './lib/api';
 
 // /admin/login queda afuera: es donde se inicia sesión.
@@ -11,10 +12,13 @@ const SOLO_ADMIN = /^\/(admin\/comite|api\/comite)(\/|$)/;
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const { pathname, search } = ctx.url;
   ctx.locals.usuario = null;
+  ctx.locals.categorias = CATEGORIAS_BASE.map((c) => ({ ...c, oculta: false }));
 
   const env = ctx.locals.runtime?.env;
   if (!env?.DB || pathname.startsWith('/media/')) return next();
   await asegurarDb(env.DB);
+  // Solo las páginas las necesitan (landing, panel, comité); las API las leen si hace falta.
+  if (!pathname.startsWith('/api/')) ctx.locals.categorias = await listarCategorias(env.DB);
 
   // Preview de una rama sobre la D1 de producción: solo lectura.
   if (esPreviewSobreProduccion && pathname.startsWith('/api/') && !['GET', 'HEAD'].includes(ctx.request.method)) {

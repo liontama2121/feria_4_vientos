@@ -12,23 +12,38 @@ export const TORRES_BASE: Record<TorreId, { nombre: string; rumbo: string; emoji
   cierzo: { nombre: 'Cierzo', rumbo: 'Conjunto noroccidente', emoji: '⚡', color: '#7B3FE4', claro: '#E1D4FF' },
 };
 
-export const CATEGORIAS = [
-  { id: 'comida', label: 'Comida', emoji: '🥟' },
-  { id: 'reposteria', label: 'Repostería', emoji: '🧁' },
-  { id: 'belleza', label: 'Belleza', emoji: '💅' },
-  { id: 'bienestar', label: 'Bienestar', emoji: '🧘‍♀️' },
-  { id: 'servicios', label: 'Servicios', emoji: '🔧' },
-  { id: 'artesanias', label: 'Artesanías', emoji: '🧶' },
-  { id: 'cafe', label: 'Café', emoji: '☕' },
-  { id: 'arte', label: 'Arte', emoji: '🎨' },
-  { id: 'oficios', label: 'Oficios', emoji: '🪚' },
-  { id: 'otros', label: 'Otros', emoji: '✨' },
-] as const;
-export type CategoriaId = (typeof CATEGORIAS)[number]['id'];
-export const CATEGORIA_IDS = CATEGORIAS.map((c) => c.id) as unknown as readonly [CategoriaId, ...CategoriaId[]];
+/**
+ * Categorías. El comité las crea, renombra u oculta en /admin/comite#categorias (se guardan en
+ * D1, colección `categorias` de `contenido`). Estas son las BASE: siempre existen (no se pueden
+ * borrar, solo ocultar) y rellenan lo que falte en D1. `otros` es el comodín para ids desconocidos.
+ */
+export interface Categoria {
+  id: string;
+  label: string;
+  emoji: string;
+  orden: number;
+  /** Oculta = no se ofrece al elegir; quien ya la tiene la conserva. */
+  oculta: boolean;
+}
+export const CATEGORIAS_BASE: readonly Omit<Categoria, 'oculta'>[] = [
+  { id: 'comida', label: 'Comida', emoji: '🥟', orden: 10 },
+  { id: 'reposteria', label: 'Repostería', emoji: '🧁', orden: 20 },
+  { id: 'belleza', label: 'Belleza', emoji: '💅', orden: 30 },
+  { id: 'bienestar', label: 'Bienestar', emoji: '🧘‍♀️', orden: 40 },
+  { id: 'servicios', label: 'Servicios', emoji: '🔧', orden: 50 },
+  { id: 'artesanias', label: 'Artesanías', emoji: '🧶', orden: 60 },
+  { id: 'cafe', label: 'Café', emoji: '☕', orden: 70 },
+  { id: 'arte', label: 'Arte', emoji: '🎨', orden: 80 },
+  { id: 'oficios', label: 'Oficios', emoji: '🪚', orden: 90 },
+  { id: 'otros', label: 'Otros', emoji: '✨', orden: 999 },
+];
+export const CATEGORIA_COMODIN = 'otros';
+export type CategoriaId = string;
+/** Formato de id de categoría (slug). La existencia se verifica contra D1 donde importa. */
+export const ID_CATEGORIA = /^[a-z0-9-]{1,40}$/;
 
-export function categoria(id: string) {
-  return CATEGORIAS.find((c) => c.id === id) ?? CATEGORIAS[CATEGORIAS.length - 1];
+export function categoria(id: string, lista: readonly Pick<Categoria, 'id' | 'label' | 'emoji'>[] = CATEGORIAS_BASE) {
+  return lista.find((c) => c.id === id) ?? lista.find((c) => c.id === CATEGORIA_COMODIN) ?? CATEGORIAS_BASE[CATEGORIAS_BASE.length - 1];
 }
 
 export const TIPOS_PATROCINADOR = ['oficial', 'comunitario', 'cultural'] as const;
@@ -45,7 +60,28 @@ export const LIMITES = {
   fotoLado: 1200, // px, lado mayor tras optimizar en el navegador
   logoBytes: 1024 * 1024, // logos de patrocinadores (se suben sin optimizar)
   autoSaveMs: 30_000,
+  comentario: 300,
+  detalleReporte: 1000,
+  evidencias: 3, // fotos por reporte (mínimo 1)
+  diasNuevo: 5, // días con etiqueta "🌱 Nuevo" desde la primera aprobación
+  minVotosTop: 2, // calificaciones mínimas para entrar a "Lo mejor calificado" (un solo 5★ no basta)
+  top: 4, // cuántos salen en "Lo mejor calificado"
+  // Freno anti-abuso por IP (hash) para quien no tiene cuenta.
+  calificacionesPorHora: 15,
+  reportesPorDia: 5,
 } as const;
+
+/** Motivos de reporte: solo cosas graves que pueden afectar a la comunidad. */
+export const MOTIVOS_REPORTE = [
+  { id: 'estafa', label: 'Estafa o cobro sin entregar' },
+  { id: 'peligro', label: 'Producto o servicio peligroso o insalubre' },
+  { id: 'ilegal', label: 'Actividad ilegal' },
+  { id: 'acoso', label: 'Acoso, maltrato o conducta inapropiada' },
+  { id: 'falso', label: 'Información falsa o suplantación' },
+  { id: 'otro', label: 'Otro problema grave' },
+] as const;
+export type MotivoReporte = (typeof MOTIVOS_REPORTE)[number]['id'];
+export const motivoReporte = (id: string) => MOTIVOS_REPORTE.find((m) => m.id === id)?.label ?? id;
 
 export const FORMATOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'] as const;
 

@@ -41,7 +41,8 @@ Reglas de diseño que NO se rompen:
 7. Botón flotante WhatsApp `#25D366` en todas las páginas públicas (en el panel se oculta para no tapar la barra de acciones).
 8. Footer: izq. "© 2026 Feria 4 Vientos · Con el respaldo de la Alcaldía Local", der. "Sitio web hecho con amor por JuanCode" con gradiente JuanCode en el texto.
 9. Logo = molinete de 4 aspas (`src/components/Molinete.astro`, `public/favicon.svg`).
-10. **Directorio** (`Directorio.astro`, `#directorio`): todos los aprobados, orden alfabético, buscador sin tildes, chips por categoría con conteo y chip "🎪 Solo en la feria". Las cards de quienes están en la feria llevan la etiqueta 🎪.
+10. **Directorio** (`Directorio.astro`, `#directorio`): todos los aprobados; los **nuevos primero** y luego orden alfabético, buscador sin tildes, chips por categoría con conteo y chip "🎪 Solo en la feria". Las cards de quienes están en la feria llevan la etiqueta 🎪. Arriba de la lista, dos franjas que se esconden al buscar/filtrar: "⭐ Lo mejor calificado" (top `LIMITES.top`, mínimo `LIMITES.minVotosTop` calificaciones) y "🌱 Recién llegados".
+12. **Nuevo**: etiqueta "🌱 Nuevo" en la card durante `LIMITES.diasNuevo` (5) días desde la PRIMERA aprobación (`emprendedores.primera_publicacion_at`, se fija con COALESCE en `aprobarRegistro`; re-aprobar no la renueva). Los nuevos van después de los destacados en la vitrina y primero en el directorio.
 11. **Logo** = molinete + "4 Vientos" (sin "Feria") en menú, footer, hero y panel. El nombre del evento en textos sigue siendo "Feria 4 Vientos".
 
 ## Stack y arquitectura
@@ -144,6 +145,18 @@ Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_e
 ## Feria activa
 
 La landing arranca con Hero + **Directorio** (prioridad). Índice, vitrina, secciones por conjunto, pills del nav y etiquetas 🎪 solo salen si hay una **feria activa** = fecha con `activa: true` y hoy (Bogotá) dentro de `mostrar_desde`…`mostrar_hasta` (ambos incluidos; sin `mostrar_desde` = desde siempre, sin `mostrar_hasta` = hasta el día de la feria). Regla única: `estaActiva()` / `feriasActivas()` en `src/lib/fechas.ts` (también la usa `comite.ts`). Se crea en `/admin/comite#fechas` (pestaña "Ferias", "+ Crear feria" nace activa con ventana hoy→día de la feria). Fuera del rango se oculta sola. Fechas viejas sin `activa` = inactivas.
+
+## Categorías
+
+Se administran en `/admin/comite#categorias` (crear, renombrar, emoji, orden, ocultar). Viven en `contenido` (colección `categorias`); `listarCategorias()` rellena con `CATEGORIAS_BASE` (`constantes.ts`) lo que falte, así las 10 base nunca desaparecen (no se borran, solo se ocultan). Solo se borran las creadas por el comité sin emprendimientos (`usosCategorias`). Oculta = no se ofrece en el editor, pero quien ya la tiene la conserva. `otros` es el comodín (nunca se oculta; ids desconocidos se ven como "Otros"). El middleware carga la lista en `Astro.locals.categorias` para las páginas; usar siempre `categoria(id, Astro.locals.categorias)`. `esCategoria` solo valida formato (`ID_CATEGORIA`).
+
+## Calificaciones y reportes
+
+- **Calificar** (`/api/calificar`, público, sin login): 1–5 estrellas + nombre/conjunto/comentario opcionales. Sale al instante. Una por navegador y emprendimiento (cookie anónima `f4v_visitante`; volver a calificar reemplaza). Solo emprendimientos publicados. Freno: `LIMITES.calificacionesPorHora` por hash de IP (nunca se guarda la IP en claro, ver `src/lib/visitante.ts`) + campo trampa `sitio`.
+- **Reportar** (`/api/reportar`, público, multipart): motivo de `MOTIVOS_REPORTE` (solo cosas graves) + 1 a `LIMITES.evidencias` fotos de evidencia (obligatorias, optimizadas en el navegador con `optimizarFoto()`) + nota opcional. No se pide WhatsApp ni datos de quien reporta. Las fotos van a R2 bajo `reportes/`, que `/media` NO sirve (no está en `KEY_VALIDA`); el comité las ve por `/api/comite/evidencia/<key>`. Es privado: solo el comité lo ve, con notificación tipo `reporte`. NO oculta nada solo (para que no se pueda tumbar a un vecino a punta de reportes). Freno `LIMITES.reportesPorDia`.
+- UI: estrellas en `EmprendedorCard` (abre el modal en las estrellas) y sección "Calificaciones" + "⚑ Reportar un problema grave" en `DetalleModal`.
+- Comité: pestaña "Reseñas y reportes" (`/admin/comite#resenas`): reportes abiertos (Ocultar emprendimiento · Resuelto · Descartar, con nota) y calificaciones (Ocultar/Mostrar, Borrar). API `/api/comite/resenas`.
+- D1: tablas `calificaciones` (UNIQUE slug+visitante, `oculta`) y `reportes` (`estado` abierto|resuelto|descartado). Borrar un emprendimiento borra sus calificaciones; los reportes quedan como historial.
 
 ## Cómo se agrupan por torre en la landing
 

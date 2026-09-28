@@ -9,13 +9,22 @@ interface Props {
   enFeria?: boolean;
 }
 const { e, torre, enFeria = false } = Astro.props;
-const cat = categoria(e.categoria);
+const cat = categoria(e.categoria, Astro.locals.categorias);
 const redes = enlacesRedes(e);
+const calif = e.calificacion;
+const llenas = calif ? Math.round(calif.promedio) : 0;
 ---
 
 <article class="emp-card" style={`--t:${torre.color_hex};--t-claro:${torre.color_claro}`}>
   <div class="emp-foto">
-    {enFeria && <span class="badge-feria">🎪 En la feria</span>}
+    {
+      (e.nuevo || enFeria) && (
+        <div class="badges">
+          {e.nuevo && <span class="badge-nuevo">🌱 Nuevo</span>}
+          {enFeria && <span class="badge-feria">🎪 En la feria</span>}
+        </div>
+      )
+    }
     {
       e.foto_principal ? (
         <img src={e.foto_principal} alt={`Foto de ${e.nombre_emprendimiento}`} loading="lazy" decoding="async" />
@@ -28,6 +37,20 @@ const redes = enlacesRedes(e);
     <span class="cat">{cat.emoji} {cat.label}</span>
     <h3>{e.nombre_emprendimiento}</h3>
     <div class="by">{e.nombre_vecino}{e.apartamento && ` · Apto ${e.apartamento}`}</div>
+    <button type="button" class="calif" data-detalle={e.slug} data-ir="calificar">
+      {
+        calif && calif.total > 0 ? (
+          <>
+            <span class="estrellas" aria-hidden="true">{'★'.repeat(llenas)}<span class="vacias">{'★'.repeat(5 - llenas)}</span></span>
+            <strong>{calif.promedio.toFixed(1)}</strong>
+            <span class="n">({calif.total})</span>
+            <span class="sr-only-f4v">{`Calificación ${calif.promedio.toFixed(1)} de 5, ${calif.total} ${calif.total === 1 ? 'voto' : 'votos'}. Calificar`}</span>
+          </>
+        ) : (
+          <span class="primero">☆ Sé el primero en calificar</span>
+        )
+      }
+    </button>
     <p>{e.descripcion_corta}</p>
     <div class="emp-foot">
       <div class="socials">
@@ -82,13 +105,14 @@ const redes = enlacesRedes(e);
     background: linear-gradient(160deg, transparent 55%, color-mix(in srgb, var(--t) 30%, transparent));
   }
   .emoji { font-size: 64px; }
-  .badge-feria {
-    position: absolute; top: 10px; left: 10px; z-index: 1;
+  .badges { position: absolute; top: 10px; left: 10px; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .badge-feria, .badge-nuevo {
     padding: 4px 10px; border-radius: 999px;
     background: #fff; color: var(--t);
     font-family: var(--display); font-size: 11px; font-weight: 800;
     box-shadow: 0 4px 12px rgba(26, 22, 51, .15);
   }
+  .badge-nuevo { background: var(--mistral); color: #fff; }
   @media (max-width: 500px) { .emp-foto { min-height: 200px; } }
 
   .emp-body { padding: 22px; display: flex; flex-direction: column; }
@@ -97,7 +121,18 @@ const redes = enlacesRedes(e);
     text-transform: uppercase; color: var(--t); margin-bottom: 8px;
   }
   h3 { font-size: 21px; margin-bottom: 3px; }
-  .by { font-size: 12.5px; color: var(--tinta-suave); margin-bottom: 12px; font-weight: 600; }
+  .by { font-size: 12.5px; color: var(--tinta-suave); margin-bottom: 8px; font-weight: 600; }
+  .calif {
+    align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
+    margin-bottom: 12px; padding: 0; border: none; background: none;
+    font-size: 13px; font-weight: 700; color: var(--tinta-media); cursor: pointer;
+  }
+  .calif .estrellas { color: #F5A524; letter-spacing: 1px; font-size: 14px; }
+  .calif .vacias { color: var(--linea-fuerte); }
+  .calif strong { color: var(--tinta); }
+  .calif .n { color: var(--tinta-suave); font-weight: 600; }
+  .calif .primero { color: var(--t); font-size: 12.5px; }
+  .calif:hover .primero, .calif:hover strong { text-decoration: underline; }
   p { font-size: 14px; color: var(--tinta-media); margin-bottom: 16px; flex: 1; }
   .emp-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .socials { display: flex; gap: 6px; }

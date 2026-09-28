@@ -64,7 +64,7 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
         <div class="vitrina-track" data-track>
           {slides.map((e, i) => {
             const t = torreDe(e.torre);
-            const cat = categoria(e.categoria);
+            const cat = categoria(e.categoria, Astro.locals.categorias);
             const redes = enlacesRedes(e);
             return (
               <article

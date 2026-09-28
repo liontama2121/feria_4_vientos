@@ -4,7 +4,7 @@
 // "los conjuntos no se mezclan" (la otra es la vitrina): aquí se busca, no se recorre por viento.
 // El filtro corre en el navegador sobre las cards ya renderizadas (sin llamadas al servidor).
 import EmprendedorCard from './EmprendedorCard.astro';
-import { CATEGORIAS } from '../lib/constantes';
+import { LIMITES, categoria } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
@@ -20,8 +20,24 @@ const normalizar = (s: string) =>
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase();
 
-const lista = [...emprendedores].sort((a, b) => a.nombre_emprendimiento.localeCompare(b.nombre_emprendimiento, 'es'));
-const categorias = CATEGORIAS.map((c) => ({ ...c, n: lista.filter((e) => e.categoria === c.id).length })).filter((c) => c.n > 0);
+// Los nuevos primero (el más reciente arriba) para darles una oportunidad; el resto en orden alfabético.
+const lista = [...emprendedores].sort(
+  (a, b) =>
+    Number(!!b.nuevo) - Number(!!a.nuevo) ||
+    (a.nuevo && b.nuevo ? (b.publicado_desde ?? '').localeCompare(a.publicado_desde ?? '') : 0) ||
+    a.nombre_emprendimiento.localeCompare(b.nombre_emprendimiento, 'es'),
+);
+// "Lo mejor calificado": con un mínimo de votos para que un solo 5★ no gane.
+const mejores = lista
+  .filter((e) => (e.calificacion?.total ?? 0) >= LIMITES.minVotosTop)
+  .sort((a, b) => b.calificacion!.promedio - a.calificacion!.promedio || b.calificacion!.total - a.calificacion!.total)
+  .slice(0, LIMITES.top);
+const nuevos = lista.filter((e) => e.nuevo);
+// Chips por la categoría que se VE (un id desconocido cuenta como "Otros"), solo las que tienen emprendimientos.
+const catDe = (id: string) => categoria(id, Astro.locals.categorias);
+const categorias = Astro.locals.categorias
+  .map((c) => ({ ...c, n: lista.filter((e) => catDe(e.categoria).id === c.id).length }))
+  .filter((c) => c.n > 0);
 const hayFeria = lista.some((e) => e.en_feria);
 ---
 
@@ -68,20 +84,58 @@ const hayFeria = lista.some((e) => e.en_feria);
           </div>
         </div>
 
+        {
+          (mejores.length > 0 || nuevos.length > 0) && (
+            <div class="dir-resaltados" id="dirResaltados">
+              {mejores.length > 0 && (
+                <div class="franja franja-top">
+                  <div class="franja-head">
+                    <h3>⭐ Lo mejor <span class="serif">calificado</span></h3>
+                    <p>Lo que más recomiendan los vecinos.</p>
+                  </div>
+                  <div class="dir-grid">
+                    {mejores.map((e) => (
+                      <div class="dir-item">
+                        <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {nuevos.length > 0 && (
+                <div class="franja franja-nuevos">
+                  <div class="franja-head">
+                    <h3>🌱 Recién <span class="serif">llegados</span></h3>
+                    <p>Vecinos que acaban de abrir su emprendimiento. ¡Dales una oportunidad!</p>
+                  </div>
+                  <div class="dir-grid">
+                    {nuevos.map((e) => (
+                      <div class="dir-item">
+                        <EmprendedorCard e={e} torre={torreDe(e.torre)} enFeria={e.en_feria} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <h3 class="todos-titulo">Todos los emprendimientos</h3>
+            </div>
+          )
+        }
+
         <p class="dir-conteo" id="dirConteo" aria-live="polite">
           {`${lista.length} ${lista.length === 1 ? 'emprendimiento' : 'emprendimientos'}`}
         </p>
 
-        <div class="dir-grid">
+        <div class="dir-grid dir-grid-todos">
           {
             lista.map((e) => {
               const t = torreDe(e.torre);
-              const cat = CATEGORIAS.find((c) => c.id === e.categoria);
+              const cat = catDe(e.categoria);
               const texto = normalizar(
                 [e.nombre_emprendimiento, e.nombre_vecino, e.descripcion_corta, e.descripcion_larga, cat?.label ?? '', t.nombre, e.instagram].join(' '),
               );
               return (
-                <div class="dir-item" data-cat={e.categoria} data-feria={e.en_feria ? '1' : '0'} data-texto={texto}>
+                <div class="dir-item" data-cat={cat.id} data-feria={e.en_feria ? '1' : '0'} data-texto={texto}>
                   <EmprendedorCard e={e} torre={t} enFeria={e.en_feria} />
                 </div>
               );
@@ -104,7 +158,8 @@ const hayFeria = lista.some((e) => e.en_feria);
     const buscar = document.getElementById('dirBuscar') as HTMLInputElement;
     const soloFeria = document.getElementById('dirSoloFeria');
     const chips = Array.from(seccion.querySelectorAll<HTMLButtonElement>('.chip[data-cat]'));
-    const items = Array.from(seccion.querySelectorAll<HTMLElement>('.dir-item'));
+    const items = Array.from(seccion.querySelectorAll<HTMLElement>('.dir-grid-todos .dir-item'));
+    const resaltados = document.getElementById('dirResaltados');
     const conteo = document.getElementById('dirConteo')!;
     const vacio = document.getElementById('dirVacio')!;
     let categoria = '';
@@ -129,6 +184,8 @@ const hayFeria = lista.some((e) => e.en_feria);
       }
       conteo.textContent = `${n} ${n === 1 ? 'emprendimiento' : 'emprendimientos'}`;
       vacio.hidden = n > 0;
+      // Al buscar o filtrar, las franjas estorban: solo se ve el resultado.
+      if (resaltados) resaltados.hidden = !!(palabras.length || categoria || feria);
     }
 
     buscar.addEventListener('input', filtrar);
@@ -183,6 +240,18 @@ const hayFeria = lista.some((e) => e.en_feria);
   @media (max-width: 760px) { .dir-grid { grid-template-columns: 1fr; } }
   .dir-item[hidden] { display: none; }
   .dir-item :global(.emp-card) { height: 100%; }
+
+  .dir-resaltados[hidden] { display: none; }
+  .franja { border-radius: calc(var(--radio) + 6px); padding: 26px; margin-bottom: 26px; }
+  .franja-top { background: linear-gradient(135deg, #FFF4CC, #FFE7B0); }
+  .franja-nuevos { background: linear-gradient(135deg, var(--mistral-claro), color-mix(in srgb, var(--mistral-claro) 55%, #fff)); }
+  .franja-head { margin-bottom: 16px; }
+  .franja-head h3 { font-size: clamp(22px, 2.6vw, 28px); letter-spacing: -.02em; }
+  .franja-head p { color: var(--tinta-media); font-size: 14.5px; }
+  .franja-top .serif { color: #B7791F; }
+  .franja-nuevos .serif { color: var(--mistral); }
+  @media (max-width: 500px) { .franja { padding: 18px; } }
+  .todos-titulo { text-align: center; font-size: 20px; margin: 8px 0 4px; }
 
   .dir-vacio { text-align: center; padding: 40px 20px; border-radius: var(--radio); background: #fff; border: 2px dashed var(--linea-fuerte); color: var(--tinta-media); }
   .dir-vacio[hidden] { display: none; }

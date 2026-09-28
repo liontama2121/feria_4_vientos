@@ -4,7 +4,7 @@
 // editan los vecinos (/admin, con moderación) y el comité (/admin/comite). Ver CLAUDE.md.
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
-import { CATEGORIA_IDS, ESTADOS, TIPOS_PATROCINADOR, TORRE_IDS } from './lib/constantes';
+import { ID_CATEGORIA, ESTADOS, TIPOS_PATROCINADOR, TORRE_IDS } from './lib/constantes';
 
 const usuario = z
   .string()
@@ -18,7 +18,7 @@ const emprendedores = defineCollection({
     nombre_vecino: z.string().min(1),
     apartamento: z.string().default(''),
     torre: z.enum(TORRE_IDS),
-    categoria: z.enum(CATEGORIA_IDS),
+    categoria: z.string().regex(ID_CATEGORIA),
     descripcion_corta: z.string().max(160),
     descripcion_larga: z.string().default(''),
     foto_principal: z.string().default(''),
