@@ -12,6 +12,8 @@ interface Props {
   noindex?: boolean;
   bodyClass?: string;
   torre?: string;
+  /** Foto para la vista previa al compartir (ruta del sitio, p. ej. /media/…). Sin ella, /og.jpg. */
+  image?: string;
 }
 
 const {
@@ -21,8 +23,10 @@ const {
   noindex = false,
   bodyClass,
   torre,
+  image,
 } = Astro.props;
-const og = new URL('/og.jpg', Astro.site ?? Astro.url).toString();
+// La foto de un emprendimiento sale del dominio que atendió la petición (WhatsApp la descarga de ahí).
+const og = image ? new URL(image, Astro.url).toString() : new URL('/og.jpg', Astro.site ?? Astro.url).toString();
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url).toString();
 ---
 
@@ -43,8 +47,14 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url).toString(
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={og} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    {
+      !image && (
+        <>
+          <meta property="og:image:width" content="1200" />
+          <meta property="og:image:height" content="630" />
+        </>
+      )
+    }
     <meta name="twitter:card" content="summary_large_image" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />

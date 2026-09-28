@@ -23,14 +23,16 @@ export async function leerJson<T = Record<string, unknown>>(request: Request): P
 
 /**
  * Qué emprendimiento puede tocar quien hace el request.
- * El admin, cualquiera (pasando ?slug= o { slug }); el vecino, solo el suyo (el slug pedido se ignora).
+ * El admin, cualquiera (pasando ?slug= o { slug }); el vecino, solo uno SUYO: el pedido si le
+ * pertenece (uno ajeno → null), o sin slug el primero que creó.
  */
 export async function registroPermitido(locals: App.Locals, pedido?: unknown): Promise<Registro | null> {
   const u = locals.usuario;
   const db = locals.runtime.env.DB;
   if (!u) return null;
-  if (u.rol === 'admin') return typeof pedido === 'string' && pedido ? obtenerRegistro(db, pedido) : null;
-  return registroDeVecino(db, u.email);
+  const slug = typeof pedido === 'string' && pedido ? pedido : null;
+  if (u.rol === 'admin') return slug ? obtenerRegistro(db, slug) : null;
+  return registroDeVecino(db, u.email, slug);
 }
 
 /** El vecino solo edita en draft o changes_requested. El admin siempre. */

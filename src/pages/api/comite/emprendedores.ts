@@ -8,13 +8,17 @@ import {
   borrarRegistro,
   crearEmprendimiento,
   filaComite,
+  listarDeVecino,
   listarRegistros,
   marcarCampo,
+  obtenerCuenta,
   obtenerRegistro,
   pedirCambios,
   rechazarRegistro,
+  vincularRegistro,
   type Notificacion,
 } from '../../../lib/db';
+import { LIMITES } from '../../../lib/constantes';
 import { esTorre, texto, validarPublicacion } from '../../../lib/validacion';
 
 export const GET: APIRoute = async ({ locals }) => {
@@ -36,10 +40,10 @@ export const POST: APIRoute = async ({ locals, request }) => {
   return json({ slug }, 201);
 };
 
-type Accion = 'aprobar' | 'rechazar' | 'pedir_cambios' | 'destacar' | 'visible' | 'en_feria';
+type Accion = 'aprobar' | 'rechazar' | 'pedir_cambios' | 'destacar' | 'visible' | 'en_feria' | 'vincular';
 
 export const PATCH: APIRoute = async ({ locals, request, url }) => {
-  const body = await leerJson<{ slug?: string; accion?: Accion; valor?: boolean; motivo?: string; nota?: string }>(request);
+  const body = await leerJson<{ slug?: string; accion?: Accion; valor?: boolean; motivo?: string; nota?: string; email?: string }>(request);
   if (!body?.slug || !body.accion) return error('Falta el emprendimiento o la acción.');
   const db = locals.runtime.env.DB;
   const revisor = locals.usuario!.email;
@@ -78,6 +82,20 @@ export const PATCH: APIRoute = async ({ locals, request, url }) => {
     case 'en_feria':
       await marcarCampo(db, body.slug, 'en_feria', body.valor === true);
       break;
+    case 'vincular': {
+      // Correo vacío = desvincular (queda como emprendimiento cargado por el comité).
+      const email = texto(body.email, 200).toLowerCase();
+      if (email) {
+        const cuenta = await obtenerCuenta(db, email);
+        if (!cuenta || cuenta.estado !== 'active') return error('Ese correo no es una cuenta activa de vecino.');
+        const propios = await listarDeVecino(db, email);
+        if (!propios.some((p) => p.slug === body.slug) && propios.length >= LIMITES.emprendimientosPorVecino) {
+          return error(`Esa cuenta ya tiene ${propios.length} emprendimientos (máximo ${LIMITES.emprendimientosPorVecino}).`);
+        }
+      }
+      await vincularRegistro(db, body.slug, email || null);
+      break;
+    }
     default:
       return error('Acción desconocida.');
   }

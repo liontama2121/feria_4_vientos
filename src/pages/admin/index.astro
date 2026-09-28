@@ -10,7 +10,7 @@ import PanelTopbar from '../../components/PanelTopbar.astro';
 import PanelSinAcceso from '../../components/PanelSinAcceso.astro';
 import { puedeEditar, registroPermitido } from '../../lib/api';
 import { ICONOS, LIMITES, iniciales } from '../../lib/constantes';
-import { crearEmprendimiento, listarTorres, obtenerRegistro, resumenPanel } from '../../lib/db';
+import { crearEmprendimiento, estadoVisible, listarDeVecino, listarSolicitudes, listarTorres, obtenerRegistro, resumenPanel, visitasDe } from '../../lib/db';
 import { MENSAJES, SITIO, linkWhatsApp } from '../../lib/sitio';
 
 const usuario = Astro.locals.usuario!;
@@ -22,6 +22,8 @@ const slugPedido = Astro.url.searchParams.get('slug');
 if (esAdmin && !slugPedido) return Astro.redirect('/admin/comite');
 
 let registro = await registroPermitido(Astro.locals, slugPedido);
+// Vecino con un ?slug= que no es suyo (link viejo, error de tipeo): se le abre el suyo.
+if (!registro && !esAdmin && slugPedido) registro = await registroPermitido(Astro.locals, null);
 // Primera vez del vecino: se le crea su emprendimiento vacío con los datos de su cuenta.
 if (!registro && !esAdmin) {
   const slug = await crearEmprendimiento(
@@ -32,6 +34,31 @@ if (!registro && !esAdmin) {
   registro = await obtenerRegistro(db, slug);
 }
 const editable = registro ? puedeEditar(Astro.locals, registro) : false;
+
+// Vecino con varios emprendimientos: selector + solicitud de uno nuevo (la autoriza el comité).
+const [misEmprendimientos, misSolicitudes] = esAdmin ? [[], []] : await Promise.all([listarDeVecino(db, usuario.email), listarSolicitudes(db, usuario.email)]);
+const solicitudPendiente = misSolicitudes.find((s) => s.estado === 'pendiente');
+const ultimaRechazada = misSolicitudes.find((s) => s.estado === 'rechazada');
+const puedeSolicitar = !esAdmin && !solicitudPendiente && misEmprendimientos.length < LIMITES.emprendimientosPorVecino;
+const MENSAJE_SOLICITUD: Record<string, string> = {
+  ok: '✓ Solicitud enviada. El comité te avisará por WhatsApp.',
+  nombre: 'Escribe el nombre del nuevo emprendimiento.',
+  pendiente: 'Ya tienes una solicitud en revisión.',
+  limite: `Llegaste al máximo de ${LIMITES.emprendimientosPorVecino} emprendimientos.`,
+  error: 'No se pudo enviar la solicitud. Intenta de nuevo.',
+};
+// Link para compartir por chat: /e/<slug>. Solo funciona si está publicado en la landing.
+const linkPropio = registro ? new URL(`/e/${encodeURIComponent(registro.slug)}`, Astro.url).toString() : '';
+const linkActivo = registro ? estadoVisible(registro) === 'approved' : false;
+const visitas = registro ? await visitasDe(db, registro.slug) : 0;
+const msgSolicitud = MENSAJE_SOLICITUD[Astro.url.searchParams.get('solicitud') ?? ''];
+const ESTADO_CORTO: Record<string, string> = {
+  draft: 'Borrador',
+  pending_review: 'En revisión',
+  approved: 'Aprobado',
+  rejected: 'Rechazado',
+  changes_requested: 'Cambios pedidos',
+};
 
 const torres = await listarTorres(db);
 const resumen = registro ? resumenPanel(registro) : null;
@@ -108,6 +135,70 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                 ))}
               </nav>
             </div>
+            <div class="sidebar-card mi-link">
+              <div class="sidebar-title">{esAdmin ? 'SU LINK PARA COMPARTIR' : 'TU LINK PARA COMPARTIR'}</div>
+              {linkActivo ? (
+                <>
+                  <p class="mi-link-texto">Mándalo por WhatsApp o ponlo en tus redes: abre directo tu emprendimiento.</p>
+                  <input class="mi-link-url" id="miLink" type="text" readonly value={linkPropio} aria-label="Link para compartir" />
+                  <div class="mi-link-acciones">
+                    <button type="button" class="btn btn-primary btn-sm" id="btnCopiarLink">Copiar</button>
+                    <a
+                      class="btn btn-ghost btn-sm"
+                      target="_blank"
+                      rel="noopener"
+                      href={`https://wa.me/?text=${encodeURIComponent(`¡Hola! 👋 Conoce ${d.nombre_emprendimiento || 'mi emprendimiento'} en la Feria 4 Vientos 👉 ${linkPropio}`)}`}
+                    >
+                      WhatsApp
+                    </a>
+                  </div>
+                  <p class="mi-link-visitas">👀 {visitas} {visitas === 1 ? 'visita' : 'visitas'} por este link</p>
+                </>
+              ) : (
+                <p class="mi-link-texto">Cuando el comité apruebe y publique tu emprendimiento, aquí tendrás tu link para compartir por WhatsApp.</p>
+              )}
+            </div>
+            {
+              !esAdmin && (
+                <div class="sidebar-card mis-emps">
+                  <div class="sidebar-title">MIS EMPRENDIMIENTOS</div>
+                  {misEmprendimientos.length > 1 && (
+                    <nav class="sidebar-nav" aria-label="Mis emprendimientos">
+                      {misEmprendimientos.map((m) => (
+                        <a href={`/admin?slug=${encodeURIComponent(m.slug)}`} class:list={{ active: m.slug === resumen.slug }} aria-current={m.slug === resumen.slug ? 'page' : undefined}>
+                          <span aria-hidden="true">{m.emoji || '🏷️'}</span>
+                          <span class="mis-nombre">{m.nombre || 'Sin nombre'}</span>
+                          <span class="badge">{ESTADO_CORTO[m.estado] ?? m.estado}</span>
+                        </a>
+                      ))}
+                    </nav>
+                  )}
+                  {msgSolicitud && <p class="mis-msg" role="status">{msgSolicitud}</p>}
+                  {solicitudPendiente && <p class="mis-msg">⏳ “{solicitudPendiente.nombre_emprendimiento}” está esperando aprobación del comité.</p>}
+                  {!solicitudPendiente && ultimaRechazada?.respuesta && (
+                    <p class="mis-msg">El comité no aprobó “{ultimaRechazada.nombre_emprendimiento}”: {ultimaRechazada.respuesta}</p>
+                  )}
+                  {puedeSolicitar && (
+                    <details class="mis-solicitar">
+                      <summary>+ Solicitar otro emprendimiento</summary>
+                      <form method="post" action="/api/panel/solicitud">
+                        <input type="hidden" name="volver" value={resumen.slug} />
+                        <label>
+                          Nombre
+                          <input name="nombre" maxlength="80" required placeholder="Ej: Tortas Aleida" />
+                        </label>
+                        <label>
+                          ¿De qué se trata? <small>(opcional)</small>
+                          <textarea name="motivo" rows="2" maxlength="300"></textarea>
+                        </label>
+                        <button type="submit" class="btn btn-primary btn-sm">Enviar al comité</button>
+                        <p class="mis-nota">El comité lo revisa; si lo aprueba, aparece aquí para que lo llenes.</p>
+                      </form>
+                    </details>
+                  )}
+                </div>
+              )
+            }
             <div class="sidebar-help">
               <h4>¿Necesitas ayuda?</h4>
               <p>Escríbele al comité de la feria. Te respondemos el mismo día.</p>
@@ -519,4 +610,17 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
 <script>
   import { iniciarPanel } from '../../scripts/panel';
   iniciarPanel();
+
+  // Copiar el link para compartir (si el portapapeles falla, queda seleccionado para copiar a mano).
+  const campoLink = document.getElementById('miLink') as HTMLInputElement | null;
+  document.getElementById('btnCopiarLink')?.addEventListener('click', async (ev) => {
+    const boton = ev.currentTarget as HTMLButtonElement;
+    try {
+      await navigator.clipboard.writeText(campoLink!.value);
+      boton.textContent = '✓ Copiado';
+      setTimeout(() => (boton.textContent = 'Copiar'), 2000);
+    } catch {
+      campoLink?.select();
+    }
+  });
 </script>

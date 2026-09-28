@@ -3,7 +3,7 @@
 // con un clic desde /admin/comite#notificaciones (wa.me con el texto listo).
 // Para automatizar (Twilio, Meta Cloud API o webhook a n8n), el punto único es `avisar()`.
 import { TORRES_BASE, motivoReporte, type TorreId } from './constantes';
-import { crearNotificacion, type Cuenta, type Notificacion, type Registro, type Reporte } from './db';
+import { crearNotificacion, type Cuenta, type Notificacion, type Registro, type Reporte, type Solicitud } from './db';
 
 const conjunto = (t: TorreId) => TORRES_BASE[t]?.nombre ?? t;
 /** "Mistral 402", o solo "Mistral" si no dio torre/apto. */
@@ -75,6 +75,32 @@ export function avisoReporte(db: D1Database, r: Registro, rep: Reporte) {
     whatsapp: '',
     email: '',
     slug: r.slug,
+  });
+}
+
+export function avisoSolicitud(db: D1Database, c: Pick<Cuenta, 'nombre' | 'torre' | 'apartamento' | 'email'>, s: Solicitud) {
+  return avisar(db, {
+    para: 'admin',
+    tipo: 'solicitud',
+    titulo: 'Solicitud de otro emprendimiento',
+    mensaje: `${c.nombre} · ${donde(c.torre, c.apartamento)} (${c.email}) pide abrir otro emprendimiento: "${s.nombre_emprendimiento}"${s.motivo ? `. Motivo: ${s.motivo}` : ''}`,
+    whatsapp: '',
+    email: '',
+    slug: null,
+  });
+}
+
+export function avisoSolicitudRespuesta(db: D1Database, c: Cuenta, s: Solicitud, aprobada: boolean, origen: string, respuesta = '') {
+  return avisar(db, {
+    para: 'vecino',
+    tipo: aprobada ? 'solicitud_aprobada' : 'solicitud_rechazada',
+    titulo: `${aprobada ? 'Aprobada' : 'No aprobada'}: otro emprendimiento (${s.nombre_emprendimiento})`,
+    mensaje: aprobada
+      ? `¡Hola ${c.nombre}! 🎉 El comité aprobó tu nuevo emprendimiento "${s.nombre_emprendimiento}". Entra a ${origen}/admin, elígelo en "Mis emprendimientos", llénalo y envíalo a revisión.`
+      : `Hola ${c.nombre}. El comité no aprobó abrir "${s.nombre_emprendimiento}"${respuesta ? `: ${respuesta}` : ''}. Si tienes dudas, respóndenos por aquí.`,
+    whatsapp: c.whatsapp,
+    email: c.email,
+    slug: s.slug,
   });
 }
 

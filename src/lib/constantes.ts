@@ -66,6 +66,7 @@ export const LIMITES = {
   diasNuevo: 5, // días con etiqueta "🌱 Nuevo" desde la primera aprobación
   minVotosTop: 2, // calificaciones mínimas para entrar a "Lo mejor calificado" (un solo 5★ no basta)
   top: 4, // cuántos salen en "Lo mejor calificado"
+  emprendimientosPorVecino: 3, // tope por cuenta (el 2.º y 3.º los autoriza el comité)
   // Freno anti-abuso por IP (hash) para quien no tiene cuenta.
   calificacionesPorHora: 15,
   reportesPorDia: 5,

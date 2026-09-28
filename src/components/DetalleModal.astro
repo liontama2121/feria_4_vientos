@@ -8,8 +8,10 @@ import type { EmprendedorPublico, Torre } from '../lib/db';
 interface Props {
   emprendedores: EmprendedorPublico[];
   torres: Torre[];
+  /** Slug cuya ficha se abre al cargar (link /e/<slug>). */
+  abrir?: string;
 }
-const { emprendedores, torres } = Astro.props;
+const { emprendedores, torres, abrir } = Astro.props;
 
 const datos = Object.fromEntries(
   emprendedores.map((e) => {
@@ -41,7 +43,7 @@ const datos = Object.fromEntries(
 const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
 ---
 
-<dialog class="detalle" id="detalle" aria-labelledby="detalle-nombre">
+<dialog class="detalle" id="detalle" aria-labelledby="detalle-nombre" data-abrir={abrir}>
   <button type="button" class="cerrar" data-cerrar aria-label="Cerrar">✕</button>
   <div class="detalle-media">
     <img id="detalle-foto" alt="" hidden />
@@ -60,6 +62,11 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
       <span aria-hidden="true">→</span>
     </a>
     <div id="detalle-redes" class="redes"></div>
+    <div class="compartir">
+      <button type="button" id="detalle-compartir" class="btn-compartir">🔗 Compartir</button>
+      <a id="detalle-compartir-wsp" class="btn-compartir wsp" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+      <span id="detalle-compartir-msg" class="msg" role="status" aria-live="polite"></span>
+    </div>
   </div>
 
   <section class="opiniones" id="detalle-opiniones" aria-labelledby="opiniones-titulo">
@@ -238,10 +245,32 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
     );
 
     actual = slug;
+    const link = linkDe(slug);
+    ($('detalle-compartir-wsp') as HTMLAnchorElement).href = `https://wa.me/?text=${encodeURIComponent(`Mira ${d.nombre} en la Feria 4 Vientos 👉 ${link}`)}`;
+    $('detalle-compartir-msg').textContent = '';
     pintarCalif(d.calif);
     prepararFormularios(slug);
     dialog.showModal();
   }
+
+  // ───── Compartir: cada emprendimiento tiene su link /e/<slug> ─────
+  const linkDe = (slug: string) => `${location.origin}/e/${encodeURIComponent(slug)}`;
+  $('detalle-compartir').addEventListener('click', async () => {
+    const d = datos[actual];
+    const url = linkDe(actual);
+    const msg = $('detalle-compartir-msg');
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: d.nombre, text: `Mira ${d.nombre} en la Feria 4 Vientos`, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      msg.textContent = '✓ Link copiado';
+    } catch (e) {
+      // Cancelar el menú de compartir no es un error.
+      if ((e as Error).name !== 'AbortError') msg.textContent = url;
+    }
+  });
 
   // ───── Calificaciones y reportes ─────
   let actual = '';
@@ -420,6 +449,11 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
     if (btn.dataset.ir === 'calificar') $('detalle-opiniones').scrollIntoView({ block: 'start' });
   });
   dialog.querySelector('[data-cerrar]')!.addEventListener('click', () => dialog.close());
+  // Llegó por el link /e/<slug>: la ficha abre sola. Al cerrarla, la URL vuelve a la portada.
+  if (dialog.dataset.abrir && datos[dialog.dataset.abrir]) {
+    abrir(dialog.dataset.abrir);
+    dialog.addEventListener('close', () => history.replaceState(null, '', '/'), { once: true });
+  }
   dialog.addEventListener('click', (ev) => {
     if (ev.target === dialog) dialog.close();
   });
@@ -483,6 +517,14 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
   }
   .redes :global(.red svg) { width: 16px; height: 16px; fill: currentColor; }
   .redes :global(.red-whatsapp) { background: var(--whatsapp); color: #fff; }
+
+  .compartir { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+  .btn-compartir {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 14px; border-radius: 999px; border: 1px solid var(--linea-fuerte); background: #fff;
+    font-family: var(--display); font-weight: 700; font-size: 13px; color: var(--tinta);
+  }
+  .btn-compartir.wsp { border-color: var(--whatsapp); color: #128C4B; }
 
   /* Calificaciones y reporte: ocupan todo el ancho bajo foto + texto. */
   .opiniones { grid-column: 1 / -1; padding: 26px 30px 30px; border-top: 1px solid var(--linea); background: var(--crema); }

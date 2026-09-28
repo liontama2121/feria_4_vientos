@@ -106,7 +106,7 @@ export interface Notificacion {
   creado_at: string;
   /** A quién va: el comité (admin) o el vecino. */
   para: Rol;
-  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte';
+  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte' | 'solicitud' | 'solicitud_aprobada' | 'solicitud_rechazada';
   titulo: string;
   mensaje: string;
   /** Celular de 10 dígitos (sin +57) al que hay que mandar el mensaje, si aplica. */
@@ -227,6 +227,25 @@ const ESQUEMA = [
     UNIQUE (slug, visitante)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_calificaciones_slug ON calificaciones(slug)`,
+  // Visitas que llegan por el link para compartir /e/<slug> (sin datos de quién).
+  `CREATE TABLE IF NOT EXISTS visitas_link (
+    slug TEXT PRIMARY KEY,
+    total INTEGER NOT NULL DEFAULT 0,
+    ultima_at TEXT
+  )`,
+  // Un vecino puede tener más de un emprendimiento, pero cada uno adicional lo autoriza el comité.
+  `CREATE TABLE IF NOT EXISTS solicitudes (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    nombre_emprendimiento TEXT NOT NULL,
+    motivo TEXT NOT NULL DEFAULT '',
+    estado TEXT NOT NULL DEFAULT 'pendiente',
+    respuesta TEXT NOT NULL DEFAULT '',
+    slug TEXT,
+    creado_at TEXT NOT NULL,
+    revisado_at TEXT,
+    revisado_por TEXT
+  )`,
   `CREATE TABLE IF NOT EXISTS reportes (
     id TEXT PRIMARY KEY,
     slug TEXT NOT NULL,
@@ -499,10 +518,34 @@ export async function obtenerRegistro(db: D1Database, slug: string): Promise<Reg
   return fila ? aRegistro(fila) : null;
 }
 
-/** El emprendimiento de un vecino (uno por cuenta). */
-export async function registroDeVecino(db: D1Database, email: string): Promise<Registro | null> {
+/**
+ * Un emprendimiento del vecino. Con `slug`: ese, solo si es suyo (si no, null). Sin `slug`:
+ * el primero que creó. Nunca devuelve uno ajeno.
+ */
+export async function registroDeVecino(db: D1Database, email: string, slug?: string | null): Promise<Registro | null> {
+  if (slug) {
+    const propio = await db.prepare(`SELECT * FROM emprendedores WHERE slug = ? AND owner_email = ?`).bind(slug, email).first<FilaEmprendedor>();
+    return propio ? aRegistro(propio) : null;
+  }
   const fila = await db.prepare(`SELECT * FROM emprendedores WHERE owner_email = ? ORDER BY creado_at LIMIT 1`).bind(email).first<FilaEmprendedor>();
   return fila ? aRegistro(fila) : null;
+}
+
+/** Los emprendimientos de una cuenta, para el selector "Mis emprendimientos" del panel. */
+export async function listarDeVecino(db: D1Database, email: string) {
+  const { results } = await db
+    .prepare(
+      `SELECT slug, estado, json_extract(borrador, '$.nombre_emprendimiento') AS nombre, json_extract(borrador, '$.emoji_placeholder') AS emoji
+         FROM emprendedores WHERE owner_email = ? ORDER BY creado_at`,
+    )
+    .bind(email)
+    .all<{ slug: string; estado: EstadoEmprendimiento; nombre: string | null; emoji: string | null }>();
+  return results;
+}
+
+/** El comité asigna (o quita, con null) la cuenta dueña de un emprendimiento. */
+export async function vincularRegistro(db: D1Database, slug: string, email: string | null) {
+  await db.prepare(`UPDATE emprendedores SET owner_email = ? WHERE slug = ?`).bind(email, slug).run();
 }
 
 export async function listarRegistros(db: D1Database): Promise<Registro[]> {
@@ -732,6 +775,74 @@ export async function listarNotificaciones(db: D1Database, limite = 200): Promis
 
 export async function marcarNotificacion(db: D1Database, id: string, enviada: boolean) {
   await db.prepare(`UPDATE notificaciones SET enviada = ? WHERE id = ?`).bind(enviada ? 1 : 0, id).run();
+}
+
+// ───────────────────────── Link para compartir ─────────────────────────
+
+export async function sumarVisita(db: D1Database, slug: string) {
+  await db
+    .prepare(`INSERT INTO visitas_link (slug, total, ultima_at) VALUES (?, 1, ?) ON CONFLICT (slug) DO UPDATE SET total = total + 1, ultima_at = excluded.ultima_at`)
+    .bind(slug, ahora())
+    .run();
+}
+
+export async function visitasDe(db: D1Database, slug: string) {
+  return (await db.prepare(`SELECT total FROM visitas_link WHERE slug = ?`).bind(slug).first<{ total: number }>())?.total ?? 0;
+}
+
+// ───────────────────────── Solicitudes de emprendimiento adicional ─────────────────────────
+
+export interface Solicitud {
+  id: string;
+  email: string;
+  nombre_emprendimiento: string;
+  motivo: string;
+  estado: 'pendiente' | 'aprobada' | 'rechazada';
+  respuesta: string;
+  slug: string | null;
+  creado_at: string;
+  revisado_at: string | null;
+  revisado_por: string | null;
+}
+
+export async function crearSolicitud(db: D1Database, email: string, nombre: string, motivo: string): Promise<Solicitud> {
+  const s: Solicitud = {
+    id: crypto.randomUUID(),
+    email,
+    nombre_emprendimiento: nombre,
+    motivo,
+    estado: 'pendiente',
+    respuesta: '',
+    slug: null,
+    creado_at: ahora(),
+    revisado_at: null,
+    revisado_por: null,
+  };
+  await db
+    .prepare(`INSERT INTO solicitudes (id, email, nombre_emprendimiento, motivo, estado, creado_at) VALUES (?, ?, ?, ?, 'pendiente', ?)`)
+    .bind(s.id, email, nombre, motivo, s.creado_at)
+    .run();
+  return s;
+}
+
+export async function listarSolicitudes(db: D1Database, email?: string): Promise<Solicitud[]> {
+  const stmt = email
+    ? db.prepare(`SELECT * FROM solicitudes WHERE email = ? ORDER BY creado_at DESC`).bind(email)
+    : db.prepare(`SELECT * FROM solicitudes ORDER BY CASE estado WHEN 'pendiente' THEN 0 ELSE 1 END, creado_at DESC LIMIT 200`);
+  return (await stmt.all<Solicitud>()).results;
+}
+
+export async function obtenerSolicitud(db: D1Database, id: string) {
+  return db.prepare(`SELECT * FROM solicitudes WHERE id = ?`).bind(id).first<Solicitud>();
+}
+
+/** Cierra la solicitud. Solo si seguía pendiente (evita aprobar dos veces y crear dos emprendimientos). */
+export async function cerrarSolicitud(db: D1Database, id: string, estado: 'aprobada' | 'rechazada', respuesta: string, revisor: string, slug: string | null) {
+  const r = await db
+    .prepare(`UPDATE solicitudes SET estado = ?, respuesta = ?, slug = ?, revisado_at = ?, revisado_por = ? WHERE id = ? AND estado = 'pendiente'`)
+    .bind(estado, respuesta, slug, ahora(), revisor, id)
+    .run();
+  return r.meta.changes > 0;
 }
 
 // ───────────────────────── Calificaciones y reportes ─────────────────────────
