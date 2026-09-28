@@ -1,6 +1,6 @@
 ---
-// Una sección por viento (conjunto), con su color pleno. Solo los que están EN LA FERIA
-// (`en_feria`); los demás viven en el directorio. Los conjuntos NO se mezclan aquí.
+// Solo con feria activa: una sección por conjunto (viento) con los que están EN LA FERIA.
+// El nombre va en una tira rasgada de su cartulina; los avisos, pegados debajo.
 import EmprendedorCard from './EmprendedorCard.astro';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
@@ -12,35 +12,38 @@ const { torre, emprendedores } = Astro.props;
 const n = emprendedores.length;
 ---
 
-<section class="torre-section" id={torre.id} style={`--t:${torre.color_hex};--t-claro:${torre.color_claro}`}>
+<section class="conjunto-seccion" id={torre.id} data-conjunto={torre.id} aria-labelledby={`t-${torre.id}`}>
   <div class="wrap">
-    <div class="torre-header">
-      <div>
-        <span class="eyebrow"><span class="dot"></span> {torre.rumbo}{torre.caracter && ` · ${torre.caracter}`}</span>
-        <h2>{torre.nombre}</h2>
-        {torre.tagline && <p class="tagline">{torre.tagline}</p>}
-      </div>
-      <div class="conteo-grande">
-        <div class="n">{n}</div>
-        <div class="l">En la feria</div>
+    <div class="cabecera con-sombra">
+      <div class="hoja rasgado-ambos cabecera-papel">
+        <h2 id={`t-${torre.id}`}>{torre.nombre}</h2>
+        <div class="datos">
+          <p class="sello">{torre.rumbo}</p>
+          {torre.tagline && <p class="tagline">{torre.tagline}</p>}
+        </div>
+        <p class="conteo">
+          <span class="n">{n}</span>
+          <span class="sello">en la feria</span>
+        </p>
       </div>
     </div>
 
     {
       n > 0 ? (
-        <div class="emp-grid">
-          {emprendedores.map((e) => (
-            <EmprendedorCard e={e} torre={torre} />
+        <div class="avisos">
+          {emprendedores.map((e, i) => (
+            <div style={`--r:${[-1.2, 0.8, -0.5, 1.4][i % 4]}deg`}>
+              <EmprendedorCard e={e} torre={torre} />
+            </div>
           ))}
         </div>
       ) : (
         <div class="vacio">
-          <span class="vacio-emoji">{torre.emoji_simbolo}</span>
-          <div>
-            <h3>{torre.nombre} aún no tiene emprendimientos en la feria</h3>
-            <p>¿Vives en {torre.nombre} y tienes un negocio? Regístrate y el comité te suma. Mira también el <a href="#directorio">directorio</a>.</p>
-          </div>
-          <a class="vacio-cta" href="/registro">
+          <p class="vacio-titulo">{torre.nombre} aún no tiene avisos en la feria</p>
+          <p>
+            ¿Vives en {torre.nombre} y tienes un negocio? Regístrate y el comité te suma. Mira también <a href="#directorio">todo el muro</a>.
+          </p>
+          <a class="boton boton-tinta" href="/registro">
             Quiero estar aquí
           </a>
         </div>
@@ -50,47 +53,25 @@ const n = emprendedores.length;
 </section>
 
 <style>
-  .torre-section {
-    position: relative; overflow: hidden;
-    padding: 110px 0;
-    background: linear-gradient(180deg, var(--t-claro) 0%, color-mix(in srgb, var(--t-claro) 45%, #fff) 100%);
-    scroll-margin-top: 60px;
+  .conjunto-seccion { padding: 40px 0 90px; scroll-margin-top: 64px; }
+  .cabecera { margin-bottom: 40px; }
+  .cabecera-papel {
+    --borde-alto: 16px;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: end;
+    padding: 34px 32px 30px;
+    transform: rotate(-.8deg);
   }
-  .torre-section::before {
-    content: ''; position: absolute; top: 20%; right: -10%;
-    width: 500px; height: 500px; border-radius: 50%;
-    background: color-mix(in srgb, var(--t) 45%, var(--t-claro));
-    filter: blur(100px); opacity: .5;
-    pointer-events: none;
-  }
-  .torre-header { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: end; margin-bottom: 44px; }
-  @media (max-width: 720px) { .torre-header { grid-template-columns: 1fr; gap: 16px; } }
-  .eyebrow {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 6px 14px; margin-bottom: 16px; border-radius: 999px; background: #fff;
-    font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
-  }
-  .eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--t); }
-  h2 { font-size: clamp(52px, 7.5vw, 104px); letter-spacing: -.045em; line-height: .95; color: var(--t); }
-  .tagline { font-family: var(--serif); font-style: italic; font-size: 25px; line-height: 1.25; margin-top: 12px; max-width: 420px; }
-  .conteo-grande { font-family: var(--display); text-align: right; }
-  @media (max-width: 720px) { .conteo-grande { text-align: left; } }
-  .conteo-grande .n { font-size: 68px; font-weight: 800; letter-spacing: -.04em; line-height: 1; color: var(--t); }
-  .conteo-grande .l { font-size: 13px; font-weight: 700; color: var(--tinta-suave); letter-spacing: .12em; text-transform: uppercase; margin-top: 6px; }
+  @media (max-width: 760px) { .cabecera-papel { grid-template-columns: 1fr; gap: 12px; padding: 30px 20px 26px; } }
+  h2 { font-size: clamp(72px, 11vw, 160px); }
+  .datos .sello { font-size: 14px; margin-bottom: 6px; }
+  .tagline { font-size: 18px; line-height: 1.4; max-width: 44ch; }
+  .conteo { display: flex; align-items: baseline; gap: 8px; }
+  .n { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 84px; line-height: .8; font-variant-numeric: tabular-nums; }
 
-  .emp-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-  @media (max-width: 760px) { .emp-grid { grid-template-columns: 1fr; } }
+  .avisos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 38px 28px; align-items: start; }
+  @media (max-width: 700px) { .avisos { grid-template-columns: 1fr; } }
 
-  .vacio {
-    position: relative; z-index: 1;
-    display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
-    background: rgba(255, 255, 255, .75); border: 2px dashed color-mix(in srgb, var(--t) 35%, transparent);
-    border-radius: var(--radio); padding: 28px;
-  }
-  .vacio > div { flex: 1; min-width: 220px; }
-  .vacio-emoji { font-size: 48px; }
-  .vacio h3 { font-size: 19px; margin-bottom: 4px; }
-  .vacio p { color: var(--tinta-media); font-size: 14.5px; }
-  .vacio p a { color: var(--t); font-weight: 800; text-decoration: underline; }
-  .vacio-cta { font-family: var(--display); font-weight: 700; font-size: 14px; padding: 12px 20px; border-radius: 999px; background: var(--t); color: #fff; }
+  .vacio { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 28px; background: var(--papel); border: 3px dashed var(--xerox); max-width: 720px; }
+  .vacio-titulo { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 38px; text-transform: uppercase; line-height: .9; }
+  .vacio a:not(.boton) { text-decoration: underline; font-weight: 700; }
 </style>

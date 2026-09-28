@@ -1,166 +1,237 @@
 ---
-import { ICONOS, categoria, dominioWeb, enlacesRedes } from '../lib/constantes';
+// Un emprendimiento = un aviso fotocopiado en la cartulina de su conjunto, engrapado al muro,
+// con tiritas abajo para "arrancar" el WhatsApp (cada tirita abre el chat).
+import { ICONOS, categoria, dominioWeb, enlacesRedes, iniciales } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
   e: EmprendedorPublico;
   torre: Torre;
-  /** En el directorio: muestra la etiqueta 🎪 En la feria. */
+  /** Muestra el sello "En la feria". */
   enFeria?: boolean;
 }
 const { e, torre, enFeria = false } = Astro.props;
 const cat = categoria(e.categoria, Astro.locals.categorias);
-const redes = enlacesRedes(e);
+// Instagram, TikTok, Facebook; el WhatsApp va en las tiritas.
+const redes = enlacesRedes(e).filter((r) => r.red !== 'whatsapp');
 const calif = e.calificacion;
 const llenas = calif ? Math.round(calif.promedio) : 0;
+const numero = e.whatsapp.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1 $2 $3');
+const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
+  `Hola ${e.nombre_vecino.split(' ')[0]} 👋 Te vi en el muro de la Feria 4 Vientos y quiero saber más de ${e.nombre_emprendimiento}.`,
+)}`;
+const TIRITAS = 6;
 ---
 
-<article class="emp-card" style={`--t:${torre.color_hex};--t-claro:${torre.color_claro}`}>
-  <div class="emp-foto">
+<article class="aviso" data-conjunto={torre.id}>
+  <span class="grapa" style="top:-3px;left:calc(50% - 13px);--g-rot:-3deg"></span>
+  <div class="aviso-papel">
     {
       (e.nuevo || enFeria) && (
-        <div class="badges">
-          {e.nuevo && <span class="badge-nuevo">🌱 Nuevo</span>}
-          {enFeria && <span class="badge-feria">🎪 En la feria</span>}
+        <div class="calcos">
+          {e.nuevo && <span class="calco calco-nuevo">Nuevo</span>}
+          {enFeria && <span class="calco calco-feria">En la feria</span>}
         </div>
       )
     }
-    {
-      e.foto_principal ? (
-        <img src={e.foto_principal} alt={`Foto de ${e.nombre_emprendimiento}`} loading="lazy" decoding="async" />
-      ) : (
-        <span class="emoji" aria-hidden="true">{e.emoji_placeholder || cat.emoji}</span>
-      )
-    }
-  </div>
-  <div class="emp-body">
-    <span class="cat">{cat.emoji} {cat.label}</span>
-    <h3>{e.nombre_emprendimiento}</h3>
-    <div class="by">{e.nombre_vecino}{e.apartamento && ` · Apto ${e.apartamento}`}</div>
-    <button type="button" class="calif" data-detalle={e.slug} data-ir="calificar">
+    <button type="button" class="aviso-foto" data-detalle={e.slug} aria-label={`Ver la ficha de ${e.nombre_emprendimiento}`}>
       {
-        calif && calif.total > 0 ? (
-          <>
-            <span class="estrellas" aria-hidden="true">{'★'.repeat(llenas)}<span class="vacias">{'★'.repeat(5 - llenas)}</span></span>
-            <strong>{calif.promedio.toFixed(1)}</strong>
-            <span class="n">({calif.total})</span>
-            <span class="sr-only-f4v">{`Calificación ${calif.promedio.toFixed(1)} de 5, ${calif.total} ${calif.total === 1 ? 'voto' : 'votos'}. Calificar`}</span>
-          </>
+        e.foto_principal ? (
+          <img class="fotocopia" src={e.foto_principal} alt="" loading="lazy" decoding="async" />
         ) : (
-          <span class="primero">☆ Sé el primero en calificar</span>
+          <span class="aviso-iniciales" aria-hidden="true">{iniciales(e.nombre_emprendimiento || e.nombre_vecino)}</span>
         )
       }
     </button>
-    <p>{e.descripcion_corta}</p>
-    <div class="emp-foot">
-      <div class="socials">
+
+    <div class="aviso-cuerpo">
+      <h3>
+        <button type="button" data-detalle={e.slug}>{e.nombre_emprendimiento}</button>
+      </h3>
+      <p class="sello quien">
+        {e.nombre_vecino} · {torre.nombre}{e.apartamento && ` ${e.apartamento}`}
+      </p>
+      <p class="sello cat">{cat.label}</p>
+      <p class="desc">{e.descripcion_corta}</p>
+
+      <button type="button" class="calif" data-detalle={e.slug} data-ir="calificar">
         {
-          redes.map((r) => (
-            <a href={r.url} target="_blank" rel="noopener" aria-label={`${r.label} de ${e.nombre_emprendimiento}`}>
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d={ICONOS[r.red]} />
-              </svg>
-            </a>
-          ))
+          calif && calif.total > 0 ? (
+            <>
+              <span class="estrellas" aria-hidden="true">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <svg viewBox="0 0 24 24" class:list={['estrella', { llena: n <= llenas }]}>
+                    <path d="M12 2.8l2.8 6 6.5.7-4.9 4.4 1.4 6.4L12 17l-5.8 3.3 1.4-6.4-4.9-4.4 6.5-.7z" />
+                  </svg>
+                ))}
+              </span>
+              <strong>{calif.promedio.toFixed(1)}</strong>
+              <span class="sello">({calif.total})</span>
+              <span class="sr-only-f4v">{`Calificación ${calif.promedio.toFixed(1)} de 5, ${calif.total} ${calif.total === 1 ? 'voto' : 'votos'}. Calificar`}</span>
+            </>
+          ) : (
+            <span class="sello primero">Califícalo primero</span>
+          )
+        }
+      </button>
+
+      <div class="aviso-acciones">
+        <button type="button" class="boton boton-chico" data-detalle={e.slug}>Ver ficha</button>
+        {
+          redes.length > 0 && (
+            <div class="redes">
+              {redes.map((r) => (
+                <a href={r.url} target="_blank" rel="noopener" aria-label={`${r.label} de ${e.nombre_emprendimiento}`}>
+                  <svg viewBox="0 0 24 24" class="ico ico-lleno" aria-hidden="true">
+                    <path d={ICONOS[r.red]} />
+                  </svg>
+                </a>
+              ))}
+            </div>
+          )
         }
       </div>
-      <button type="button" class="emp-cta" data-detalle={e.slug}>Ver más</button>
+      {
+        e.pagina_web && (
+          <a class="aviso-web" href={e.pagina_web} target="_blank" rel="noopener">
+            <span>Entra aquí</span>
+            <small class="sello">{dominioWeb(e.pagina_web)}</small>
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </a>
+        )
+      }
     </div>
-    {
-      e.pagina_web && (
-        <a class="emp-web" href={e.pagina_web} target="_blank" rel="noopener" aria-label={`Entrar a la página web de ${e.nombre_emprendimiento}`}>
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d={ICONOS.web} />
-          </svg>
-          <span>
-            Entra aquí <small>{dominioWeb(e.pagina_web)}</small>
-          </span>
-          <span aria-hidden="true">→</span>
-        </a>
-      )
-    }
+
+    <div class="tiritas" data-tiritas>
+      {
+        Array.from({ length: TIRITAS }, (_, i) => (
+          <a
+            class="tirita"
+            href={wsp}
+            target="_blank"
+            rel="noopener"
+            aria-label={i === 0 ? `Escribir por WhatsApp a ${e.nombre_emprendimiento}, ${numero}` : undefined}
+            aria-hidden={i === 0 ? undefined : 'true'}
+            tabindex={i === 0 ? undefined : -1}
+          >
+            <span class="tirita-texto sello">
+              <svg class="ico ico-lleno" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONOS.whatsapp} /></svg>
+              {numero}
+            </span>
+          </a>
+        ))
+      }
+    </div>
   </div>
 </article>
 
+<script>
+  // Arrancar una tirita: se suelta del aviso y cae; el chat de WhatsApp abre igual (el enlace no se toca).
+  document.addEventListener('click', (ev) => {
+    const t = (ev.target as HTMLElement).closest<HTMLElement>('.tirita');
+    if (t) t.classList.add('arrancada');
+  });
+</script>
+
 <style>
-  .emp-card {
-    background: #fff;
-    border-radius: var(--radio);
-    overflow: hidden;
-    display: grid; grid-template-columns: 150px 1fr;
-    box-shadow: 0 8px 22px rgba(26, 22, 51, .06);
-    transition: transform .25s ease, box-shadow .25s ease;
+  .aviso {
+    position: relative;
+    transform: rotate(var(--r, 0deg));
+    transition: transform .4s var(--ease);
+    filter: drop-shadow(0 14px 14px rgba(17, 17, 17, .2)) drop-shadow(0 1px 0 rgba(17, 17, 17, .12));
   }
-  .emp-card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(26, 22, 51, .12); }
-  @media (max-width: 500px) { .emp-card { grid-template-columns: 1fr; } }
+  .aviso:hover { transform: rotate(0deg) translateY(-4px); }
+  .aviso-papel { background: var(--stock, var(--papel)); color: var(--xerox); display: flex; flex-direction: column; }
 
-  .emp-foto {
-    position: relative; min-height: 170px;
+  .calcos { position: absolute; top: 14px; left: -8px; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .calco {
+    font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 24px; text-transform: uppercase; line-height: 1;
+    padding: 7px 12px 5px;
+    box-shadow: 0 6px 10px -4px rgba(17, 17, 17, .5);
+  }
+  .calco-nuevo { background: var(--xerox); color: var(--verde); transform: rotate(-5deg); }
+  .calco-feria { background: var(--papel); color: var(--xerox); transform: rotate(3deg); }
+
+  .aviso-foto {
     display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(140deg, color-mix(in srgb, var(--t) 45%, var(--t-claro)), var(--t-claro));
+    aspect-ratio: 4 / 3; margin: 14px 14px 0; padding: 0; border: 0;
+    background: var(--stock, var(--papel)); overflow: hidden; cursor: pointer;
   }
-  .emp-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .emp-foto::after {
-    content: ''; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(160deg, transparent 55%, color-mix(in srgb, var(--t) 30%, transparent));
-  }
-  .emoji { font-size: 64px; }
-  .badges { position: absolute; top: 10px; left: 10px; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-  .badge-feria, .badge-nuevo {
-    padding: 4px 10px; border-radius: 999px;
-    background: #fff; color: var(--t);
-    font-family: var(--display); font-size: 11px; font-weight: 800;
-    box-shadow: 0 4px 12px rgba(26, 22, 51, .15);
-  }
-  .badge-nuevo { background: var(--mistral); color: #fff; }
-  @media (max-width: 500px) { .emp-foto { min-height: 200px; } }
+  .aviso-foto img { width: 100%; height: 100%; object-fit: cover; transition: filter .35s ease, transform .5s var(--ease); }
+  .aviso-foto:hover img { filter: none; mix-blend-mode: normal; transform: scale(1.03); }
+  .aviso-iniciales { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 96px; line-height: .8; opacity: .85; }
+  /* Sin foto: el aviso no gasta media hoja en iniciales */
+  .aviso-foto:has(.aviso-iniciales) { aspect-ratio: 16 / 7; border-bottom: 2px solid rgba(17, 17, 17, .8); }
 
-  .emp-body { padding: 22px; display: flex; flex-direction: column; }
-  .cat {
-    font-family: var(--display); font-size: 10.5px; font-weight: 800; letter-spacing: .18em;
-    text-transform: uppercase; color: var(--t); margin-bottom: 8px;
-  }
-  h3 { font-size: 21px; margin-bottom: 3px; }
-  .by { font-size: 12.5px; color: var(--tinta-suave); margin-bottom: 8px; font-weight: 600; }
+  .aviso-cuerpo { padding: 16px 18px 14px; display: flex; flex-direction: column; }
+  h3 { font-size: clamp(34px, 3.2vw, 44px); margin-bottom: 8px; }
+  h3 button { all: unset; cursor: pointer; overflow-wrap: anywhere; }
+  h3 button:hover { text-decoration: underline; text-decoration-thickness: 3px; }
+  h3 button:focus-visible { outline: 3px solid var(--xerox); outline-offset: 3px; }
+  .quien { font-size: 13.5px; }
+  .cat { font-size: 12.5px; margin: 2px 0 10px; opacity: .8; }
+  .desc { font-size: 15.5px; line-height: 1.45; margin-bottom: 12px; }
+
   .calif {
     align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
-    margin-bottom: 12px; padding: 0; border: none; background: none;
-    font-size: 13px; font-weight: 700; color: var(--tinta-media); cursor: pointer;
+    min-height: 36px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; margin-bottom: 12px;
   }
-  .calif .estrellas { color: #F5A524; letter-spacing: 1px; font-size: 14px; }
-  .calif .vacias { color: var(--linea-fuerte); }
-  .calif strong { color: var(--tinta); }
-  .calif .n { color: var(--tinta-suave); font-weight: 600; }
-  .calif .primero { color: var(--t); font-size: 12.5px; }
+  .estrellas { display: inline-flex; gap: 1px; }
+  .estrella { width: 18px; height: 18px; fill: none; stroke: var(--xerox); stroke-width: 1.6; }
+  .estrella.llena { fill: var(--xerox); }
+  .calif strong { font-family: var(--f-display); font-stretch: 70%; font-weight: 900; font-size: 20px; }
   .calif:hover .primero, .calif:hover strong { text-decoration: underline; }
-  p { font-size: 14px; color: var(--tinta-media); margin-bottom: 16px; flex: 1; }
-  .emp-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .socials { display: flex; gap: 6px; }
-  .socials a {
-    width: 32px; height: 32px; border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: var(--t-claro); color: var(--t);
-    transition: transform .15s ease;
+
+  .aviso-acciones { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .boton-chico { min-height: 42px; padding: 8px 14px; font-size: 18px; }
+  .redes { display: flex; gap: 4px; }
+  .redes a { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+  .redes a:hover { background: var(--xerox); color: var(--stock, var(--papel)); }
+  .redes .ico { width: 20px; height: 20px; }
+
+  .aviso-web {
+    display: flex; align-items: center; gap: 10px; margin-top: 12px;
+    padding: 12px 14px; background: var(--xerox); color: var(--papel);
+    font-family: var(--f-display); font-stretch: 70%; font-weight: 900; font-size: 22px; text-transform: uppercase; line-height: 1;
   }
-  .socials a:hover { transform: translateY(-2px); }
-  .socials svg { width: 14px; height: 14px; }
-  .emp-cta {
-    font-family: var(--display); font-size: 12.5px; font-weight: 700;
-    padding: 9px 16px; border-radius: 999px; border: none;
-    background: var(--t); color: #fff;
-    transition: transform .15s ease;
+  .aviso-web small { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; opacity: .8; }
+  .aviso-web .ico { width: 22px; height: 22px; }
+
+  /* Tiritas: el papel cortado en flecos, cada uno con el número */
+  .tiritas {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    border-top: 2px dashed rgba(17, 17, 17, .55);
   }
-  .emp-cta:hover { transform: translateY(-1px); }
-  .emp-web {
-    display: flex; align-items: center; gap: 12px;
-    margin-top: 16px; padding: 14px 18px; border-radius: 16px;
-    background: var(--t); color: #fff;
-    font-family: var(--display); font-weight: 800; font-size: 16px;
-    box-shadow: 0 10px 24px color-mix(in srgb, var(--t) 35%, transparent);
-    transition: transform .15s ease, box-shadow .15s ease;
+  .tirita {
+    position: relative; display: flex; justify-content: center;
+    height: 156px; padding: 10px 0 14px;
+    background: var(--stock, var(--papel));
+    transform-origin: 50% 0;
+    transition: background .2s ease;
+    /* borde rasgado propio: viaja con la tirita cuando se arranca */
+    -webkit-mask: url('/muro/borde-abajo.svg') bottom 0 left var(--corte, 0px) / 300px 8px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat;
+    mask: url('/muro/borde-abajo.svg') bottom 0 left var(--corte, 0px) / 300px 8px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat;
   }
-  .emp-web:hover { transform: translateY(-2px); box-shadow: 0 14px 30px color-mix(in srgb, var(--t) 45%, transparent); }
-  .emp-web svg { width: 22px; height: 22px; flex: 0 0 auto; }
-  .emp-web span:first-of-type { flex: 1; display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
-  .emp-web small { font-family: var(--body); font-weight: 600; font-size: 12px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tirita:nth-child(2) { --corte: -61px; height: 150px; }
+  .tirita:nth-child(3) { --corte: -137px; }
+  .tirita:nth-child(4) { --corte: -29px; height: 153px; }
+  .tirita:nth-child(5) { --corte: -203px; }
+  .tirita:nth-child(6) { --corte: -97px; height: 148px; }
+  .tirita + .tirita { border-left: 1.5px dashed rgba(17, 17, 17, .45); }
+  .tirita:hover { background: var(--verde); }
+  .tirita-texto {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12.5px; letter-spacing: .02em; white-space: nowrap;
+  }
+  .tirita-texto .ico { width: 15px; height: 15px; transform: rotate(90deg); }
+  .tirita.arrancada { visibility: hidden; }
+  @media (prefers-reduced-motion: no-preference) {
+    .tirita.arrancada { visibility: visible; animation: arrancar .8s var(--ease) forwards; pointer-events: none; }
+    @keyframes arrancar {
+      0% { transform: none; }
+      25% { transform: rotate(7deg) translateY(3px); }
+      100% { transform: translate(-14px, 150px) rotate(-24deg); opacity: 0; }
+    }
+  }
 </style>

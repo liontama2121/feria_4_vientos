@@ -3,6 +3,7 @@
 // Primero el directorio con todos (buscar por nombre o categoría). La feria (índice, vitrina y
 // sección por conjunto) solo aparece si el comité activó una fecha que aún no pasa.
 // La usan `/` y `/e/<slug>` (link para compartir: abre la ficha de ese emprendimiento).
+import '../styles/muro.css';
 import Layout from '../layouts/Layout.astro';
 import Nav from './Nav.astro';
 import Hero from './Hero.astro';
@@ -54,10 +55,10 @@ const baseVitrina = enFeria.length ? enFeria : emprendedores;
 Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 
-<Layout title={meta?.title} description={meta?.description} image={meta?.image}>
+<Layout title={meta?.title} description={meta?.description} image={meta?.image} muro>
   <Nav torres={torres} feria={hayFeria} />
   <main>
-    <Hero proxima={fechas[0]} torres={torres} />
+    <Hero proxima={fechas[0]} torres={torres} total={emprendedores.length} />
     <Directorio emprendedores={emprendedores} torres={torres} />
     {
       hayFeria && (

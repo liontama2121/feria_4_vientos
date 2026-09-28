@@ -12,23 +12,25 @@ const { torres, feria } = Astro.props;
 
 <nav class="nav" aria-label="Principal">
   <div class="wrap nav-inner">
-    <a href="/" class="nav-marca">
+    <a href="/" class="nav-marca" aria-label="4 Vientos, inicio">
       <Molinete size={34} />
-      4 Vientos
+      <span>4 Vientos</span>
     </a>
-    <div class="nav-torres">
-      {
-        feria && torres.map((t) => (
-          <a href={`#${t.id}`} class="nav-torre" style={`--t:${t.color_hex};--t-claro:${t.color_claro}`}>
-            <span class="dot" />
-            {t.nombre}
-          </a>
-        ))
-      }
-    </div>
+    {
+      feria && (
+        <div class="nav-conjuntos">
+          {torres.map((t) => (
+            <a href={`#${t.id}`} class="nav-conjunto sello" data-conjunto={t.id}>
+              {t.nombre}
+            </a>
+          ))}
+        </div>
+      )
+    }
     <div class="nav-acciones">
-      <a href="#directorio" class="nav-dir">Directorio</a>
-      <a href="/admin" class="nav-panel">Panel</a>
+      <a href="#directorio" class="nav-link">Directorio</a>
+      <a href="#participar" class="nav-link nav-ocultable">Participar</a>
+      <a href="/admin" class="boton nav-panel">Panel</a>
     </div>
   </div>
 </nav>
@@ -36,31 +38,30 @@ const { torres, feria } = Astro.props;
 <style>
   .nav {
     position: sticky; top: 0; z-index: 50;
-    background: rgba(255, 247, 234, .82);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid var(--linea);
+    background: var(--xerox);
+    color: var(--papel);
   }
-  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 14px; padding-bottom: 14px; }
-  .nav-marca { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; letter-spacing: -.01em; }
-  .nav-torres { display: flex; gap: 10px; }
-  .nav-torre {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 12px; border-radius: 999px;
-    font-family: var(--display); font-size: 12.5px; font-weight: 700;
-    background: var(--t-claro); color: var(--t);
-    transition: transform .15s ease;
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; }
+  .nav-marca {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 30px;
+    text-transform: uppercase; line-height: 1; letter-spacing: .005em;
+    white-space: nowrap;
   }
-  .nav-torre:hover { transform: translateY(-1px); }
-  .nav-torre .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--t); }
-  .nav-panel {
-    font-family: var(--display); font-size: 13px; font-weight: 700;
-    padding: 8px 16px; border-radius: 999px;
-    background: #fff; border: 1px solid var(--linea-fuerte);
+  .nav-conjuntos { display: flex; gap: 6px; }
+  .nav-conjunto {
+    padding: 6px 10px; background: var(--stock); color: var(--xerox);
+    transform: rotate(-1deg); transition: transform .25s var(--ease);
   }
-  .nav-panel:hover { background: var(--crema-alt); }
-  .nav-acciones { display: flex; align-items: center; gap: 8px; }
-  .nav-dir { font-family: var(--display); font-size: 13px; font-weight: 700; padding: 8px 12px; color: var(--tinta-media); }
-  .nav-dir:hover { color: var(--tinta); }
-  @media (max-width: 900px) { .nav-torres { display: none; } }
+  .nav-conjunto:nth-child(even) { transform: rotate(1.2deg); }
+  .nav-conjunto:hover { transform: translateY(-2px) rotate(0); }
+  .nav-acciones { display: flex; align-items: center; gap: 4px; }
+  .nav-link {
+    font-family: var(--f-display); font-stretch: 70%; font-weight: 800; font-size: 19px; text-transform: uppercase;
+    padding: 10px 12px; min-height: 44px; display: inline-flex; align-items: center;
+  }
+  .nav-link:hover { color: var(--verde); }
+  .nav-panel { min-height: 40px; padding: 8px 14px; font-size: 18px; margin-left: 8px; }
+  @media (max-width: 980px) { .nav-conjuntos { display: none; } }
+  @media (max-width: 520px) { .nav-ocultable { display: none; } .nav-marca { font-size: 26px; } }
 </style>

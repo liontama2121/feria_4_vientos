@@ -1,4 +1,5 @@
 ---
+// Solo con feria activa: los 4 conjuntos como cartulinas con su nombre, rumbo y cuántos van a la feria.
 import type { Torre } from '../lib/db';
 
 interface Props {
@@ -6,23 +7,19 @@ interface Props {
   conteo: Record<string, number>;
 }
 const { torres, conteo } = Astro.props;
-const plural = (n: number) => `${n} en la feria`;
 ---
 
-<section class="indice" id="torres">
+<section class="indice" id="torres" aria-labelledby="indice-titulo">
   <div class="wrap">
-    <div class="indice-head">
-      <span class="kicker">Los 4 conjuntos · los 4 vientos</span>
-      <h2>Cada conjunto tiene su <span class="serif">viento</span>.</h2>
-    </div>
-    <div class="torres-grid">
+    <h2 id="indice-titulo">En la feria, por conjunto</h2>
+    <div class="conjuntos">
       {
-        torres.map((t) => (
-          <a href={`#${t.id}`} class="torre-card" style={`--t:${t.color_hex}`}>
-            <div class="icono">{t.emoji_simbolo}</div>
-            <div class="nombre">{t.nombre}</div>
-            <div class="rumbo">{t.rumbo}</div>
-            <div class="conteo">{plural(conteo[t.id] ?? 0)} →</div>
+        torres.map((t, i) => (
+          <a href={`#${t.id}`} class="conjunto" data-conjunto={t.id} style={`--rc:${[-1.4, 1, -0.6, 1.3][i % 4]}deg`}>
+            <span class="grapa" style="top:-3px;left:22px" />
+            <span class="nombre">{t.nombre}</span>
+            <span class="sello rumbo">{t.rumbo}</span>
+            <span class="sello conteo">{conteo[t.id] ?? 0} en la feria</span>
           </a>
         ))
       }
@@ -31,40 +28,20 @@ const plural = (n: number) => `${n} en la feria`;
 </section>
 
 <style>
-  .indice { padding: 64px 0 24px; }
-  .indice-head { text-align: center; margin-bottom: 40px; }
-  .indice-head h2 { font-size: clamp(30px, 3.8vw, 46px); letter-spacing: -.03em; }
-
-  .torres-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-  @media (max-width: 900px) { .torres-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 500px) { .torres-grid { grid-template-columns: 1fr; } }
-
-  .torre-card {
-    position: relative; overflow: hidden; display: block;
-    padding: 28px 24px 24px; min-height: 230px;
-    border-radius: 28px; color: #fff;
-    background: linear-gradient(160deg, color-mix(in srgb, var(--t) 82%, #fff), color-mix(in srgb, var(--t) 78%, #000));
-    box-shadow: 0 18px 40px color-mix(in srgb, var(--t) 28%, transparent);
-    transition: transform .25s ease, box-shadow .25s ease;
+  .indice { padding: 40px 0 70px; scroll-margin-top: 64px; }
+  h2 { font-size: clamp(48px, 6.4vw, 96px); margin-bottom: 34px; }
+  .conjuntos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  @media (max-width: 900px) { .conjuntos { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .conjuntos { grid-template-columns: 1fr; } }
+  .conjunto {
+    position: relative; display: flex; flex-direction: column; gap: 4px;
+    min-height: 190px; padding: 30px 22px 22px;
+    background: var(--stock); color: var(--xerox);
+    transform: rotate(var(--rc)); box-shadow: var(--sombra-papel);
+    transition: transform .35s var(--ease), box-shadow .35s var(--ease);
   }
-  .torre-card:hover { transform: translateY(-6px); box-shadow: 0 26px 54px color-mix(in srgb, var(--t) 38%, transparent); }
-  .torre-card::after {
-    content: ''; position: absolute; top: -30%; right: -30%;
-    width: 200px; height: 200px; border-radius: 50%;
-    background: rgba(255, 255, 255, .18); filter: blur(30px);
-    pointer-events: none;
-  }
-  .icono {
-    width: 60px; height: 60px; border-radius: 18px;
-    background: rgba(255, 255, 255, .22);
-    display: grid; place-items: center; font-size: 32px;
-    margin-bottom: 18px;
-  }
-  .nombre { font-family: var(--display); font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
-  .rumbo { font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; opacity: .9; margin: 2px 0 18px; }
-  .conteo {
-    display: inline-flex; padding: 6px 12px; border-radius: 999px;
-    background: rgba(255, 255, 255, .22);
-    font-family: var(--display); font-size: 13.5px; font-weight: 700;
-  }
+  .conjunto:hover { transform: rotate(0) translateY(-4px); box-shadow: var(--sombra-papel-alta); }
+  .nombre { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 64px; text-transform: uppercase; line-height: .85; }
+  .rumbo { font-size: 13px; margin-bottom: auto; }
+  .conteo { margin-top: 18px; align-self: flex-start; background: var(--xerox); color: var(--stock); padding: 6px 10px 4px; font-size: 13px; }
 </style>

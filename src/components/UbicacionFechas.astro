@@ -7,113 +7,100 @@ interface Props {
   fechas: Fecha[];
 }
 const { fechas } = Astro.props;
+const STOCKS = ['var(--verde)', 'var(--lila)', 'var(--menta)', 'var(--rosa)'];
 ---
 
-<section class="ubicacion-section" id="ubicacion">
-  <div class="wrap">
-    <div class="section-head">
-      <span class="kicker" style="color: var(--gregal)">Dónde y cuándo</span>
-      <h2>El terminalito, <span class="serif">ese</span> que quedaba en la esquina.</h2>
-    </div>
-    <div class="ubicacion-grid">
-      <div class="info-card">
-        <div class="label">Ubicación</div>
-        <h3>El terminalito</h3>
-        <div class="meta">{SITIO.conjunto} · {SITIO.ciudad}</div>
-        <p>Al lado de la portería secundaria, con entrada por la peatonal. Si es tu primera vez, cualquier vecino te indica.</p>
+<section class="ubicacion" id="ubicacion" aria-labelledby="ubicacion-titulo">
+  <div class="wrap ubic-grid">
+    <div class="cartel con-sombra">
+      <div class="hoja rasgado-ambos cartel-papel">
+        <span class="grapa" style="top:20px;left:28px;--g-rot:-8deg"></span>
+        <h2 id="ubicacion-titulo">Dónde y cuándo</h2>
+        <p class="lugar">El terminalito</p>
+        <p class="sello direccion">{SITIO.conjunto} · {SITIO.ciudad}</p>
+        <p class="indicacion">Al lado de la portería secundaria, con entrada por la peatonal. Si es tu primera vez, cualquier vecino te indica.</p>
         <ul class="extras">
-          <li><span>🐶</span> Vacunación para mascotas</li>
-          <li><span>💉</span> Vacunación para niños</li>
-          <li><span>⚽</span> Actividades deportivas</li>
-          <li><span>🎶</span> Música y talleres de la Casa de Cultura</li>
+          <li>Vacunación para mascotas</li>
+          <li>Vacunación para niños</li>
+          <li>Actividades deportivas</li>
+          <li>Música y talleres de la Casa de Cultura</li>
         </ul>
-        <a class="como-llegar" href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">¿Dudas? Escríbele al comité →</a>
+        <a class="sello enlace" href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">¿Dudas? Escríbele al comité</a>
       </div>
+    </div>
 
-      <div class="info-card">
-        <div class="label">{fechas.length > 1 ? 'Próximas fechas' : 'Próxima feria'}</div>
-        {
-          fechas.length === 0 ? (
-            <p>El comité está definiendo la próxima fecha.</p>
-          ) : (
-            fechas.map((f, i) => {
-              const { dd, mm } = diaMes(f.fecha);
-              return (
-                <div class:list={['fecha-item', { proxima: i === 0 }]}>
-                  <div class="dia">
-                    <div class="dd">{dd}</div>
-                    <div class="mm">{mm}</div>
-                  </div>
-                  <div class="desc">
-                    <h4>
-                      {f.titulo}
-                      {i === 0 && <span class="chip-proxima">Próxima</span>}
-                    </h4>
-                    <span class="hora">
-                      {diaSemana(f.fecha)} · {rangoHoras(f)}
-                    </span>
-                    {f.descripcion && <p>{f.descripcion}</p>}
-                  </div>
-                </div>
-              );
-            })
-          )
-        }
-        <div class="pronto">
-          <span class="pronto-ico" aria-hidden="true">✨</span>
-          <div>
-            <strong>Pronto vendrán más ferias</strong>
-            <span>
-              Estamos organizando las próximas. Síguenos en <a href={`https://instagram.com/${SITIO.instagram}`} target="_blank" rel="noopener">@{SITIO.instagram}</a> o
-              escríbele al comité para enterarte primero.
-            </span>
+    <div class="fechas">
+      {
+        fechas.length === 0 ? (
+          <div class="talon talon-vacio" style="--stock:var(--papel)">
+            <p class="talon-titulo">Pronto, nueva fecha</p>
+            <p>El comité está definiendo la próxima feria.</p>
           </div>
-        </div>
-      </div>
+        ) : (
+          fechas.map((f, i) => {
+            const { dd, mm } = diaMes(f.fecha);
+            return (
+              <div class="talon" style={`--stock:${STOCKS[i % STOCKS.length]};--rt:${i % 2 ? 0.9 : -1.1}deg`}>
+                <div class="talon-dia" aria-hidden="true">
+                  <span class="sello">{diaSemana(f.fecha).slice(0, 3)}</span>
+                  <span class="dd">{dd}</span>
+                  <span class="sello">{mm}</span>
+                </div>
+                <div>
+                  <p class="talon-titulo">{f.titulo}</p>
+                  <p class="sello">
+                    {diaSemana(f.fecha)} {Number(dd)} {mm} · {rangoHoras(f)}
+                  </p>
+                  {f.descripcion && <p class="talon-desc">{f.descripcion}</p>}
+                </div>
+              </div>
+            );
+          })
+        )
+      }
+      <p class="pronto">
+        <strong>Pronto vendrán más ferias.</strong> Síguenos en <a href={`https://instagram.com/${SITIO.instagram}`} target="_blank" rel="noopener">@{SITIO.instagram}</a> o
+        escríbele al comité para enterarte primero.
+      </p>
     </div>
   </div>
 </section>
 
 <style>
-  .ubicacion-section { padding: 100px 0; background: linear-gradient(180deg, var(--crema) 0%, var(--gregal-claro) 100%); }
-  .section-head { margin-bottom: 44px; max-width: 760px; }
-  .section-head h2 { font-size: clamp(34px, 4.2vw, 52px); letter-spacing: -.035em; }
-  .section-head h2 .serif { color: var(--gregal); }
+  .ubicacion { padding: 30px 0 110px; }
+  .ubic-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 44px; align-items: start; }
+  @media (max-width: 900px) { .ubic-grid { grid-template-columns: 1fr; } }
 
-  .ubicacion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
-  @media (max-width: 800px) { .ubicacion-grid { grid-template-columns: 1fr; } }
-  .info-card { background: #fff; border-radius: var(--radio); padding: 32px; box-shadow: 0 12px 32px rgba(26, 22, 51, .08); }
-  .label { font-family: var(--display); font-size: 12px; letter-spacing: .22em; text-transform: uppercase; color: var(--gregal); margin-bottom: 14px; font-weight: 800; }
-  .info-card h3 { font-size: 24px; margin-bottom: 6px; }
-  .meta { color: var(--tinta-suave); font-size: 14.5px; font-weight: 700; margin-bottom: 14px; }
-  .info-card p { color: var(--tinta-media); font-size: 14.5px; }
-  .extras { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
-  @media (max-width: 460px) { .extras { grid-template-columns: 1fr; } }
-  .extras li { display: flex; gap: 10px; align-items: center; font-size: 14px; font-weight: 700; background: var(--crema); border-radius: 12px; padding: 10px 12px; }
-  .como-llegar { font-family: var(--display); font-weight: 700; font-size: 14px; color: var(--gregal); }
+  .cartel-papel { --stock: var(--rosa); --borde-alto: 18px; padding: 64px 36px 52px; transform: rotate(-.8deg); }
+  @media (max-width: 600px) { .cartel-papel { padding: 56px 20px 44px; } }
+  h2 { font-size: clamp(52px, 6.4vw, 96px); margin-bottom: 18px; }
+  .lugar { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 44px; text-transform: uppercase; line-height: .9; }
+  .direccion { font-size: 14px; margin: 6px 0 14px; }
+  .indicacion { font-size: 16.5px; max-width: 46ch; margin-bottom: 18px; }
+  .extras { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+  @media (max-width: 480px) { .extras { grid-template-columns: 1fr; } }
+  .extras li {
+    background: var(--papel); padding: 10px 12px;
+    font-family: var(--f-display); font-stretch: 75%; font-weight: 800; font-size: 18px; text-transform: uppercase; line-height: 1.05;
+  }
+  .enlace { font-size: 14px; text-decoration: underline; text-decoration-thickness: 2px; }
 
-  .fecha-item { display: flex; align-items: flex-start; gap: 16px; padding: 16px 0; border-top: 1px solid var(--linea); }
-  .fecha-item:first-of-type { border-top: none; padding-top: 0; }
-  .dia {
-    flex: 0 0 auto; width: 64px; text-align: center; padding: 10px 0;
-    background: var(--gregal-claro); border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--gregal) 20%, transparent);
+  .fechas { display: flex; flex-direction: column; gap: 16px; padding-top: 18px; }
+  .talon {
+    display: flex; gap: 18px; align-items: center;
+    background: var(--stock); padding: 16px 18px;
+    transform: rotate(var(--rt, 0deg));
+    box-shadow: var(--sombra-papel);
   }
-  .proxima .dia { background: var(--gregal); border-color: var(--gregal); }
-  .proxima .dd, .proxima .mm { color: #fff; }
-  .dd { font-family: var(--display); font-size: 24px; font-weight: 800; line-height: 1; color: var(--gregal); }
-  .mm { font-size: 10px; color: var(--tinta-suave); letter-spacing: .18em; margin-top: 4px; font-weight: 800; }
-  .desc h4 { font-size: 16px; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .chip-proxima { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; background: var(--gregal-claro); color: var(--gregal); padding: 3px 8px; border-radius: 999px; }
-  .hora { font-size: 13.5px; color: var(--tinta-suave); font-weight: 700; }
-  .desc p { font-size: 13.5px; margin-top: 4px; }
-  .pronto {
-    display: flex; gap: 14px; align-items: flex-start;
-    margin-top: 18px; padding: 16px 18px; border-radius: 16px;
-    background: linear-gradient(120deg, var(--mistral-claro), var(--gregal-claro) 40%, var(--austro-claro) 70%, var(--cierzo-claro));
+  .talon-dia {
+    flex: 0 0 auto; width: 84px; padding: 8px 0;
+    display: flex; flex-direction: column; align-items: center; line-height: 1;
+    border: 2px solid var(--xerox);
   }
-  .pronto-ico { font-size: 22px; line-height: 1; }
-  .pronto strong { display: block; font-family: var(--display); font-size: 15.5px; margin-bottom: 2px; }
-  .pronto span { font-size: 13.5px; color: var(--tinta-media); }
-  .pronto a { color: var(--cierzo); font-weight: 800; }
+  .dd { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 48px; line-height: .95; font-variant-numeric: tabular-nums; }
+  .talon-titulo { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 34px; text-transform: uppercase; line-height: .95; margin-bottom: 4px; }
+  .talon-desc { font-size: 15px; margin-top: 6px; }
+  .talon-vacio { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .pronto { font-size: 16px; line-height: 1.5; max-width: 52ch; padding: 14px 0 0; border-top: 2px solid var(--xerox); }
+  .pronto a { text-decoration: underline; font-weight: 700; }
 </style>

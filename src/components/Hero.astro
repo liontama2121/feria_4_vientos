@@ -1,4 +1,7 @@
 ---
+// Primer vistazo del muro: la hoja verde con el buscador engrapado (la acción principal)
+// y la hoja fotocopiada con el molinete y cuántos vecinos hay pegados.
+// El campo #dirBuscar es el buscador del directorio (Directorio.astro lo escucha).
 import Molinete from './Molinete.astro';
 import type { Fecha, Torre } from '../lib/db';
 import { fechaLarga, rangoHoras } from '../lib/fechas';
@@ -6,76 +9,136 @@ import { fechaLarga, rangoHoras } from '../lib/fechas';
 interface Props {
   proxima: Fecha | undefined;
   torres: Torre[];
+  /** Emprendimientos publicados (dato real, no decorativo). */
+  total: number;
 }
-const { proxima, torres } = Astro.props;
+const { proxima, torres, total } = Astro.props;
 const nombres = torres.map((t) => t.nombre);
 const listaTorres = `${nombres.slice(0, -1).join(', ')} y ${nombres.at(-1)}`;
 ---
 
 <header class="hero">
-  <div class="malla" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-  <div class="wrap hero-inner">
-    <div class="hero-copy">
-      <span class="hero-eyebrow">
-        <span class="dot"></span>
-        {proxima ? `Próxima feria · ${fechaLarga(proxima.fecha)} · ${rangoHoras(proxima)}` : 'Muy pronto, nueva fecha'}
-      </span>
-      <h1>Cuatro <span class="serif grad-text">vientos</span>, una misma comunidad.</h1>
-      <p class="lead">
-        La feria de emprendimientos donde cada conjunto — <strong>{listaTorres}</strong> — trae lo suyo al espacio que recuperamos para la comunidad.
-      </p>
-      <div class="cta-row">
-        <a href="#directorio" class="btn btn-primary">Ver emprendimientos →</a>
-        {proxima && <a href="#torres" class="btn btn-ghost">Ver la feria</a>}
-        <a href="#participar" class="btn btn-ghost">Quiero participar</a>
+  <div class="wrap hero-grid">
+    <div class="hoja-verde con-sombra pegar" style="--i:0;--rot-inicial:-3deg">
+      <div class="hoja rasgado-abajo perforado verde-papel">
+        <span class="grapa" style="top:18px;left:38%;--g-rot:-6deg"></span>
+        <span class="grapa" style="top:22px;right:26px;--g-rot:8deg"></span>
+        <h1>
+          Encuentra<br />a tu vecino
+        </h1>
+        <p class="bajada">Emprendimientos de {listaTorres}. Buscas, arrancas el número y le escribes por WhatsApp.</p>
+        <form class="buscar" action="#directorio" role="search" data-buscar-hero>
+          <label for="dirBuscar" class="sello">¿Qué necesitas?</label>
+          <div class="buscar-fila">
+            <input id="dirBuscar" type="search" name="q" placeholder="arepas, plomero, uñas, yoga…" autocomplete="off" enterkeyhint="search" />
+            <button type="submit" class="boton boton-tinta">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path></svg>
+              Buscar
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
-    <div class="hero-logo">
-      <Molinete size={260} spin label="Molinete de la Feria 4 Vientos" />
-      <div class="marca">4 VIENTOS</div>
-      <div class="vientos">{nombres.join(' · ').toUpperCase()}</div>
+    <div class="hoja-negra con-sombra pegar" style="--i:1;--rot-inicial:3deg">
+      <div class="hoja rasgado-ambos negra-papel">
+        <span class="grapa" style="top:26px;left:30px;--g-rot:12deg"></span>
+        <Molinete size={260} spin label="Molinete de 4 Vientos" />
+        <p class="conteo">
+          <span class="conteo-num">{String(total).padStart(2, '0')}</span>
+          <span class="sello">{total === 1 ? 'emprendimiento pegado en el muro' : 'emprendimientos pegados en el muro'}</span>
+        </p>
+      </div>
     </div>
+
+    {
+      proxima && (
+        <a href="#torres" class="aviso-feria con-sombra pegar" style="--i:2">
+          <span class="hoja rasgado-ambos">
+            <span class="aviso-titulo">Próxima feria</span>
+            <span class="sello">
+              {fechaLarga(proxima.fecha)} · {rangoHoras(proxima)} · El terminalito
+            </span>
+          </span>
+        </a>
+      )
+    }
   </div>
 </header>
 
+<script>
+  // Buscar desde la hoja verde: el filtro corre en vivo (Directorio.astro); al enviar, baja al muro.
+  document.querySelector<HTMLFormElement>('[data-buscar-hero]')?.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    document.getElementById('muro')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
+</script>
+
 <style>
-  .hero { position: relative; padding: 90px 0 120px; overflow: hidden; background: var(--crema); }
-  .hero::before {
-    content: ''; position: absolute; inset: 0; z-index: 1;
-    background-image: radial-gradient(circle, rgba(26, 22, 51, .05) 1px, transparent 1px);
-    background-size: 32px 32px;
-    pointer-events: none;
+  .hero { padding: 28px 0 8px; }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+
+  .verde-papel {
+    --stock: var(--verde);
+    --borde-alto: 22px;
+    padding: 56px 48px 64px 64px;
+    background-position: 18px 0;
   }
-  .malla { position: absolute; inset: 0; overflow: hidden; }
-  .malla i { position: absolute; width: 560px; height: 560px; border-radius: 50%; filter: blur(110px); opacity: .42; animation: deriva 12s ease-in-out infinite; }
-  .malla i:nth-child(1) { background: var(--mistral); left: -180px; top: -200px; }
-  .malla i:nth-child(2) { background: var(--gregal); right: -160px; top: -240px; animation-delay: -4s; }
-  .malla i:nth-child(3) { background: var(--austro); left: 18%; bottom: -380px; animation-delay: -2s; }
-  .malla i:nth-child(4) { background: var(--cierzo); right: 4%; bottom: -340px; animation-delay: -8s; }
-  @keyframes deriva { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-30px, 24px); } }
-
-  .hero-inner { display: grid; grid-template-columns: 1.15fr 1fr; gap: 60px; align-items: center; z-index: 2; }
-  @media (max-width: 920px) { .hero-inner { grid-template-columns: 1fr; text-align: center; } .hero-logo { order: -1; } }
-
-  .hero-eyebrow {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 9px 18px; margin-bottom: 24px;
-    background: #fff; border-radius: 999px;
-    font-size: 13.5px; font-weight: 700;
-    box-shadow: 0 10px 26px rgba(26, 22, 51, .1);
+  @media (max-width: 600px) { .verde-papel { padding: 48px 20px 52px 40px; background-position: 10px 0; } }
+  h1 {
+    font-size: clamp(64px, 10.4vw, 150px);
+    margin-bottom: 22px;
   }
-  .hero-eyebrow .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gregal); box-shadow: 0 0 12px var(--gregal); flex: 0 0 auto; }
+  .bajada { font-family: var(--f-sello); font-size: 17px; line-height: 1.45; max-width: 46ch; margin-bottom: 26px; }
 
-  h1 { font-size: clamp(46px, 6.5vw, 86px); line-height: 1.02; letter-spacing: -.035em; margin-bottom: 22px; }
-  .lead { font-size: 19px; color: var(--tinta-media); max-width: 520px; margin-bottom: 32px; }
-  .lead strong { color: var(--tinta); }
-  @media (max-width: 920px) { .lead { margin-left: auto; margin-right: auto; } }
-  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
-  @media (max-width: 920px) { .cta-row { justify-content: center; } }
+  .buscar label { display: block; margin-bottom: 8px; }
+  .buscar-fila { display: flex; gap: 10px; flex-wrap: wrap; }
+  .buscar input {
+    flex: 1 1 260px; min-width: 0; min-height: 56px;
+    padding: 12px 16px;
+    font-family: var(--f-sello); font-size: 19px; font-weight: 700; color: var(--xerox);
+    background: var(--papel); border: 2px solid var(--xerox); border-radius: 0;
+    box-shadow: inset 0 2px 0 rgba(17, 17, 17, .08);
+  }
+  .buscar input::placeholder { color: #5B5B55; font-weight: 400; }
+  .buscar .boton { min-height: 56px; font-size: 22px; }
 
-  .hero-logo { display: flex; flex-direction: column; align-items: center; text-align: center; }
-  .hero-logo :global(.molinete) { filter: drop-shadow(0 24px 50px rgba(123, 63, 228, .3)); width: min(260px, 60vw); height: auto; }
-  .marca { font-family: var(--display); font-weight: 800; font-size: 28px; letter-spacing: .2em; margin-top: 26px; }
-  .vientos { font-size: 11px; letter-spacing: .3em; color: var(--tinta-suave); font-weight: 700; margin-top: 6px; }
+  .negra-papel {
+    --stock: var(--xerox);
+    --borde-alto: 18px;
+    color: var(--papel);
+    min-height: 100%;
+    padding: 44px 28px 40px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  }
+  .hoja-negra { margin-top: 36px; }
+  .hoja-negra .hoja { transform: rotate(1.4deg); }
+  .hoja-negra :global(.molinete) { width: min(240px, 58vw); height: auto; }
+  .conteo { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; justify-content: center; text-align: center; }
+  .conteo-num {
+    font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 92px; line-height: .8;
+    color: var(--verde); font-variant-numeric: tabular-nums;
+  }
+  .conteo .sello { max-width: 16ch; text-align: left; font-size: 14px; }
+  @media (max-width: 900px) {
+    .hoja-negra { margin-top: -6px; }
+    .hoja-negra .hoja { transform: rotate(-1deg); }
+    .negra-papel { flex-direction: row; justify-content: flex-start; padding: 28px 20px; }
+    .hoja-negra :global(.molinete) { width: 96px; }
+    .conteo-num { font-size: 64px; }
+  }
+
+  .aviso-feria {
+    grid-column: 1 / -1; justify-self: start;
+    margin: -18px 0 0 6%;
+  }
+  .aviso-feria .hoja { transform: rotate(-2deg); transition: transform .3s var(--ease); }
+  .aviso-feria:hover .hoja { transform: rotate(-.6deg) translateY(-2px); }
+  .aviso-feria .hoja {
+    --stock: var(--rosa); --borde-alto: 12px;
+    display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap;
+    padding: 20px 28px;
+  }
+  .aviso-titulo { font-family: var(--f-display); font-stretch: 62%; font-weight: 900; font-size: 44px; text-transform: uppercase; line-height: .9; }
 </style>

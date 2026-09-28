@@ -14,6 +14,8 @@ interface Props {
   torre?: string;
   /** Foto para la vista previa al compartir (ruta del sitio, p. ej. /media/…). Sin ella, /og.jpg. */
   image?: string;
+  /** Landing pública con el mundo "muro de avisos": carga sus fuentes y activa `body.muro`. */
+  muro?: boolean;
 }
 
 const {
@@ -24,6 +26,7 @@ const {
   bodyClass,
   torre,
   image,
+  muro = false,
 } = Astro.props;
 // La foto de un emprendimiento sale del dominio que atendió la petición (WhatsApp la descarga de ahí).
 const og = image ? new URL(image, Astro.url).toString() : new URL('/og.jpg', Astro.site ?? Astro.url).toString();
@@ -37,7 +40,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url).toString(
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#FFF7EA" />
+    <meta name="theme-color" content={muro ? '#111111' : '#FFF7EA'} />
     {noindex ? <meta name="robots" content="noindex, nofollow" /> : <link rel="canonical" href={canonical} />}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
@@ -59,12 +62,21 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url).toString(
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Instrument+Serif:ital@1&family=Manrope:wght@500;600;700&display=swap"
-    />
+    {
+      muro ? (
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Courier+Prime:wght@400;700&display=swap"
+        />
+      ) : (
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Instrument+Serif:ital@1&family=Manrope:wght@500;600;700&display=swap"
+        />
+      )
+    }
   </head>
-  <body class={bodyClass} data-torre={torre}>
+  <body class:list={[bodyClass, { muro }]} data-torre={torre}>
     <slot />
     {whatsapp && <FloatingWhatsApp />}
   </body>

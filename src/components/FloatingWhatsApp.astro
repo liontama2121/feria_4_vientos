@@ -19,4 +19,14 @@ import { MENSAJES, linkWhatsApp } from '../lib/sitio';
   .whatsapp-flotante:hover { transform: scale(1.1); }
   .whatsapp-flotante svg { width: 30px; height: 30px; fill: #fff; }
   @media (max-width: 500px) { .whatsapp-flotante { bottom: 16px; right: 16px; } }
+
+  /* En el muro: una calcomanía negra con el verde de contacto, sin halo */
+  :global(body.muro) .whatsapp-flotante {
+    border-radius: 0; background: var(--xerox); width: 60px; height: 60px;
+    border: 3px solid var(--verde);
+    box-shadow: 0 14px 20px -10px rgba(17, 17, 17, .6);
+    transform: rotate(-4deg);
+  }
+  :global(body.muro) .whatsapp-flotante:hover { transform: rotate(0deg) scale(1.06); }
+  :global(body.muro) .whatsapp-flotante svg { fill: var(--verde); }
 </style>
