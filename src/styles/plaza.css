@@ -133,3 +133,117 @@ body.plaza .wrap { max-width: 1280px; padding: 0 24px; }
   .abrir { animation: abrir .7s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 60ms); }
   @keyframes abrir { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Paneles, registro y login: heredan la plaza reasignando los
+   tokens de global.css (panel.css y las páginas los usan).
+   ══════════════════════════════════════════════════════════════ */
+body.plaza {
+  --crema: var(--papel);
+  --crema-alt: #FFF3D6;
+  --tinta-media: #3C3456;
+  --linea: rgba(32, 24, 58, .1);
+  --linea-fuerte: rgba(32, 24, 58, .24);
+
+  --mistral: var(--hierbabuena); --mistral-claro: #C9F0E8; --mistral-medio: #7FD6C8;
+  --gregal: var(--lulo);         --gregal-claro: #FFE2C4;  --gregal-medio: #FFB877;
+  --austro: var(--pitahaya);     --austro-claro: #FFD6E4;  --austro-medio: #FF93B7;
+  --cierzo: var(--mora);         --cierzo-claro: #E6DAFF;  --cierzo-medio: #B394F2;
+  --whatsapp: var(--pedir);
+  --grad-vientos: linear-gradient(90deg, var(--hierbabuena), var(--lulo), var(--pitahaya), var(--mora));
+
+  --display: var(--f-letrero);
+  --body: var(--f-texto);
+  --serif: var(--f-mano);
+  --radio: var(--r-puesto);
+  --radio-sm: 12px;
+
+  /* Lilita tiene un solo peso: nada de negritas falsas */
+  font-synthesis: none;
+}
+/* Texto sobre el color del conjunto: tinta en los claros, blanco en los oscuros */
+body.plaza { --torre-texto: #fff; }
+body.plaza[data-torre='gregal'], body.plaza[data-torre='austro'] { --torre-texto: var(--tinta); }
+
+/* Las palabras clave en "serif" pasan a ser letra escrita a mano */
+body.plaza .serif { font-style: normal; font-weight: 400; letter-spacing: 0; }
+
+/* Botones de global.css / panel.css: píldoras de letrero que se hunden al presionar */
+body.plaza .btn {
+  font-family: var(--f-letrero); font-weight: 400; letter-spacing: .01em;
+  border: 2.5px solid var(--tinta); border-radius: 999px;
+  box-shadow: 0 3px 0 var(--tinta);
+  transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
+}
+body.plaza .btn:hover { transform: none; }
+body.plaza .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--tinta); }
+body.plaza .btn-primary { background: var(--torre, var(--tinta)); color: var(--torre-texto, #fff); }
+body.plaza:not([data-torre]) .btn-primary, body.plaza.comite .btn-primary { background: var(--tinta); color: var(--papel); }
+body.plaza .btn-ghost { background: var(--papel); color: var(--tinta); }
+body.plaza .btn-ghost:hover { background: var(--mango-claro); }
+body.plaza .btn-wsp { background: var(--pedir); color: #fff; border-color: var(--pedir-oscuro); box-shadow: 0 3px 0 var(--pedir-oscuro); }
+body.plaza .btn-peligro { background: var(--papel); color: #B42318; border-color: #B42318; box-shadow: 0 3px 0 #B42318; }
+
+/* ── Panel del vecino y del comité ── */
+body.plaza.panel::before { display: none; }
+body.plaza .topbar {
+  background: var(--tinta); color: var(--papel);
+  backdrop-filter: none; -webkit-backdrop-filter: none; border-bottom: 0;
+}
+/* Toldo del color del conjunto bajo la barra */
+body.plaza .topbar::after {
+  content: ''; display: block; height: 30px;
+  background: repeating-linear-gradient(90deg, var(--torre, var(--pitahaya)) 0 32px, #fff 32px 64px);
+  -webkit-mask: radial-gradient(circle at 16px 0, #000 16px, transparent 16.5px) bottom left / 32px 12px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 12px) no-repeat;
+  mask: radial-gradient(circle at 16px 0, #000 16px, transparent 16.5px) bottom left / 32px 12px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 12px) no-repeat;
+  transition: background .3s ease;
+}
+body.plaza .brand { font-size: 22px; font-weight: 400; }
+body.plaza .brand span { color: var(--mango); font-family: var(--f-mano); font-size: 22px; }
+body.plaza .user-chip { background: var(--papel); border: 0; color: var(--tinta); }
+body.plaza .user-chip .avatar { background: var(--torre); color: var(--torre-texto, #fff); font-weight: 400; }
+body.plaza .top-btn { background: transparent; border: 2px solid rgba(255, 253, 248, .5); color: var(--papel); font-family: var(--f-letrero); font-weight: 400; font-size: 15px; }
+body.plaza .top-btn:hover { background: var(--mango); border-color: var(--mango); color: var(--tinta); }
+
+body.plaza .sidebar-card, body.plaza .card {
+  background: var(--papel);
+  border: 2px solid var(--tinta);
+  box-shadow: 0 2px 0 rgba(32, 24, 58, .08), 0 14px 26px -18px rgba(32, 24, 58, .5);
+}
+body.plaza .sidebar-title { font-family: var(--f-mano); font-size: 22px; letter-spacing: 0; font-weight: 400; color: var(--tinta); }
+body.plaza .sidebar-nav a { font-weight: 700; color: var(--tinta); }
+body.plaza .sidebar-nav a:hover { background: var(--mango-claro); }
+body.plaza .sidebar-nav a.active { background: var(--torre); color: var(--torre-texto, #fff); }
+body.plaza .sidebar-nav a.active .badge { background: var(--papel); color: var(--tinta); }
+body.plaza .sidebar-help { background: var(--mango); border: 2px solid var(--tinta); }
+body.plaza .sidebar-help h4 { color: var(--tinta); }
+body.plaza .sidebar-help .wsp { background: var(--pedir); color: #fff; border-color: var(--pedir-oscuro); }
+
+body.plaza .title-eyebrow { font-family: var(--f-mano); font-size: 24px; letter-spacing: 0; font-weight: 400; margin-bottom: 2px; }
+body.plaza .page-head h1 { font-size: 40px; letter-spacing: 0; }
+body.plaza .card-head h2 { font-size: 26px; }
+body.plaza .card-head .step { background: var(--torre); color: var(--torre-texto, #fff); font-weight: 400; font-size: 18px; }
+
+body.plaza .field > label, body.plaza .field .label { font-family: var(--f-texto); font-weight: 800; font-size: 13.5px; color: var(--tinta); }
+body.plaza .field input, body.plaza .field select, body.plaza .field textarea, body.plaza .input-prefix { border: 2px solid var(--tinta); }
+body.plaza .field .input-prefix input { border: 0; }
+body.plaza .chip { font-family: var(--f-texto); font-weight: 700; border: 2px solid var(--tinta); }
+body.plaza .chip[aria-checked='true'] { background: var(--torre); color: var(--torre-texto, #fff); border-color: var(--tinta); }
+body.plaza .torre-opt { border: 2px solid var(--tinta); }
+body.plaza .torre-opt .n { font-weight: 400; font-size: 19px; }
+body.plaza .estado { border: 2px solid var(--tinta); border-radius: 14px; }
+
+/* ── Registro, login, gracias y "sin acceso": la entrada de la plaza ── */
+body.plaza .sin-acceso {
+  min-height: 100dvh; align-content: start; padding: 110px 16px 48px;
+  background: var(--mango);
+}
+/* Toldo grande arriba, como en la portada */
+body.plaza .sin-acceso::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 70px;
+  background: repeating-linear-gradient(90deg, var(--pitahaya) 0 56px, #fff 56px 112px);
+  -webkit-mask: radial-gradient(circle at 28px 0, #000 28px, transparent 28.5px) bottom left / 56px 20px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 20px) no-repeat;
+  mask: radial-gradient(circle at 28px 0, #000 28px, transparent 28.5px) bottom left / 56px 20px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 20px) no-repeat;
+}
+body.plaza .sin-acceso .card { border: 4px solid var(--tinta); box-shadow: 0 2px 0 rgba(32, 24, 58, .08), 0 26px 40px -18px rgba(32, 24, 58, .55); }
+body.plaza .sin-acceso h1 { font-size: 40px; }
