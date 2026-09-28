@@ -4,8 +4,10 @@ import type { Torre } from '../lib/db';
 
 interface Props {
   torres: Torre[];
+  /** Sin feria activa no hay secciones por conjunto a las cuales saltar. */
+  feria: boolean;
 }
-const { torres } = Astro.props;
+const { torres, feria } = Astro.props;
 ---
 
 <nav class="nav" aria-label="Principal">
@@ -16,7 +18,7 @@ const { torres } = Astro.props;
     </a>
     <div class="nav-torres">
       {
-        torres.map((t) => (
+        feria && torres.map((t) => (
           <a href={`#${t.id}`} class="nav-torre" style={`--t:${t.color_hex};--t-claro:${t.color_claro}`}>
             <span class="dot" />
             {t.nombre}

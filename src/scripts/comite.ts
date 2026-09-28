@@ -1,6 +1,7 @@
 // Lógica de /admin/comite. Todo se pinta desde los datos en memoria y cada acción
 // llama a /api/comite/* y actualiza solo lo que cambió.
 import type { Cuenta, EstadoVisible, Fecha, FilaComite, Notificacion, Patrocinador, Torre } from '../lib/db';
+import { estaActiva as estaActivaEn } from '../lib/fechas';
 
 interface DatosComite {
   filas: FilaComite[];
@@ -128,7 +129,7 @@ export function iniciarComite() {
     set('notificaciones', avisos ? `${avisos} por enviar` : '');
     set('torres', String(D.torres.length));
     set('patrocinadores', String(D.patrocinadores.length));
-    set('fechas', String(D.fechas.length));
+    set('fechas', D.fechas.some(estaActiva) ? 'activa' : String(D.fechas.length));
   }
 
   // ───────────────────────── Emprendedores ─────────────────────────
@@ -769,24 +770,67 @@ export function iniciarComite() {
   // ───────────────────────── Fechas ─────────────────────────
   const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
 
+  const hasta = (fe: Fecha) => fe.mostrar_hasta || fe.fecha;
+  const estaActiva = (fe: Fecha) => estaActivaEn(fe, hoy);
+
+  function pillFecha(fe: Fecha) {
+    if (!fe.activa) return h('span', { class: 'pill-inactiva', text: 'Apagada · oculta' });
+    if (hoy > hasta(fe)) return h('span', { class: 'pill-inactiva', text: 'Terminó · oculta' });
+    if (fe.mostrar_desde && hoy < fe.mostrar_desde) return h('span', { class: 'pill-programada', text: `Programada · sale el ${fe.mostrar_desde}` });
+    return h('span', { class: 'pill-activa', text: `🎪 En la landing hasta el ${hasta(fe)}` });
+  }
+
   function editorFecha(fe: Fecha | null) {
-    const base: Fecha = fe ?? { id: '', titulo: 'Feria 4 Vientos', fecha: hoy, hora_inicio: '09:00', hora_fin: '16:00', descripcion: '' };
+    // Crear una feria la deja activa de una vez; se puede apagar antes de guardar.
+    const base: Fecha = fe ?? {
+      id: '',
+      titulo: 'Feria 4 Vientos',
+      fecha: hoy,
+      hora_inicio: '09:00',
+      hora_fin: '13:00',
+      descripcion: '',
+      activa: true,
+      mostrar_desde: hoy,
+      mostrar_hasta: hoy,
+    };
+    const terminada = !!base.id && hoy > hasta(base);
     const f = {
       titulo: inp(base.titulo, { maxlength: 80 }),
       fecha: inp(base.fecha, { type: 'date' }),
       hi: inp(base.hora_inicio, { type: 'time' }),
       hf: inp(base.hora_fin, { type: 'time' }),
       desc: inp(base.descripcion, { maxlength: 300, placeholder: 'Qué habrá: emprendimientos, vacunación, música…' }),
+      activa: h('input', { type: 'checkbox', checked: base.activa === true }) as HTMLInputElement,
+      desde: inp(base.mostrar_desde ?? '', { type: 'date' }),
+      hasta: inp(hasta(base), { type: 'date' }),
     };
-    const card = h('div', { class: `card fecha-card${base.fecha < hoy && base.id ? ' pasada' : ''}` });
+    // En una feria nueva, mover el día de la feria arrastra "Mostrar hasta" si quedaba antes.
+    f.fecha.addEventListener('change', () => {
+      if (!base.id && f.fecha.value && f.hasta.value < f.fecha.value) f.hasta.value = f.fecha.value;
+    });
+    const card = h('div', { class: `card fecha-card${terminada ? ' pasada' : ''}${base.id && estaActiva(base) ? ' activa' : ''}` });
+    card.append(
+      h(
+        'div',
+        { class: 'fecha-estado' },
+        h('label', { class: 'check check-feria' }, f.activa, 'Feria activa'),
+        base.id ? pillFecha(base) : h('span', { class: 'pill-inactiva', text: 'Nueva · sin guardar' }),
+      ),
+      h(
+        'div',
+        { class: 'fecha-ventana' },
+        campo('Mostrar en la landing desde', f.desde),
+        campo('Mostrar hasta (incluido)', f.hasta),
+      ),
+    );
     card.append(
       h(
         'div',
         { class: 'fecha-fila' },
         campo('Título', f.titulo),
-        campo('Fecha', f.fecha),
-        campo('Desde', f.hi),
-        campo('Hasta', f.hf),
+        campo('Día de la feria', f.fecha),
+        campo('Hora inicio', f.hi),
+        campo('Hora fin', f.hf),
         h(
           'div',
           { class: 'editor-acciones', style: 'margin-top:0' },
@@ -797,7 +841,7 @@ export function iniciarComite() {
                 text: 'Borrar',
                 on: {
                   click: async () => {
-                    if (!(await confirmar(`Se borrará la fecha “${base.titulo}” (${base.fecha}).`))) return;
+                    if (!(await confirmar(`Se borrará la feria “${base.titulo}” (${base.fecha}).`))) return;
                     try {
                       await api('/api/comite/contenido', 'DELETE', { coleccion: 'fechas', id: base.id });
                       D.fechas = D.fechas.filter((x) => x.id !== base.id);
@@ -813,16 +857,33 @@ export function iniciarComite() {
           h('button', {
             type: 'button',
             class: 'btn btn-primary btn-sm',
-            text: base.id ? 'Guardar' : 'Crear',
+            text: base.id ? 'Guardar' : 'Crear feria',
             on: {
               click: async () => {
                 try {
                   const nueva = await api<Fecha>('/api/comite/contenido', 'PUT', {
                     coleccion: 'fechas',
-                    item: { id: base.id, titulo: f.titulo.value, fecha: f.fecha.value, hora_inicio: f.hi.value, hora_fin: f.hf.value, descripcion: f.desc.value },
+                    item: {
+                      id: base.id,
+                      titulo: f.titulo.value,
+                      fecha: f.fecha.value,
+                      hora_inicio: f.hi.value,
+                      hora_fin: f.hf.value,
+                      descripcion: f.desc.value,
+                      activa: f.activa.checked,
+                      mostrar_desde: f.desde.value,
+                      mostrar_hasta: f.hasta.value,
+                    },
                   });
                   D.fechas = [...D.fechas.filter((x) => x.id !== nueva.id), nueva].sort((a, b) => a.fecha.localeCompare(b.fecha));
-                  toast('Fecha guardada ✓', 'ok');
+                  const msg = estaActiva(nueva)
+                    ? 'Feria activa ✓ Ya se ve en la landing'
+                    : !nueva.activa
+                      ? 'Guardada ✓ Está apagada: no sale en la landing'
+                      : hoy > hasta(nueva)
+                        ? 'Guardada, pero su "Mostrar hasta" ya pasó: no se muestra'
+                        : `Guardada ✓ Saldrá en la landing el ${nueva.mostrar_desde}`;
+                  toast(msg, 'ok');
                   renderFechas();
                 } catch (e) {
                   toast((e as Error).message, 'error');
@@ -838,8 +899,14 @@ export function iniciarComite() {
   }
 
   function renderFechas() {
+    const activa = D.fechas.find(estaActiva);
+    const estado = $('estadoFeria');
+    estado.classList.toggle('on', !!activa);
+    estado.textContent = activa
+      ? `🎪 En la landing ahora: ${activa.titulo} (${activa.fecha}), hasta el ${hasta(activa)}.`
+      : 'Hoy no se muestra ninguna feria: la landing solo tiene el directorio. Crea una feria o ajusta sus fechas "Mostrar desde / hasta".';
     $('listaFechas').replaceChildren(
-      ...(D.fechas.length ? D.fechas.map((f) => editorFecha(f)) : [h('div', { class: 'vacio-lista', text: 'No hay fechas. Agrega la próxima feria.' })]),
+      ...(D.fechas.length ? D.fechas.map((f) => editorFecha(f)) : [h('div', { class: 'vacio-lista', text: 'No hay ferias. Crea la próxima.' })]),
     );
     badges();
   }

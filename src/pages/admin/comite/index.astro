@@ -39,7 +39,7 @@ const TABS = [
   { id: 'notificaciones', label: 'Notificaciones', icono: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>' },
   { id: 'torres', label: 'Conjuntos', icono: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>' },
   { id: 'patrocinadores', label: 'Patrocinadores', icono: '<path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/>' },
-  { id: 'fechas', label: 'Fechas', icono: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>' },
+  { id: 'fechas', label: 'Ferias', icono: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>' },
 ];
 ---
 
@@ -201,18 +201,22 @@ const TABS = [
             <section data-tab-panel="fechas" hidden>
               <div class="page-head">
                 <div>
-                  <div class="title-eyebrow">COMITÉ · FECHAS</div>
+                  <div class="title-eyebrow">COMITÉ · FERIAS</div>
                   <h1>
                     La <span class="serif">próxima feria</span>.
                   </h1>
-                  <p class="desc">La primera fecha futura aparece en el hero de la landing. Las fechas pasadas se ocultan solas.</p>
+                  <p class="desc">
+                    Sin feria activa, la landing solo muestra el directorio. Una feria activa aparece (vitrina y secciones por
+                    conjunto) solo entre “Mostrar desde” y “Mostrar hasta”; fuera de ese rango se oculta sola.
+                  </p>
                 </div>
                 <div class="page-actions">
                   <button type="button" class="btn btn-primary" id="btnNuevaFecha">
-                    + Agregar fecha
+                    + Crear feria
                   </button>
                 </div>
               </div>
+              <div id="estadoFeria" class="estado-feria" />
               <div id="listaFechas" />
             </section>
 
@@ -388,4 +392,14 @@ const TABS = [
   @media (max-width: 900px) { .fecha-fila { grid-template-columns: 1fr 1fr; } }
   .fecha-fila .field.full { grid-column: 1 / -1; }
   .fecha-card.pasada { opacity: .6; }
+  .fecha-card.activa { border: 2px solid var(--austro); }
+  .fecha-estado { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .pill-activa { padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 800; font-family: var(--display); background: var(--austro-claro); color: #A3155A; }
+  .pill-inactiva { padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 800; font-family: var(--display); background: var(--crema); color: var(--tinta-suave); border: 1px solid var(--linea-fuerte); }
+  .check-feria input { accent-color: var(--austro); }
+  .pill-programada { padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 800; font-family: var(--display); background: var(--gregal-claro); color: var(--gregal); }
+  .fecha-ventana { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; margin-bottom: 12px; border-radius: 12px; background: var(--crema); }
+  @media (max-width: 600px) { .fecha-ventana { grid-template-columns: 1fr; } }
+  .estado-feria { display: flex; gap: 12px; align-items: center; padding: 14px 18px; border-radius: 16px; margin-bottom: 16px; font-weight: 700; font-size: 14px; background: #fff; border: 1px dashed var(--linea-fuerte); color: var(--tinta-media); }
+  .estado-feria.on { background: var(--austro-claro); border: 1px solid var(--austro); color: #A3155A; }
 </style>

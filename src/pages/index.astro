@@ -1,7 +1,7 @@
 ---
 // Landing pública. Lee todo de D1 en cada request: lo que el comité aprueba aparece al instante.
-// Arriba mandan los que están EN LA FERIA (vitrina + sección de su conjunto); abajo el directorio
-// con todos, para buscar por nombre o categoría.
+// Primero el directorio con todos (buscar por nombre o categoría). La feria (índice, vitrina y
+// sección por conjunto) solo aparece si el comité activó una fecha que aún no pasa.
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Hero from '../components/Hero.astro';
@@ -17,41 +17,51 @@ import Footer from '../components/Footer.astro';
 import DetalleModal from '../components/DetalleModal.astro';
 import Directorio from '../components/Directorio.astro';
 import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres } from '../lib/db';
-import { proximas } from '../lib/fechas';
+import { feriasActivas } from '../lib/fechas';
 
 const db = Astro.locals.runtime.env.DB;
-const [torres, emprendedores, patrocinadores, todasLasFechas] = await Promise.all([
+const [torres, publicos, patrocinadores, todasLasFechas] = await Promise.all([
   listarTorres(db),
   listarPublicos(db),
   listarPatrocinadores(db),
   listarFechas(db),
 ]);
 
+const fechas = feriasActivas(todasLasFechas);
+const hayFeria = fechas.length > 0;
+// Sin feria activa nadie lleva la etiqueta 🎪 (ni en el directorio ni en el modal).
+const emprendedores = hayFeria ? publicos : publicos.map((e) => ({ ...e, en_feria: false }));
+
 const enFeria = emprendedores.filter((e) => e.en_feria);
 const porTorre = Object.fromEntries(torres.map((t) => [t.id, enFeria.filter((e) => e.torre === t.id)]));
 const conteo = Object.fromEntries(torres.map((t) => [t.id, porTorre[t.id].length]));
 // Vitrina "Feria · <fecha>": todos los de la feria uno a uno (destacados primero); si nadie está en la feria, todos.
 const baseVitrina = enFeria.length ? enFeria : emprendedores;
-const fechas = proximas(todasLasFechas);
 
 // Sin caché: lo que el comité publica se ve apenas se recarga la página.
 Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 
 <Layout>
-  <Nav torres={torres} />
+  <Nav torres={torres} feria={hayFeria} />
   <main>
     <Hero proxima={fechas[0]} torres={torres} />
-    <IndiceTorres torres={torres} conteo={conteo} />
-    <VitrinaCarrusel emprendedores={baseVitrina} torres={torres} proxima={fechas[0]} />
-    <Historia />
-    {torres.map((t) => <TorreSection torre={t} emprendedores={porTorre[t.id]} />)}
     <Directorio emprendedores={emprendedores} torres={torres} />
+    {
+      hayFeria && (
+        <>
+          <IndiceTorres torres={torres} conteo={conteo} />
+          <VitrinaCarrusel emprendedores={baseVitrina} torres={torres} proxima={fechas[0]} />
+        </>
+      )
+    }
+    <Historia />
+    {hayFeria && torres.map((t) => <TorreSection torre={t} emprendedores={porTorre[t.id]} />)}
     <ComoParticipar />
     <UbicacionFechas fechas={fechas} />
     <ConElRespaldoDe patrocinadores={patrocinadores} />
     <PatrocinadorJuanCode />
   </main>
-  <Footer torres={torres} />
+  <Footer torres={torres} feria={hayFeria} />
   <DetalleModal emprendedores={emprendedores} torres={torres} />
 </Layout>

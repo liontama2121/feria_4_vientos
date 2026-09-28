@@ -49,6 +49,11 @@ export interface Fecha {
   hora_inicio: string; // HH:MM
   hora_fin: string;
   descripcion: string;
+  /** La feria solo sale en la landing si el comité la activó. Registros viejos sin el campo = inactiva. */
+  activa?: boolean;
+  /** Ventana en que sale en la landing (YYYY-MM-DD, ambos incluidos). Sin valor: desde siempre / hasta el día de la feria. */
+  mostrar_desde?: string;
+  mostrar_hasta?: string;
 }
 
 /** El estado de moderación, más `oculto` (aprobado pero con "Publicar en la landing" apagado). */
