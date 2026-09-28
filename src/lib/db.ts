@@ -106,7 +106,7 @@ export interface Notificacion {
   creado_at: string;
   /** A quién va: el comité (admin) o el vecino. */
   para: Rol;
-  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte' | 'solicitud' | 'solicitud_aprobada' | 'solicitud_rechazada';
+  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte' | 'solicitud' | 'solicitud_aprobada' | 'solicitud_rechazada' | 'vinculado';
   titulo: string;
   mensaje: string;
   /** Celular de 10 dígitos (sin +57) al que hay que mandar el mensaje, si aplica. */
