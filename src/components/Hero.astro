@@ -139,7 +139,9 @@ const GIROS = [-4, 3, -2, 5];
   .cat-feria[aria-pressed='true'] { background: var(--pitahaya); color: #fff; }
 
   /* La mercancía del puesto: fotos reales, grandes y a color */
-  .puesto-vitrina { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; position: relative; }
+  /* minmax(0,…): un nombre largo no puede ensanchar su columna */
+  .puesto-vitrina { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; position: relative; }
+  .producto { min-width: 0; }
   .producto {
     position: relative; padding: 8px 8px 0; border: 0; cursor: pointer;
     background: var(--papel); border-radius: 14px;
