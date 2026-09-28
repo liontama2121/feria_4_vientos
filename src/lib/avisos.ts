@@ -2,12 +2,25 @@
 // Aún no hay envío automático: se guardan en la tabla `notificaciones` y el comité las manda
 // con un clic desde /admin/comite#notificaciones (wa.me con el texto listo).
 // Para automatizar (Twilio, Meta Cloud API o webhook a n8n), el punto único es `avisar()`.
-import { TORRES_BASE, motivoReporte, type TorreId } from './constantes';
+import { LIMITES, TORRES_BASE, motivoReporte, type TorreId } from './constantes';
 import { crearNotificacion, type Cuenta, type Notificacion, type Registro, type Reporte, type Solicitud } from './db';
 
 const conjunto = (t: TorreId) => TORRES_BASE[t]?.nombre ?? t;
 /** "Mistral 402", o solo "Mistral" si no dio torre/apto. */
 const donde = (t: TorreId, apto: string) => `${conjunto(t)}${apto ? ` ${apto}` : ''}`;
+
+/**
+ * Lo que el vecino debe llenar en el panel. Coincide con validarPublicacion (obligatorios)
+ * más la categoría, que el panel marca como requerida. Va dentro de los avisos por WhatsApp.
+ */
+const QUE_LLENAR = `📋 Lo que tienes que llenar:
+✅ Nombre del emprendimiento
+✅ Categoría (comida, belleza, servicios…)
+✅ Descripción corta (máx. ${LIMITES.descripcionCorta} letras, sale en la tarjeta)
+✅ Foto principal (bien iluminada)
+✅ WhatsApp de contacto (10 dígitos)
+➕ Opcional: descripción larga, ${LIMITES.galeria} fotos más, Instagram, TikTok, Facebook y página web
+Cuando termines, dale "Enviar a revisión" y el comité lo revisa.`;
 
 export function avisar(db: D1Database, n: Omit<Notificacion, 'id' | 'creado_at' | 'enviada'>) {
   return crearNotificacion(db, n);
@@ -96,11 +109,31 @@ export function avisoSolicitudRespuesta(db: D1Database, c: Cuenta, s: Solicitud,
     tipo: aprobada ? 'solicitud_aprobada' : 'solicitud_rechazada',
     titulo: `${aprobada ? 'Aprobada' : 'No aprobada'}: otro emprendimiento (${s.nombre_emprendimiento})`,
     mensaje: aprobada
-      ? `¡Hola ${c.nombre}! 🎉 El comité aprobó tu nuevo emprendimiento "${s.nombre_emprendimiento}". Entra a ${origen}/admin, elígelo en "Mis emprendimientos", llénalo y envíalo a revisión.`
+      ? `¡Hola ${c.nombre}! 🎉 El comité aprobó tu nuevo emprendimiento "${s.nombre_emprendimiento}".\n\nEntra aquí para llenarlo (con tu mismo correo y contraseña): ${origen}/admin?slug=${encodeURIComponent(s.slug ?? '')}\nTambién lo ves en "Mis emprendimientos" de tu panel.\n\n${QUE_LLENAR}`
       : `Hola ${c.nombre}. El comité no aprobó abrir "${s.nombre_emprendimiento}"${respuesta ? `: ${respuesta}` : ''}. Si tienes dudas, respóndenos por aquí.`,
     whatsapp: c.whatsapp,
     email: c.email,
     slug: s.slug,
+  });
+}
+
+/** El comité le asignó a un vecino un emprendimiento (p. ej. uno cargado a mano). Si falta llenarlo, va la lista. */
+export function avisoVinculado(db: D1Database, c: Cuenta, r: Registro, origen: string) {
+  const d = r.borrador;
+  const nombre = d.nombre_emprendimiento || 'tu emprendimiento';
+  const publicado = r.estado === 'approved';
+  return avisar(db, {
+    para: 'vecino',
+    tipo: 'vinculado',
+    titulo: `Vinculado: ${nombre} → ${c.nombre}`,
+    mensaje: `¡Hola ${c.nombre}! 👋 El comité agregó "${nombre}" a tu cuenta de la Feria 4 Vientos.\n\nEntra aquí con tu correo y contraseña: ${origen}/admin?slug=${encodeURIComponent(r.slug)}${
+      publicado
+        ? `\nYa está publicado. Si le cambias algo, el comité lo vuelve a revisar. Tu link para compartir: ${origen}/e/${encodeURIComponent(r.slug)}`
+        : `\n\n${QUE_LLENAR}`
+    }`,
+    whatsapp: c.whatsapp,
+    email: c.email,
+    slug: r.slug,
   });
 }
 
@@ -122,7 +155,7 @@ export function avisoCuenta(db: D1Database, c: Cuenta, activada: boolean, origen
     tipo: activada ? 'cuenta_activada' : 'cuenta_rechazada',
     titulo: activada ? `Cuenta activada: ${c.nombre}` : `Cuenta rechazada: ${c.nombre}`,
     mensaje: activada
-      ? `¡Hola ${c.nombre}! 👋 El comité activó tu cuenta de la Feria 4 Vientos. Entra con tu correo (${c.email}) y tu contraseña en ${origen}/admin/login y registra tu emprendimiento.`
+      ? `¡Hola ${c.nombre}! 👋 El comité activó tu cuenta de la Feria 4 Vientos. Entra con tu correo (${c.email}) y tu contraseña en ${origen}/admin/login y registra tu emprendimiento.\n\n${QUE_LLENAR}`
       : `Hola ${c.nombre}. El comité de la Feria 4 Vientos no pudo activar tu cuenta${motivo ? `: ${motivo}` : ''}. Si crees que es un error, respóndenos por aquí.`,
     whatsapp: c.whatsapp,
     email: c.email,

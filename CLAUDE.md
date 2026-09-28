@@ -150,7 +150,8 @@ La landing arranca con Hero + **Directorio** (prioridad). Índice, vitrina, secc
 
 - Un vecino puede tener hasta `LIMITES.emprendimientosPorVecino` (3). El primero se crea solo al entrar a `/admin`; los demás los pide en el panel ("+ Solicitar otro emprendimiento" → `/api/panel/solicitud`, form HTML) y el comité los aprueba en `/admin/comite#cuentas` ("Piden otro emprendimiento" → `/api/comite/solicitudes`), que crea el borrador con los datos de su cuenta. Tabla `solicitudes` (pendiente|aprobada|rechazada; `cerrarSolicitud` con `WHERE estado='pendiente'` evita duplicados). Una sola solicitud pendiente a la vez.
 - El panel del vecino respeta `?slug=` solo si es suyo (`registroDeVecino` con slug es estricto: ajeno → null → 404 en las API; la página cae al primero suyo). Tarjeta "Mis emprendimientos" en el sidebar cuando tiene más de uno.
-- El comité puede **vincular** cualquier emprendimiento a una cuenta activa (o desvincularlo) con "👤 Vincular" en su fila (`accion: 'vincular'` en `/api/comite/emprendedores`).
+- El comité puede **vincular** cualquier emprendimiento a una cuenta activa (o desvincularlo) con "👤 Vincular" en su fila (`accion: 'vincular'` en `/api/comite/emprendedores`); al nuevo dueño le queda un aviso (`avisoVinculado`).
+- Los avisos de cuenta activada, otro emprendimiento aprobado y vinculado llevan el link directo (`/admin?slug=`) y la lista `QUE_LLENAR` de `avisos.ts`. Si cambian los obligatorios de `validarPublicacion`, actualizar esa lista.
 
 ## Link para compartir
 

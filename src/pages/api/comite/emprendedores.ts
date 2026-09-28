@@ -2,7 +2,7 @@
 // pedir cambios), destacar, ocultar, marcar "en la feria" y borrar. Solo admin (lo garantiza el middleware).
 import type { APIRoute } from 'astro';
 import { error, json, leerJson } from '../../../lib/api';
-import { avisoAprobado, avisoCambios, avisoRechazado } from '../../../lib/avisos';
+import { avisoAprobado, avisoCambios, avisoRechazado, avisoVinculado } from '../../../lib/avisos';
 import {
   aprobarRegistro,
   borrarRegistro,
@@ -94,6 +94,11 @@ export const PATCH: APIRoute = async ({ locals, request, url }) => {
         }
       }
       await vincularRegistro(db, body.slug, email || null);
+      // Al nuevo dueño le queda el aviso listo con su link y lo que debe llenar.
+      if (email && registro.owner_email !== email) {
+        const cuenta = (await obtenerCuenta(db, email))!;
+        notificacion = await avisoVinculado(db, cuenta, registro, url.origin);
+      }
       break;
     }
     default:
