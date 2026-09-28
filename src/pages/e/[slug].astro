@@ -1,0 +1,29 @@
+---
+// Link para compartir de cada emprendimiento: /e/<slug>. Abre la landing con su ficha ya
+// abierta y trae la vista previa (foto, nombre, descripción) que muestran WhatsApp y demás
+// chats. Solo emprendimientos publicados; si no, manda al inicio. Cuenta visitas (sin bots).
+import Landing from '../../components/Landing.astro';
+import { esPreviewSobreProduccion, listarPublicos, sumarVisita } from '../../lib/db';
+import { SITIO } from '../../lib/sitio';
+
+const slug = Astro.params.slug ?? '';
+const db = Astro.locals.runtime.env.DB;
+const publicos = await listarPublicos(db);
+const e = publicos.find((x) => x.slug === slug);
+if (!e) return Astro.redirect('/', 302);
+
+// Los robots de vista previa (WhatsApp, Facebook, Telegram…) no son visitas reales.
+const ua = Astro.request.headers.get('user-agent') ?? '';
+if (!esPreviewSobreProduccion && !/bot|crawl|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord/i.test(ua)) {
+  // Si falla el conteo, la página igual carga.
+  await sumarVisita(db, slug).catch(() => {});
+}
+
+const meta = {
+  title: `${e.nombre_emprendimiento} · ${SITIO.nombre}`,
+  description: e.descripcion_corta || `Emprendimiento de ${e.nombre_vecino} en los 4 Vientos.`,
+  image: e.foto_principal || undefined,
+};
+---
+
+<Landing abrir={slug} meta={meta} publicos={publicos} />

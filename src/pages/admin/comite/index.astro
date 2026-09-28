@@ -17,6 +17,7 @@ import {
   listarPatrocinadores,
   listarRegistros,
   listarReportes,
+  listarSolicitudes,
   listarTorres,
   usosCategorias,
 } from '../../../lib/db';
@@ -25,7 +26,7 @@ const usuario = Astro.locals.usuario!;
 const env = Astro.locals.runtime.env;
 const db = env.DB;
 
-const [registros, torres, patrocinadores, fechas, cuentas, notificaciones, calificaciones, reportes, usos] = await Promise.all([
+const [registros, torres, patrocinadores, fechas, cuentas, notificaciones, calificaciones, reportes, usos, solicitudes] = await Promise.all([
   listarRegistros(db),
   listarTorres(db),
   listarPatrocinadores(db),
@@ -35,6 +36,7 @@ const [registros, torres, patrocinadores, fechas, cuentas, notificaciones, calif
   listarCalificaciones(db),
   listarReportes(db),
   usosCategorias(db),
+  listarSolicitudes(db),
 ]);
 const datosJson = JSON.stringify({
   filas: registros.map(filaComite),
@@ -45,6 +47,7 @@ const datosJson = JSON.stringify({
   notificaciones,
   calificaciones,
   reportes,
+  solicitudes,
   motivos: MOTIVOS_REPORTE,
   admins: adminEmails(env),
   categorias: Astro.locals.categorias,
@@ -168,6 +171,9 @@ const TABS = [
                   <p class="desc">Cuentas creadas en /registro. Actívalas para que el vecino pueda entrar al panel; al activar queda un aviso listo en Notificaciones.</p>
                 </div>
               </div>
+              <h2 class="seccion-titulo">Piden otro emprendimiento <span class="contador" id="contadorSolicitudes">0</span></h2>
+              <div class="lista" id="listaSolicitudes" />
+              <h2 class="seccion-titulo">Cuentas</h2>
               <div class="lista" id="listaCuentas" />
             </section>
 
@@ -336,6 +342,22 @@ const TABS = [
             <div class="acciones">
               <button class="btn btn-ghost" type="button" data-cerrar>Cancelar</button>
               <button class="btn btn-primary" type="submit">Crear y editar</button>
+            </div>
+          </form>
+        </dialog>
+
+        <dialog class="dialogo" id="dlgVincular" aria-labelledby="dlgVincularTitulo">
+          <form class="dialogo-body" method="dialog">
+            <h3 id="dlgVincularTitulo">Vincular a una cuenta</h3>
+            <p id="vincularTexto" />
+            <div class="field">
+              <label for="vCuenta">Cuenta del vecino</label>
+              <select id="vCuenta"></select>
+            </div>
+            <div class="acciones">
+              <button class="btn btn-ghost" value="cancelar">Cancelar</button>
+              <button class="btn btn-peligro" value="quitar" id="vQuitar">Quitar vínculo</button>
+              <button class="btn btn-primary" value="ok">Vincular</button>
             </div>
           </form>
         </dialog>

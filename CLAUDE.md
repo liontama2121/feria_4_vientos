@@ -146,6 +146,16 @@ Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_e
 
 La landing arranca con Hero + **Directorio** (prioridad). Índice, vitrina, secciones por conjunto, pills del nav y etiquetas 🎪 solo salen si hay una **feria activa** = fecha con `activa: true` y hoy (Bogotá) dentro de `mostrar_desde`…`mostrar_hasta` (ambos incluidos; sin `mostrar_desde` = desde siempre, sin `mostrar_hasta` = hasta el día de la feria). Regla única: `estaActiva()` / `feriasActivas()` en `src/lib/fechas.ts` (también la usa `comite.ts`). Se crea en `/admin/comite#fechas` (pestaña "Ferias", "+ Crear feria" nace activa con ventana hoy→día de la feria). Fuera del rango se oculta sola. Fechas viejas sin `activa` = inactivas.
 
+## Varios emprendimientos por cuenta
+
+- Un vecino puede tener hasta `LIMITES.emprendimientosPorVecino` (3). El primero se crea solo al entrar a `/admin`; los demás los pide en el panel ("+ Solicitar otro emprendimiento" → `/api/panel/solicitud`, form HTML) y el comité los aprueba en `/admin/comite#cuentas` ("Piden otro emprendimiento" → `/api/comite/solicitudes`), que crea el borrador con los datos de su cuenta. Tabla `solicitudes` (pendiente|aprobada|rechazada; `cerrarSolicitud` con `WHERE estado='pendiente'` evita duplicados). Una sola solicitud pendiente a la vez.
+- El panel del vecino respeta `?slug=` solo si es suyo (`registroDeVecino` con slug es estricto: ajeno → null → 404 en las API; la página cae al primero suyo). Tarjeta "Mis emprendimientos" en el sidebar cuando tiene más de uno.
+- El comité puede **vincular** cualquier emprendimiento a una cuenta activa (o desvincularlo) con "👤 Vincular" en su fila (`accion: 'vincular'` en `/api/comite/emprendedores`).
+
+## Link para compartir
+
+`/e/<slug>` (`src/pages/e/[slug].astro`) renderiza la landing (`src/components/Landing.astro`, que también usa `/`) con la ficha de ese emprendimiento abierta y meta OG propias (título, descripción corta, foto principal) para la vista previa de WhatsApp. Solo publicados; si no, redirige a `/`. Cuenta visitas en `visitas_link` (sin bots de vista previa ni previews de rama). El vecino ve su link, "Copiar", "WhatsApp" y el conteo en el sidebar del panel; la ficha pública tiene "🔗 Compartir" y "Enviar por WhatsApp". Ojo: `site` en `astro.config.mjs` es `feria4vientos.pages.dev` (sin guiones); la foto OG del link usa el dominio de la petición.
+
 ## Categorías
 
 Se administran en `/admin/comite#categorias` (crear, renombrar, emoji, orden, ocultar). Viven en `contenido` (colección `categorias`); `listarCategorias()` rellena con `CATEGORIAS_BASE` (`constantes.ts`) lo que falte, así las 10 base nunca desaparecen (no se borran, solo se ocultan). Solo se borran las creadas por el comité sin emprendimientos (`usosCategorias`). Oculta = no se ofrece en el editor, pero quien ya la tiene la conserva. `otros` es el comodín (nunca se oculta; ids desconocidos se ven como "Otros"). El middleware carga la lista en `Astro.locals.categorias` para las páginas; usar siempre `categoria(id, Astro.locals.categorias)`. `esCategoria` solo valida formato (`ID_CATEGORIA`).

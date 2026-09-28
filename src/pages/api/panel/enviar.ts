@@ -8,9 +8,9 @@ import { sanearDatosPara, validarPublicacion } from '../../../lib/validacion';
 
 export const POST: APIRoute = async ({ locals, request }) => {
   if (locals.usuario?.rol !== 'vecino') return error('El comité publica directo con “Publicar cambios”.', 403);
-  const body = await leerJson<{ datos?: unknown }>(request);
+  const body = await leerJson<{ slug?: string; datos?: unknown }>(request);
   if (!body) return error('No entendimos los datos enviados.');
-  const registro = await registroPermitido(locals);
+  const registro = await registroPermitido(locals, body.slug);
   if (!registro) return error('No encontramos tu emprendimiento.', 404);
 
   const datos = sanearDatosPara(locals, body.datos, registro.borrador);

@@ -1,0 +1,79 @@
+---
+// Landing pública. Lee todo de D1 en cada request: lo que el comité aprueba aparece al instante.
+// Primero el directorio con todos (buscar por nombre o categoría). La feria (índice, vitrina y
+// sección por conjunto) solo aparece si el comité activó una fecha que aún no pasa.
+// La usan `/` y `/e/<slug>` (link para compartir: abre la ficha de ese emprendimiento).
+import Layout from '../layouts/Layout.astro';
+import Nav from './Nav.astro';
+import Hero from './Hero.astro';
+import IndiceTorres from './IndiceTorres.astro';
+import VitrinaCarrusel from './VitrinaCarrusel.astro';
+import Historia from './Historia.astro';
+import TorreSection from './TorreSection.astro';
+import ComoParticipar from './ComoParticipar.astro';
+import UbicacionFechas from './UbicacionFechas.astro';
+import ConElRespaldoDe from './ConElRespaldoDe.astro';
+import PatrocinadorJuanCode from './PatrocinadorJuanCode.astro';
+import Footer from './Footer.astro';
+import DetalleModal from './DetalleModal.astro';
+import Directorio from './Directorio.astro';
+import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres, resumenCalificaciones, type EmprendedorPublico } from '../lib/db';
+import { feriasActivas } from '../lib/fechas';
+
+interface Props {
+  /** Emprendimiento cuya ficha se abre al cargar (link /e/<slug>). */
+  abrir?: string;
+  /** Meta para la vista previa al compartir (título, descripción, foto). */
+  meta?: { title: string; description: string; image?: string };
+  /** Si ya se cargaron (la ruta /e/ los necesita para validar el slug), se reusan. */
+  publicos?: EmprendedorPublico[];
+}
+const { abrir, meta } = Astro.props;
+
+const db = Astro.locals.runtime.env.DB;
+const [torres, publicos, patrocinadores, todasLasFechas, calificaciones] = await Promise.all([
+  listarTorres(db),
+  Astro.props.publicos ?? listarPublicos(db),
+  listarPatrocinadores(db),
+  listarFechas(db),
+  resumenCalificaciones(db),
+]);
+
+const fechas = feriasActivas(todasLasFechas);
+const hayFeria = fechas.length > 0;
+// Sin feria activa nadie lleva la etiqueta 🎪 (ni en el directorio ni en el modal).
+const emprendedores = publicos.map((e) => ({ ...e, en_feria: hayFeria && e.en_feria, calificacion: calificaciones[e.slug] }));
+
+const enFeria = emprendedores.filter((e) => e.en_feria);
+const porTorre = Object.fromEntries(torres.map((t) => [t.id, enFeria.filter((e) => e.torre === t.id)]));
+const conteo = Object.fromEntries(torres.map((t) => [t.id, porTorre[t.id].length]));
+// Vitrina "Feria · <fecha>": todos los de la feria uno a uno (destacados primero); si nadie está en la feria, todos.
+const baseVitrina = enFeria.length ? enFeria : emprendedores;
+
+// Sin caché: lo que el comité publica se ve apenas se recarga la página.
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+
+<Layout title={meta?.title} description={meta?.description} image={meta?.image}>
+  <Nav torres={torres} feria={hayFeria} />
+  <main>
+    <Hero proxima={fechas[0]} torres={torres} />
+    <Directorio emprendedores={emprendedores} torres={torres} />
+    {
+      hayFeria && (
+        <>
+          <IndiceTorres torres={torres} conteo={conteo} />
+          <VitrinaCarrusel emprendedores={baseVitrina} torres={torres} proxima={fechas[0]} />
+        </>
+      )
+    }
+    <Historia />
+    {hayFeria && torres.map((t) => <TorreSection torre={t} emprendedores={porTorre[t.id]} />)}
+    <ComoParticipar />
+    <UbicacionFechas fechas={fechas} />
+    <ConElRespaldoDe patrocinadores={patrocinadores} />
+    <PatrocinadorJuanCode />
+  </main>
+  <Footer torres={torres} feria={hayFeria} />
+  <DetalleModal emprendedores={emprendedores} torres={torres} abrir={abrir} />
+</Layout>

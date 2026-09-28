@@ -1,6 +1,6 @@
 // Lógica de /admin/comite. Todo se pinta desde los datos en memoria y cada acción
 // llama a /api/comite/* y actualiza solo lo que cambió.
-import type { Calificacion, Cuenta, EstadoReporte, EstadoVisible, Fecha, FilaComite, Notificacion, Patrocinador, Reporte, Torre } from '../lib/db';
+import type { Calificacion, Cuenta, EstadoReporte, EstadoVisible, Fecha, FilaComite, Notificacion, Patrocinador, Reporte, Solicitud, Torre } from '../lib/db';
 import { estaActiva as estaActivaEn } from '../lib/fechas';
 import { CATEGORIA_COMODIN, categoria, type Categoria } from '../lib/constantes';
 
@@ -13,6 +13,7 @@ interface DatosComite {
   notificaciones: Notificacion[];
   calificaciones: Calificacion[];
   reportes: Reporte[];
+  solicitudes: Solicitud[];
   motivos: { id: string; label: string }[];
   /** Correos de ADMIN_EMAILS: al activar esas cuentas tendrán acceso total. */
   admins: string[];
@@ -133,7 +134,8 @@ export function iniciarComite() {
       if (b) b.textContent = v;
     };
     set('emprendedores', pendientes ? `${pendientes} por revisar` : String(D.filas.length));
-    set('cuentas', cuentas ? `${cuentas} por activar` : String(D.cuentas.length));
+    const solicitudes = D.solicitudes.filter((s) => s.estado === 'pendiente').length;
+    set('cuentas', cuentas || solicitudes ? `${cuentas + solicitudes} por revisar` : String(D.cuentas.length));
     set('notificaciones', avisos ? `${avisos} por enviar` : '');
     const reportes = D.reportes.filter((r) => r.estado === 'abierto').length;
     set('resenas', reportes ? `${reportes} ⚠️` : String(D.calificaciones.length));
@@ -331,7 +333,50 @@ export function iniciarComite() {
         }),
       );
     }
+    // Link para compartir /e/<slug>: solo sirve si está publicado en la landing.
+    if (r.estado_visible === 'approved') {
+      const link = `${location.origin}/e/${encodeURIComponent(r.slug)}`;
+      acciones.append(
+        h('button', {
+          type: 'button',
+          class: 'btn btn-ghost btn-sm',
+          text: '🔗 Link',
+          title: link,
+          on: {
+            click: async () => {
+              try {
+                await navigator.clipboard.writeText(link);
+                toast('Link copiado ✓', 'ok');
+              } catch {
+                toast(link, 'info');
+              }
+            },
+          },
+        }),
+      );
+      if (r.whatsapp) {
+        acciones.append(
+          h('a', {
+            class: 'btn btn-sm btn-wsp',
+            href: wsp(
+              r.whatsapp,
+              `¡Hola ${(r.vecino || '').split(' ')[0]}! 👋 Este es el link de "${r.nombre}" en la Feria 4 Vientos: ${link}\nCompártelo por WhatsApp y en tus redes: abre directo tu emprendimiento.`,
+            ),
+            target: '_blank',
+            rel: 'noopener',
+            text: 'Enviarle su link',
+          }),
+        );
+      }
+    }
     acciones.append(
+      h('button', {
+        type: 'button',
+        class: 'btn btn-ghost btn-sm',
+        text: '👤 Vincular',
+        title: r.owner_email ? `Dueño: ${r.owner_email}` : 'Asignarlo a la cuenta de un vecino',
+        on: { click: () => vincular(r) },
+      }),
       h('a', { class: 'btn btn-ghost btn-sm', href: `/admin?slug=${encodeURIComponent(r.slug)}`, text: 'Editar' }),
       h('button', {
         type: 'button',
@@ -362,6 +407,7 @@ export function iniciarComite() {
         {},
         h('h3', { text: r.nombre || 'Sin nombre todavía' }),
         h('div', { class: 'sub', text: `${r.vecino || 'Vecino sin nombre'} · ${donde(t, r.apartamento)}${r.whatsapp ? ` · +57 ${r.whatsapp}` : ''}` }),
+        h('div', { class: 'sub', text: r.owner_email ? `👤 ${r.owner_email}` : '👤 Sin cuenta (cargado por el comité)' }),
         r.estado === 'rejected' && r.motivo_rechazo ? h('div', { class: 'nota-fila', text: `Motivo: ${r.motivo_rechazo}` }) : null,
         r.estado === 'changes_requested' && r.nota_cambios ? h('div', { class: 'nota-fila', text: `Cambios pedidos: ${r.nota_cambios}` }) : null,
       ),
@@ -390,6 +436,87 @@ export function iniciarComite() {
     badges();
   }
 
+  // ───────────────────────── Vincular emprendimiento ↔ cuenta ─────────────────────────
+  const dlgVincular = $<HTMLDialogElement>('dlgVincular');
+  const vCuenta = $<HTMLSelectElement>('vCuenta');
+  function vincular(r: FilaComite) {
+    $('vincularTexto').textContent = `“${r.nombre || r.slug}” ${r.owner_email ? `hoy es de ${r.owner_email}` : 'no tiene cuenta'}. El dueño lo podrá editar desde su panel.`;
+    const activas = D.cuentas.filter((c) => c.estado === 'active');
+    vCuenta.replaceChildren(
+      ...(activas.length
+        ? activas.map((c) => {
+            const n = D.filas.filter((f) => f.owner_email === c.email).length;
+            return h('option', { value: c.email, text: `${c.nombre} · ${c.email} (${n} emprendimiento${n === 1 ? '' : 's'})`, selected: c.email === r.owner_email });
+          })
+        : [h('option', { value: '', text: 'No hay cuentas activas' })]),
+    );
+    $<HTMLButtonElement>('vQuitar').hidden = !r.owner_email;
+    dlgVincular.returnValue = '';
+    dlgVincular.showModal();
+    dlgVincular.addEventListener(
+      'close',
+      async () => {
+        const v = dlgVincular.returnValue;
+        if (v !== 'ok' && v !== 'quitar') return;
+        const email = v === 'ok' ? vCuenta.value : '';
+        if (v === 'ok' && !email) return;
+        if (await accion(r.slug, { accion: 'vincular', email }, email ? `Vinculado a ${email} ✓` : 'Vínculo quitado')) renderCuentas();
+      },
+      { once: true },
+    );
+  }
+
+  // ───────────────────────── Solicitudes de otro emprendimiento ─────────────────────────
+  async function responderSolicitud(s: Solicitud, aprobar: boolean) {
+    const respuesta = '';
+    if (!aprobar && !(await confirmar(`No se creará “${s.nombre_emprendimiento}” para ${s.email}. Quedará un aviso listo para mandarle.`, 'Sí, no aprobar'))) return;
+    try {
+      const r = await api<{ solicitud: Solicitud; fila: FilaComite | null; notificacion: Notificacion }>('/api/comite/solicitudes', 'PATCH', {
+        id: s.id,
+        accion: aprobar ? 'aprobar' : 'rechazar',
+        respuesta,
+      });
+      D.solicitudes = D.solicitudes.map((x) => (x.id === s.id ? r.solicitud : x));
+      if (r.fila) D.filas = [r.fila, ...D.filas];
+      notificar(aprobar ? `Creado “${s.nombre_emprendimiento}” para ${s.email} ✓` : 'Solicitud no aprobada', r.notificacion);
+      renderSolicitudes();
+      renderEmprendedores();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  }
+
+  function renderSolicitudes() {
+    const pendientes = D.solicitudes.filter((s) => s.estado === 'pendiente');
+    $('contadorSolicitudes').textContent = String(pendientes.length);
+    $('listaSolicitudes').replaceChildren(
+      ...(pendientes.length
+        ? pendientes.map((s) => {
+            const c = D.cuentas.find((x) => x.email === s.email);
+            const n = D.filas.filter((f) => f.owner_email === s.email).length;
+            return h(
+              'article',
+              { class: 'noti' },
+              h(
+                'div',
+                {},
+                h('h3', { text: `＋ ${s.nombre_emprendimiento}` }),
+                s.motivo ? h('p', { text: s.motivo }) : null,
+                h('div', { class: 'sub', text: `${c?.nombre ?? s.email} · ${s.email} · ya tiene ${n} · ${fechaCorta(s.creado_at)}` }),
+              ),
+              h(
+                'div',
+                { class: 'fila-acciones' },
+                h('button', { type: 'button', class: 'btn btn-sm btn-aprobar', text: '✓ Aprobar y crear', on: { click: () => responderSolicitud(s, true) } }),
+                h('button', { type: 'button', class: 'btn btn-sm btn-peligro', text: '✕ No aprobar', on: { click: () => responderSolicitud(s, false) } }),
+              ),
+            );
+          })
+        : [h('div', { class: 'vacio-lista', text: 'Nadie está pidiendo otro emprendimiento.' })]),
+    );
+    badges();
+  }
+
   // ───────────────────────── Cuentas ─────────────────────────
   async function revisarCuenta(c: Cuenta, activar: boolean) {
     if (activar && D.admins.includes(c.email) && !(await confirmar(`${c.email} está en ADMIN_EMAILS: al activarla tendrá acceso TOTAL al comité. ¿Es tuya?`, 'Sí, activar'))) return;
@@ -410,7 +537,8 @@ export function iniciarComite() {
       ...(lista.length
         ? lista.map((c) => {
             const t = torreDe(c.torre);
-            const emp = D.filas.find((f) => f.owner_email === c.email);
+            const emps = D.filas.filter((f) => f.owner_email === c.email);
+            const emp = emps.length === 1 ? emps[0] : null;
             return h(
               'article',
               { class: 'fila', style: `--t:${t.color_hex};--t-claro:${t.color_claro}` },
@@ -429,6 +557,7 @@ export function iniciarComite() {
                 h('span', { class: `pill-estado ${c.estado}`, text: ETIQUETA_CUENTA[c.estado] }),
                 D.admins.includes(c.email) ? h('span', { class: 'pill-admin', text: 'ADMIN' }) : null,
                 emp ? h('span', { class: `pill-estado ${emp.estado_visible}`, text: `Emprendimiento: ${ETIQUETA[emp.estado_visible]}` }) : null,
+                emps.length > 1 ? h('span', { class: 'pill-t', text: `${emps.length} emprendimientos` }) : null,
               ),
               h(
                 'div',
@@ -1152,6 +1281,7 @@ export function iniciarComite() {
   // ───────────────────────── Arranque ─────────────────────────
   renderEmprendedores();
   renderCuentas();
+  renderSolicitudes();
   renderResenas();
   renderNotificaciones();
   renderCategorias();
