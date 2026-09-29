@@ -1,6 +1,6 @@
 // Lógica de /admin/comite. Todo se pinta desde los datos en memoria y cada acción
 // llama a /api/comite/* y actualiza solo lo que cambió.
-import type { Calificacion, Cuenta, EstadoReporte, EstadoVisible, Fecha, FilaComite, Notificacion, Patrocinador, Reporte, Solicitud, Torre } from '../lib/db';
+import type { Calificacion, CambioClave, Cuenta, EstadoReporte, EstadoVisible, Fecha, FilaComite, Notificacion, Patrocinador, Reporte, Solicitud, Torre } from '../lib/db';
 import { estaActiva as estaActivaEn } from '../lib/fechas';
 import { CATEGORIA_COMODIN, categoria, type Categoria } from '../lib/constantes';
 
@@ -14,6 +14,8 @@ interface DatosComite {
   calificaciones: Calificacion[];
   reportes: Reporte[];
   solicitudes: Solicitud[];
+  /** Solicitudes de cambio de contraseña pendientes. */
+  cambiosClave: CambioClave[];
   motivos: { id: string; label: string }[];
   /** Correos de ADMIN_EMAILS: al activar esas cuentas tendrán acceso total. */
   admins: string[];
@@ -135,7 +137,8 @@ export function iniciarComite() {
     };
     set('emprendedores', pendientes ? `${pendientes} por revisar` : String(D.filas.length));
     const solicitudes = D.solicitudes.filter((s) => s.estado === 'pendiente').length;
-    set('cuentas', cuentas || solicitudes ? `${cuentas + solicitudes} por revisar` : String(D.cuentas.length));
+    const porRevisar = cuentas + solicitudes + D.cambiosClave.length;
+    set('cuentas', porRevisar ? `${porRevisar} por revisar` : String(D.cuentas.length));
     set('notificaciones', avisos ? `${avisos} por enviar` : '');
     const reportes = D.reportes.filter((r) => r.estado === 'abierto').length;
     set('resenas', reportes ? `${reportes} ⚠️` : String(D.calificaciones.length));
@@ -480,6 +483,7 @@ export function iniciarComite() {
       if (r.fila) D.filas = [r.fila, ...D.filas];
       notificar(aprobar ? `Creado “${s.nombre_emprendimiento}” para ${s.email} ✓` : 'Solicitud no aprobada', r.notificacion);
       renderSolicitudes();
+  renderClaves();
       renderEmprendedores();
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -513,6 +517,65 @@ export function iniciarComite() {
             );
           })
         : [h('div', { class: 'vacio-lista', text: 'Nadie está pidiendo otro emprendimiento.' })]),
+    );
+    badges();
+  }
+
+  // ───────────────────────── Cambio de contraseña ─────────────────────────
+  // El comité nunca ve ni pone la contraseña: genera un link de un solo uso y se lo manda al vecino.
+  async function linkClave(c: Cuenta, pedido: boolean) {
+    const texto = pedido
+      ? `¿Confirmaste con ${c.nombre} (por WhatsApp o en persona) que de verdad pidió cambiar la contraseña? Quedará un link de un solo uso listo para mandarle.`
+      : `Se generará un link para que ${c.nombre} ponga una contraseña nueva. Sirve una sola vez y vence en 48 horas. Su contraseña actual sigue sirviendo hasta que lo use.`;
+    if (!(await confirmar(texto, 'Sí, generar link'))) return;
+    try {
+      const r = await api<{ notificacion: Notificacion; cambiosClave: CambioClave[] }>('/api/comite/cuentas', 'PATCH', { email: c.email, accion: 'clave' });
+      D.cambiosClave = r.cambiosClave;
+      notificar(`Link de contraseña para ${c.nombre} listo ✓`, r.notificacion);
+      renderClaves();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  }
+
+  async function negarClave(email: string) {
+    if (!(await confirmar(`No se autorizará el cambio de contraseña de ${email}.`, 'Sí, no autorizar'))) return;
+    try {
+      const r = await api<{ cambiosClave: CambioClave[] }>('/api/comite/cuentas', 'PATCH', { email, accion: 'clave_no' });
+      D.cambiosClave = r.cambiosClave;
+      toast('Solicitud cerrada', 'info');
+      renderClaves();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  }
+
+  function renderClaves() {
+    $('contadorClaves').textContent = String(D.cambiosClave.length);
+    $('listaClaves').replaceChildren(
+      ...(D.cambiosClave.length
+        ? D.cambiosClave.map((p) => {
+            const c = D.cuentas.find((x) => x.email === p.email);
+            return h(
+              'article',
+              { class: 'noti' },
+              h(
+                'div',
+                {},
+                h('h3', { text: `🔑 ${c?.nombre ?? p.email}` }),
+                h('p', { text: 'Olvidó su contraseña. Confirma con el vecino por WhatsApp antes de aprobar: cualquiera puede escribir un correo ajeno.' }),
+                h('div', { class: 'sub', text: `${p.email}${c ? ` · +57 ${c.whatsapp}` : ''} · ${fechaCorta(p.creado_at)}` }),
+              ),
+              h(
+                'div',
+                { class: 'fila-acciones' },
+                c ? h('button', { type: 'button', class: 'btn btn-sm btn-aprobar', text: '✓ Aprobar y generar link', on: { click: () => linkClave(c, true) } }) : null,
+                h('button', { type: 'button', class: 'btn btn-sm btn-peligro', text: '✕ No autorizar', on: { click: () => negarClave(p.email) } }),
+                c ? h('a', { class: 'btn btn-ghost btn-sm', href: `https://wa.me/57${c.whatsapp}`, target: '_blank', rel: 'noopener', text: 'WhatsApp' }) : null,
+              ),
+            );
+          })
+        : [h('div', { class: 'vacio-lista', text: 'Nadie está pidiendo cambiar su contraseña.' })]),
     );
     badges();
   }
@@ -566,6 +629,7 @@ export function iniciarComite() {
                 c.estado !== 'rejected'
                   ? h('button', { type: 'button', class: 'btn btn-sm btn-peligro', text: c.estado === 'active' ? 'Desactivar' : '✕ Rechazar', on: { click: () => revisarCuenta(c, false) } })
                   : null,
+                c.estado === 'active' ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: '🔑 Cambiar contraseña', on: { click: () => linkClave(c, false) } }) : null,
                 h('a', { class: 'btn btn-ghost btn-sm', href: `https://wa.me/57${c.whatsapp}`, target: '_blank', rel: 'noopener', text: 'WhatsApp' }),
               ),
             );

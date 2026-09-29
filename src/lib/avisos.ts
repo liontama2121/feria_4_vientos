@@ -162,3 +162,30 @@ export function avisoCuenta(db: D1Database, c: Cuenta, activada: boolean, origen
     slug: null,
   });
 }
+
+export function avisoClavePedida(db: D1Database, c: Cuenta) {
+  return avisar(db, {
+    para: 'admin',
+    tipo: 'clave_pedida',
+    titulo: 'Piden cambiar la contraseña',
+    mensaje: `${c.nombre} · ${donde(c.torre, c.apartamento)} (${c.email}) olvidó su contraseña y pide cambiarla. Confirma que sea el vecino antes de aprobar.`,
+    whatsapp: '',
+    email: '',
+    slug: null,
+  });
+}
+
+export function avisoLinkClave(db: D1Database, c: Cuenta, link: string, horas: number) {
+  return avisar(db, {
+    para: 'vecino',
+    tipo: 'clave_link',
+    titulo: `Link de contraseña: ${c.nombre}`,
+    mensaje: `¡Hola ${c.nombre}! 🔑 El comité autorizó cambiar tu contraseña de la Feria 4 Vientos. Entra aquí y escribe una nueva:
+${link}
+
+El link sirve una sola vez y vence en ${horas} horas. Tu correo para entrar es ${c.email}. No lo compartas con nadie.`,
+    whatsapp: c.whatsapp,
+    email: c.email,
+    slug: null,
+  });
+}

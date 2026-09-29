@@ -75,7 +75,8 @@ src/
 │   ├── admin/index.astro      editor: vecino → el suyo; admin → ?slug=  (+ src/scripts/panel.ts)
 │   ├── admin/comite/index.astro   cola de revisión, emprendedores, cuentas, notificaciones, contenido (+ src/scripts/comite.ts)
 │   ├── admin/comite/{cuentas,notificaciones}.astro   atajos → #cuentas / #notificaciones
-│   ├── api/login.ts · api/logout.ts · api/registro.ts
+│   ├── api/login.ts · api/logout.ts · api/registro.ts · api/clave/{pedir,nueva}.ts
+│   ├── clave/{index,nueva}.astro    olvidé mi contraseña / link de un solo uso del comité
 │   ├── api/panel/{borrador,enviar,publicar,fotos}.ts
 │   ├── api/comite/{emprendedores,cuentas,notificaciones,contenido,logo,export.csv}.ts
 │   └── media/[...key].ts      sirve R2
@@ -137,6 +138,7 @@ El bloqueo se hace en el servidor (`puedeEditar` → 409 en borrador/fotos, `env
 - `notificaciones(id, creado_at, para admin|vecino, tipo, titulo, mensaje, whatsapp, email, slug, enviada)`.
 - `contenido(coleccion, id, data JSON)` para torres, patrocinadores y fechas.
 - `meta(clave, valor)` — `semilla` marca que ya se sembró.
+- `cambios_clave(id, email, estado pendiente|aprobada|usada|cerrada, token_hash, creado_at, vence_at, revisado_at, revisado_por)`.
 
 Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_emprendimiento, nombre_vecino, apartamento ("Torre y apto", **opcional**: hay vecinos que solo quieren decir el conjunto; si está vacío no se muestra "Apto"), torre (= conjunto, obligatorio), categoria, descripcion_corta (≤160), descripcion_larga, foto_principal, galeria (≤2 extra: 3 fotos en total), whatsapp (10 dígitos, sin +57), instagram, tiktok, facebook, pagina_web (URL https, opcional: si existe, la card y el modal muestran un botón grande "Entra aquí"), destacado, publicado, en_feria (participa en la feria; default false, semilla true; solo comité), recibir_avisos, emoji_placeholder.
 
@@ -200,7 +202,7 @@ Todavía **no hay envío automático**. Cada evento (envío a revisión, aprobac
 - Sin variables en producción, el login muestra "Falta configurar el acceso" y nadie entra (tampoco vecinos: la firma de sesión depende de esas variables).
 - En `npm run dev` sin `.dev.vars`: usuario `comite`, contraseña `feria4vientos`.
 - No hay rate limiting real: 800 ms por intento fallido y un campo trampa en `/registro`. Usar contraseñas largas.
-- Olvido de contraseña de vecino: no hay flujo; el comité rechaza la cuenta y el vecino se registra con otro correo, o se borra la fila en D1.
+- **Olvido de contraseña (con permiso del comité)**: "¿Olvidó su contraseña?" en el login → `/clave` (correo; responde igual exista o no la cuenta) → fila `pendiente` en `cambios_clave` + aviso al comité → `/admin/comite#cuentas` "Piden cambiar su contraseña" → "✓ Aprobar y generar link" (o "🔑 Cambiar contraseña" en cualquier cuenta activa) → aviso con `/clave/nueva?t=<token>` para mandar por WhatsApp. El link sirve UNA vez, vence en 48 h (`HORAS_LINK_CLAVE`) y generar otro anula el anterior; en D1 solo queda el SHA-256 del token. Al usarlo el vecino queda con sesión iniciada. El comité nunca ve ni pone la contraseña. Las sesiones abiertas con la clave vieja siguen vivas hasta que venzan (desactivar la cuenta las corta).
 
 ## Tareas frecuentes
 
