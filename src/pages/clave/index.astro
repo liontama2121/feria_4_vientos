@@ -1,0 +1,69 @@
+---
+// "¿Olvidó su contraseña?": el vecino deja su correo y el comité autoriza el cambio.
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import Molinete from '../../components/Molinete.astro';
+import { MENSAJES, linkWhatsApp } from '../../lib/sitio';
+
+const enviado = Astro.url.searchParams.has('enviado');
+const error = Astro.url.searchParams.get('error');
+---
+
+<Layout title="Olvidé mi contraseña · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel comite">
+  <div class="sin-acceso">
+    {
+      enviado ? (
+        <div class="card login">
+          <Molinete size={72} />
+          <h1>Listo, le avisamos al comité</h1>
+          <p>
+            Si su correo tiene una cuenta activa, el comité revisa la solicitud y le manda por WhatsApp un link para poner una contraseña nueva. El link sirve una
+            sola vez.
+          </p>
+          <a class="btn btn-primary" href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">
+            Escribirle al comité
+          </a>
+          <a class="volver" href="/admin/login">← Volver a entrar</a>
+        </div>
+      ) : (
+        <form class="card login" method="post" action="/api/clave/pedir">
+          <Molinete size={72} />
+          <h1>
+            ¿Olvidó su <span class="serif">contraseña</span>?
+          </h1>
+          <p>Escriba el correo con el que se registró. Por seguridad, el comité confirma que es usted antes de dejarle cambiarla.</p>
+          {error && (
+            <div class="estado alerta" role="alert">
+              <span class="ico">✉️</span>
+              <div>
+                <strong>Revise el correo</strong>
+                Parece que le falta algo (por ejemplo, la @).
+              </div>
+            </div>
+          )}
+          <div class="field">
+            <label for="email">Correo</label>
+            <input id="email" name="email" type="email" autocomplete="email" autocapitalize="off" required autofocus />
+          </div>
+          <div class="trampa" aria-hidden="true">
+            <label for="sitio">No llenar</label>
+            <input id="sitio" name="sitio" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+          <button class="btn btn-primary" type="submit">Pedir cambio de contraseña</button>
+          <a class="volver" href="/admin/login">← Volver a entrar</a>
+        </form>
+      )
+    }
+  </div>
+</Layout>
+
+<style>
+  .login { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; text-align: left; }
+  .login :global(.molinete) { margin: 0 auto 4px; }
+  .login h1 { text-align: center; margin-bottom: 0; }
+  .login > p { text-align: center; margin-bottom: 6px; }
+  .login .estado { margin-bottom: 0; }
+  .login .btn { margin-top: 6px; width: 100%; }
+  .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .volver { text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
+</style>

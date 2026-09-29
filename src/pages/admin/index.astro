@@ -51,6 +51,7 @@ const MENSAJE_SOLICITUD: Record<string, string> = {
 const linkPropio = registro ? new URL(`/e/${encodeURIComponent(registro.slug)}`, Astro.url).toString() : '';
 const linkActivo = registro ? estadoVisible(registro) === 'approved' : false;
 const visitas = registro ? await visitasDe(db, registro.slug) : 0;
+const claveCambiada = Astro.url.searchParams.get('clave') === 'ok';
 const msgSolicitud = MENSAJE_SOLICITUD[Astro.url.searchParams.get('solicitud') ?? ''];
 const ESTADO_CORTO: Record<string, string> = {
   draft: 'Borrador',
@@ -213,6 +214,17 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
 
           {/* ═══ Main ═══ */}
           <main id="panelMain">
+            {
+              claveCambiada && (
+                <div class="estado ok" role="status">
+                  <span class="ico">🔑</span>
+                  <div>
+                    <strong>Contraseña cambiada</strong>
+                    Desde ahora entra con su correo y la contraseña nueva.
+                  </div>
+                </div>
+              )
+            }
             <div class="page-head">
               <div>
                 <div class="title-eyebrow" id="pageEyebrow">MI EMPRENDIMIENTO</div>

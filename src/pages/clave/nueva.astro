@@ -1,0 +1,72 @@
+---
+// Link de un solo uso que el comité le manda al vecino para poner una contraseña nueva.
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import Molinete from '../../components/Molinete.astro';
+import { hashToken } from '../../lib/auth';
+import { emailDeLinkClave } from '../../lib/db';
+
+const token = (Astro.url.searchParams.get('t') ?? '').slice(0, 100);
+const error = Astro.url.searchParams.get('error');
+const email = token ? await emailDeLinkClave(Astro.locals.runtime.env.DB, await hashToken(token)) : null;
+// El token va en la URL: que no salga en el Referer ni quede en caché.
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+Astro.response.headers.set('Cache-Control', 'no-store');
+const ERRORES: Record<string, string> = {
+  corta: 'La contraseña debe tener al menos 8 letras o números.',
+  distintas: 'Las dos contraseñas no son iguales. Escríbalas otra vez.',
+};
+---
+
+<Layout title="Nueva contraseña · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel comite">
+  <div class="sin-acceso">
+    {
+      email ? (
+        <form class="card login" method="post" action="/api/clave/nueva">
+          <Molinete size={72} />
+          <h1>
+            Su contraseña <span class="serif">nueva</span>
+          </h1>
+          <p>
+            Para la cuenta <strong>{email}</strong>. Use una que recuerde y que tenga al menos 8 letras o números.
+          </p>
+          {error && ERRORES[error] && (
+            <div class="estado alerta" role="alert">
+              <span class="ico">🔑</span>
+              <div>{ERRORES[error]}</div>
+            </div>
+          )}
+          <input type="hidden" name="t" value={token} />
+          <input type="text" name="usuario" value={email} autocomplete="username" hidden />
+          <div class="field">
+            <label for="clave">Contraseña nueva</label>
+            <input id="clave" name="clave" type="password" autocomplete="new-password" minlength="8" maxlength="200" required autofocus />
+          </div>
+          <div class="field">
+            <label for="clave2">Repítala</label>
+            <input id="clave2" name="clave2" type="password" autocomplete="new-password" minlength="8" maxlength="200" required />
+          </div>
+          <button class="btn btn-primary" type="submit">Guardar y entrar</button>
+        </form>
+      ) : (
+        <div class="card login">
+          <Molinete size={72} />
+          <h1>Este link ya no sirve</h1>
+          <p>Ya se usó, venció (dura 48 horas) o el comité generó uno más nuevo. Pídale otro al comité.</p>
+          <a class="btn btn-primary" href="/clave">Pedir otro link</a>
+          <a class="volver" href="/admin/login">← Volver a entrar</a>
+        </div>
+      )
+    }
+  </div>
+</Layout>
+
+<style>
+  .login { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; text-align: left; }
+  .login :global(.molinete) { margin: 0 auto 4px; }
+  .login h1 { text-align: center; margin-bottom: 0; }
+  .login > p { text-align: center; margin-bottom: 6px; overflow-wrap: anywhere; }
+  .login .estado { margin-bottom: 0; }
+  .login .btn { margin-top: 6px; width: 100%; }
+  .volver { text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
+</style>

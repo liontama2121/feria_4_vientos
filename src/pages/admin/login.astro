@@ -56,6 +56,7 @@ const mensajeError = fallo ? (ERRORES[fallo] ?? ['Datos incorrectos', 'Revisa tu
         <input id="clave" name="clave" type="password" autocomplete="current-password" required />
       </div>
       <button class="btn btn-primary" type="submit" disabled={!configurada}>Entrar</button>
+      <a class="olvido" href="/clave">¿Olvidó su contraseña?</a>
       <p class="registro">¿Tienes un emprendimiento y aún no tienes cuenta? <a href="/registro">Regístrate aquí</a></p>
       <a class="volver" href="/">← Volver a la feria</a>
     </form>
@@ -71,5 +72,6 @@ const mensajeError = fallo ? (ERRORES[fallo] ?? ['Datos incorrectos', 'Revisa tu
   .login .btn { margin-top: 6px; width: 100%; }
   .login .registro { text-align: center; font-size: 13.5px; margin: 0; }
   .login .registro a { color: var(--cierzo); font-weight: 800; }
+  .olvido { text-align: center; font-size: 14px; font-weight: 800; color: var(--cierzo); text-decoration: underline; }
   .volver { text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
 </style>

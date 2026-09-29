@@ -106,7 +106,7 @@ export interface Notificacion {
   creado_at: string;
   /** A quién va: el comité (admin) o el vecino. */
   para: Rol;
-  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte' | 'solicitud' | 'solicitud_aprobada' | 'solicitud_rechazada' | 'vinculado';
+  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte' | 'solicitud' | 'solicitud_aprobada' | 'solicitud_rechazada' | 'vinculado' | 'clave_pedida' | 'clave_link';
   titulo: string;
   mensaje: string;
   /** Celular de 10 dígitos (sin +57) al que hay que mandar el mensaje, si aplica. */
@@ -246,6 +246,18 @@ const ESQUEMA = [
     revisado_at TEXT,
     revisado_por TEXT
   )`,
+  // Cambio de contraseña con permiso del comité. Solo se guarda el hash del token del link.
+  `CREATE TABLE IF NOT EXISTS cambios_clave (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    estado TEXT NOT NULL DEFAULT 'pendiente',
+    token_hash TEXT,
+    creado_at TEXT NOT NULL,
+    vence_at TEXT,
+    revisado_at TEXT,
+    revisado_por TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_cambios_clave_token ON cambios_clave(token_hash)`,
   `CREATE TABLE IF NOT EXISTS reportes (
     id TEXT PRIMARY KEY,
     slug TEXT NOT NULL,
@@ -746,6 +758,75 @@ export async function revisarCuenta(db: D1Database, email: string, estado: Estad
     .prepare(`UPDATE cuentas SET estado = ?, motivo = ?, revisado_at = ?, revisado_por = ? WHERE email = ?`)
     .bind(estado, motivo, ahora(), revisor, email)
     .run();
+}
+
+// ───────────────────────── Cambio de contraseña (con permiso del comité) ─────────────────────────
+// pendiente (el vecino la pidió) → aprobada (el comité generó un link de un solo uso) → usada.
+// `cerrada` = reemplazada por un link más nuevo o no aprobada por el comité.
+
+export interface CambioClave {
+  id: string;
+  email: string;
+  estado: 'pendiente' | 'aprobada' | 'usada' | 'cerrada';
+  creado_at: string;
+  vence_at: string | null;
+}
+
+/** Devuelve false si ya había una solicitud pendiente de ese correo. */
+export async function pedirCambioClave(db: D1Database, email: string) {
+  const ya = await db.prepare(`SELECT id FROM cambios_clave WHERE email = ? AND estado = 'pendiente'`).bind(email).first();
+  if (ya) return false;
+  await db.prepare(`INSERT INTO cambios_clave (id, email, estado, creado_at) VALUES (?, ?, 'pendiente', ?)`).bind(crypto.randomUUID(), email, ahora()).run();
+  return true;
+}
+
+export async function listarCambiosClave(db: D1Database): Promise<CambioClave[]> {
+  const { results } = await db
+    .prepare(`SELECT id, email, estado, creado_at, vence_at FROM cambios_clave WHERE estado = 'pendiente' ORDER BY creado_at`)
+    .all<CambioClave>();
+  return results;
+}
+
+/** Cierra lo anterior de ese correo y deja un solo link vigente. */
+export async function autorizarCambioClave(db: D1Database, email: string, tokenHash: string, venceAt: string, revisor: string) {
+  const t = ahora();
+  await db.batch([
+    db
+      .prepare(`UPDATE cambios_clave SET estado = 'cerrada', revisado_at = ?, revisado_por = ? WHERE email = ? AND estado IN ('pendiente', 'aprobada')`)
+      .bind(t, revisor, email),
+    db
+      .prepare(`INSERT INTO cambios_clave (id, email, estado, token_hash, creado_at, vence_at, revisado_at, revisado_por) VALUES (?, ?, 'aprobada', ?, ?, ?, ?, ?)`)
+      .bind(crypto.randomUUID(), email, tokenHash, t, venceAt, t, revisor),
+  ]);
+}
+
+export async function negarCambioClave(db: D1Database, email: string, revisor: string) {
+  await db
+    .prepare(`UPDATE cambios_clave SET estado = 'cerrada', revisado_at = ?, revisado_por = ? WHERE email = ? AND estado = 'pendiente'`)
+    .bind(ahora(), revisor, email)
+    .run();
+}
+
+/** Correo dueño de un link vigente (aprobado y sin vencer), o null. */
+export async function emailDeLinkClave(db: D1Database, tokenHash: string) {
+  const f = await db
+    .prepare(`SELECT email FROM cambios_clave WHERE token_hash = ? AND estado = 'aprobada' AND vence_at > ?`)
+    .bind(tokenHash, ahora())
+    .first<{ email: string }>();
+  return f?.email ?? null;
+}
+
+/** Quema el link y cambia la contraseña. Devuelve el correo, o null si el link ya no sirve. */
+export async function usarLinkClave(db: D1Database, tokenHash: string, claveHash: string) {
+  const email = await emailDeLinkClave(db, tokenHash);
+  if (!email) return null;
+  const r = await db
+    .prepare(`UPDATE cambios_clave SET estado = 'usada' WHERE token_hash = ? AND estado = 'aprobada'`)
+    .bind(tokenHash)
+    .run();
+  if (!r.meta.changes) return null;
+  await db.prepare(`UPDATE cuentas SET clave = ? WHERE email = ?`).bind(claveHash, email).run();
+  return email;
 }
 
 // ───────────────────────── Notificaciones (bandeja manual) ─────────────────────────

@@ -96,6 +96,21 @@ export async function verificarClave(clave: string, guardado: string) {
   return iguales(await derivar(clave, deB64url(sal), Number(it)), hash);
 }
 
+// ───────────────────────── Link para cambiar la contraseña ─────────────────────────
+// El token viaja solo en el link; en D1 queda su SHA-256.
+
+export const HORAS_LINK_CLAVE = 48;
+
+export async function hashToken(token: string) {
+  return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(token))));
+}
+
+export async function nuevoTokenClave() {
+  const token = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const vence = new Date(Date.now() + HORAS_LINK_CLAVE * 3600_000).toISOString();
+  return { token, hash: await hashToken(token), vence };
+}
+
 // ───────────────────────── Sesión ─────────────────────────
 
 export type Sujeto = { tipo: 'comite' } | { tipo: 'cuenta'; email: string };

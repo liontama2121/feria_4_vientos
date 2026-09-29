@@ -18,6 +18,7 @@ import {
   listarRegistros,
   listarReportes,
   listarSolicitudes,
+  listarCambiosClave,
   listarTorres,
   usosCategorias,
 } from '../../../lib/db';
@@ -26,7 +27,7 @@ const usuario = Astro.locals.usuario!;
 const env = Astro.locals.runtime.env;
 const db = env.DB;
 
-const [registros, torres, patrocinadores, fechas, cuentas, notificaciones, calificaciones, reportes, usos, solicitudes] = await Promise.all([
+const [registros, torres, patrocinadores, fechas, cuentas, notificaciones, calificaciones, reportes, usos, solicitudes, cambiosClave] = await Promise.all([
   listarRegistros(db),
   listarTorres(db),
   listarPatrocinadores(db),
@@ -37,6 +38,7 @@ const [registros, torres, patrocinadores, fechas, cuentas, notificaciones, calif
   listarReportes(db),
   usosCategorias(db),
   listarSolicitudes(db),
+  listarCambiosClave(db),
 ]);
 const datosJson = JSON.stringify({
   filas: registros.map(filaComite),
@@ -48,6 +50,7 @@ const datosJson = JSON.stringify({
   calificaciones,
   reportes,
   solicitudes,
+  cambiosClave,
   motivos: MOTIVOS_REPORTE,
   admins: adminEmails(env),
   categorias: Astro.locals.categorias,
@@ -171,6 +174,8 @@ const TABS = [
                   <p class="desc">Cuentas creadas en /registro. Actívalas para que el vecino pueda entrar al panel; al activar queda un aviso listo en Notificaciones.</p>
                 </div>
               </div>
+              <h2 class="seccion-titulo">Piden cambiar su contraseña <span class="contador" id="contadorClaves">0</span></h2>
+              <div class="lista" id="listaClaves" />
               <h2 class="seccion-titulo">Piden otro emprendimiento <span class="contador" id="contadorSolicitudes">0</span></h2>
               <div class="lista" id="listaSolicitudes" />
               <h2 class="seccion-titulo">Cuentas</h2>
