@@ -15,7 +15,7 @@ const { torres, feria } = Astro.props;
   <span class="firma-mano">Esta página la hizo</span>
   {
     SITIO.juancodeUrl ? (
-      <a class="firma-autor" href={SITIO.juancodeUrl} target="_blank" rel="noopener">JuanCode</a>
+      <a class="firma-boton" href={SITIO.juancodeUrl} target="_blank" rel="noopener">JuanCode <span aria-hidden="true">↗</span></a>
     ) : (
       <strong class="firma-autor">JuanCode</strong>
     )
@@ -51,10 +51,14 @@ const { torres, feria } = Astro.props;
 
 <style>
   /* Firma del autor: discreta, encima del menú; no es sticky para no robar alto en celular. */
-  .firma { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 0 7px; margin: 0; padding: 7px 16px 6px; background: var(--papel); border-bottom: 1px solid color-mix(in srgb, var(--tinta) 12%, transparent); font-size: 13.5px; font-weight: 600; color: var(--tinta-suave); text-align: center; }
+  .firma { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0 7px; margin: 0; padding: 6px 16px; background: var(--papel); border-bottom: 1px solid color-mix(in srgb, var(--tinta) 12%, transparent); font-size: 13.5px; font-weight: 600; color: var(--tinta-suave); text-align: center; }
   .firma-mano { font-family: var(--f-mano, var(--serif)); font-size: 18px; line-height: 1; color: var(--tinta); }
   .firma-autor { background: var(--grad-juancode); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; letter-spacing: .01em; }
-  a.firma-autor:hover { text-decoration: underline; text-decoration-color: #D946EF; }
+  /* Botón con el degradado de JuanCode: se nota que se puede tocar y se hunde al presionar. */
+  .firma-boton { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 3px 13px; border-radius: 999px; background: var(--grad-juancode); color: #fff; font-weight: 800; font-size: 13.5px; letter-spacing: .01em; box-shadow: 0 2px 0 #6D28D9; transition: transform .12s ease, box-shadow .12s ease, filter .12s ease; }
+  .firma-boton:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 3px 0 #6D28D9; }
+  .firma-boton:active { transform: translateY(2px); box-shadow: 0 0 0 #6D28D9; }
+  .firma-boton:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
   .firma-sep { color: color-mix(in srgb, var(--tinta) 30%, transparent); }
   .firma-conjunto { color: var(--c); font-weight: 800; }
   @media (max-width: 420px) { .firma { font-size: 12.5px; } .firma-mano { font-size: 16px; } .firma-largo { display: none; } }
