@@ -1,6 +1,7 @@
 ---
 import Molinete from './Molinete.astro';
 import type { Torre } from '../lib/db';
+import { SITIO } from '../lib/sitio';
 
 interface Props {
   torres: Torre[];
@@ -9,6 +10,19 @@ interface Props {
 }
 const { torres, feria } = Astro.props;
 ---
+
+<p class="firma">
+  <span class="firma-mano">Esta página la hizo</span>
+  {
+    SITIO.juancodeUrl ? (
+      <a class="firma-autor" href={SITIO.juancodeUrl} target="_blank" rel="noopener">JuanCode</a>
+    ) : (
+      <strong class="firma-autor">JuanCode</strong>
+    )
+  }
+  <span class="firma-sep" aria-hidden="true">·</span>
+  <span>vecino de <span class="firma-conjunto" data-conjunto="gregal">Gregal</span><span class="firma-largo">, 4 Vientos</span></span>
+</p>
 
 <nav class="nav" aria-label="Principal">
   <div class="wrap nav-inner">
@@ -36,6 +50,14 @@ const { torres, feria } = Astro.props;
 </nav>
 
 <style>
+  /* Firma del autor: discreta, encima del menú; no es sticky para no robar alto en celular. */
+  .firma { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 0 7px; margin: 0; padding: 7px 16px 6px; background: var(--papel); border-bottom: 1px solid color-mix(in srgb, var(--tinta) 12%, transparent); font-size: 13.5px; font-weight: 600; color: var(--tinta-suave); text-align: center; }
+  .firma-mano { font-family: var(--f-mano, var(--serif)); font-size: 18px; line-height: 1; color: var(--tinta); }
+  .firma-autor { background: var(--grad-juancode); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; letter-spacing: .01em; }
+  a.firma-autor:hover { text-decoration: underline; text-decoration-color: #D946EF; }
+  .firma-sep { color: color-mix(in srgb, var(--tinta) 30%, transparent); }
+  .firma-conjunto { color: var(--c); font-weight: 800; }
+  @media (max-width: 420px) { .firma { font-size: 12.5px; } .firma-mano { font-size: 16px; } .firma-largo { display: none; } }
   .nav { position: sticky; top: 0; z-index: 50; background: var(--tinta); color: var(--papel); }
   .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; }
   .nav-marca { display: flex; align-items: center; gap: 10px; white-space: nowrap; font-family: var(--f-letrero); font-size: 28px; line-height: 1; }
