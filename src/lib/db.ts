@@ -284,16 +284,15 @@ const ahora = () => new Date().toISOString();
 export const RAMA_PRODUCCION = 'pro/feria4vientos';
 export const esPreviewSobreProduccion = !!import.meta.env.RAMA_CF && import.meta.env.RAMA_CF !== RAMA_PRODUCCION;
 
-let listo: Promise<void> | null = null;
+// Booleano y no promesa compartida: en Workers, un request que espera una promesa nacida en
+// otro request cancelado se queda colgado para siempre (y con él todo el isolate).
+// Cada request inicializa por su cuenta hasta que uno termine; todo es idempotente.
+let listo = false;
 
-export function asegurarDb(db: D1Database): Promise<void> {
-  if (!listo) {
-    listo = inicializar(db).catch((e) => {
-      listo = null;
-      throw e;
-    });
-  }
-  return listo;
+export async function asegurarDb(db: D1Database): Promise<void> {
+  if (listo) return;
+  await inicializar(db);
+  listo = true;
 }
 
 async function inicializar(db: D1Database) {
