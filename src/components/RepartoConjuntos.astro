@@ -8,11 +8,13 @@ import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
   torres: Torre[];
-  /** Conjuntos donde se hace la feria (en orden). */
+  /** Los 4 conjuntos, siempre (en orden). */
   conjuntos: Torre[];
+  /** Ids de los conjuntos donde se hace la feria; los demás salen con su aviso. */
+  participan: string[];
   porConjunto: Record<string, EmprendedorPublico[]>;
 }
-const { conjuntos, porConjunto } = Astro.props;
+const { torres, conjuntos, participan, porConjunto } = Astro.props;
 const total = conjuntos.reduce((s, t) => s + (porConjunto[t.id]?.length ?? 0), 0);
 ---
 
@@ -26,9 +28,9 @@ const total = conjuntos.reduce((s, t) => s + (porConjunto[t.id]?.length ?? 0), 0
     <div class="pestanas" role="tablist" aria-label="Conjuntos de la feria" data-pestanas hidden>
       {
         conjuntos.map((t, i) => (
-          <button type="button" role="tab" class="pestana" id={`tab-${t.id}`} aria-controls={t.id} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-conjunto={t.id}>
+          <button type="button" role="tab" class="pestana" id={`tab-${t.id}`} aria-controls={t.id} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-conjunto={t.id} data-participa={participan.includes(t.id) ? 'si' : 'no'}>
             {t.nombre}
-            <span class="n">{porConjunto[t.id]?.length ?? 0}</span>
+            <span class="n">{participan.includes(t.id) ? (porConjunto[t.id]?.length ?? 0) : 'no va'}</span>
           </button>
         ))
       }
@@ -38,7 +40,7 @@ const total = conjuntos.reduce((s, t) => s + (porConjunto[t.id]?.length ?? 0), 0
       conjuntos.map((t) => {
         const lista = porConjunto[t.id] ?? [];
         return (
-          <div class="panel-conjunto" role="tabpanel" id={t.id} aria-labelledby={`tab-${t.id}`} data-conjunto={t.id} tabindex="0">
+          <div class="panel-conjunto" role="tabpanel" id={t.id} aria-labelledby={`tab-${t.id}`} data-conjunto={t.id} data-participa={participan.includes(t.id) ? 'si' : 'no'} tabindex="0">
             <h3 class="panel-titulo">
               {t.nombre}
               <span>{lista.length === 1 ? '1 puesto' : `${lista.length} puestos`}</span>
@@ -46,8 +48,15 @@ const total = conjuntos.reduce((s, t) => s + (porConjunto[t.id]?.length ?? 0), 0
             {lista.length ? (
               <div class="lista lista-compacta">
                 {lista.map((e) => (
-                  <EmprendedorCard e={e} torre={t} enFeria />
+                  <EmprendedorCard e={e} torre={torres.find((x) => x.id === e.torre) ?? t} enFeria />
                 ))}
+              </div>
+            ) : !participan.includes(t.id) ? (
+              <div class="vacio letrero">
+                <p class="vacio-titulo">Esta vez la feria no pasa por {t.nombre}</p>
+                <p>
+                  Los vecinos de {t.nombre} pueden inscribirse y vender en los otros conjuntos. Mire <a href="#muro">todos los puestos</a> del directorio.
+                </p>
               </div>
             ) : (
               <div class="vacio letrero">
@@ -101,7 +110,8 @@ const total = conjuntos.reduce((s, t) => s + (porConjunto[t.id]?.length ?? 0), 0
     };
     // Primera pestaña con puestos; si llega con #gregal, esa.
     const conPuestos = paneles.findIndex((p) => p.querySelector('.puesto'));
-    elegir(Math.max(0, conPuestos));
+    const participa = paneles.findIndex((p) => p.dataset.participa === 'si');
+    elegir(conPuestos >= 0 ? conPuestos : Math.max(0, participa));
     desdeHash();
     addEventListener('hashchange', desdeHash);
   });
@@ -124,6 +134,7 @@ const total = conjuntos.reduce((s, t) => s + (porConjunto[t.id]?.length ?? 0), 0
   .pestana:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--c); }
   .pestana[aria-selected='true'] { background: var(--c); color: #fff; border-color: var(--tinta); box-shadow: 0 4px 0 var(--tinta); }
   .pestana[data-conjunto='gregal'][aria-selected='true'] { color: var(--tinta); }
+  .pestana[data-participa='no'] { border-style: dashed; box-shadow: none; }
   .pestana .n { min-width: 30px; height: 30px; padding: 0 8px; border-radius: 999px; display: inline-grid; place-items: center; font-family: var(--f-texto); font-weight: 800; font-size: 15px; background: var(--papel); color: var(--tinta); }
 
   .panel-conjunto { padding-top: 6px; margin-bottom: 40px; }

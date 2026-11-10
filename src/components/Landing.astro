@@ -57,7 +57,7 @@ const porTorre = Object.fromEntries(torres.map((t) => [t.id, enFeria.filter((e) 
 const conteo = Object.fromEntries(torres.map((t) => [t.id, porTorre[t.id].length]));
 // Reparto: conjuntos de las ferias itinerantes activas y quién vende en cada uno.
 const conjuntosReparto = torres.filter((t) => itinerantes.some((f) => f.conjuntos!.includes(t.id)));
-const porConjunto = Object.fromEntries(conjuntosReparto.map((t) => [t.id, emprendedores.filter((e) => reparto.get(e.slug) === t.id)]));
+const porConjunto = Object.fromEntries(torres.map((t) => [t.id, emprendedores.filter((e) => reparto.get(e.slug) === t.id)]));
 // Vitrina "Feria · <fecha>": todos los de la feria uno a uno (destacados primero); si nadie está en la feria, todos.
 const baseVitrina = enFeria.length ? enFeria : emprendedores;
 // Teclado del citófono: categorías con al menos un emprendimiento (un id desconocido cuenta como "Otros").
@@ -73,13 +73,13 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 
 <Layout title={meta?.title} description={meta?.description} image={meta?.image}>
-  <Nav torres={conjuntosReparto.length ? conjuntosReparto : torres} feria={hayFeria} />
+  <Nav torres={torres} feria={hayFeria} />
   <main>
     <CartelFeria ferias={fechas} torres={torres} ocupacion={ocupacionFerias} />
     {/* El cartel de arriba ya anuncia la feria: el aviso del Hero solo queda para ferias del sistema anterior. */}
     <Hero proxima={fechas.length && !itinerantes.length ? fechas[0] : undefined} torres={torres} total={emprendedores.length} teclas={teclas} feria={enFeria.length > 0} vitrina={vitrinaHero} />
     <Directorio emprendedores={emprendedores} torres={torres} />
-    {conjuntosReparto.length > 0 && <RepartoConjuntos torres={torres} conjuntos={conjuntosReparto} porConjunto={porConjunto} />}
+    {conjuntosReparto.length > 0 && <RepartoConjuntos torres={torres} conjuntos={torres} participan={conjuntosReparto.map((t) => t.id)} porConjunto={porConjunto} />}
     {
       hayFeria && (
         <>
