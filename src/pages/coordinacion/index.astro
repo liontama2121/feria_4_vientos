@@ -274,6 +274,7 @@ const datosJson = JSON.stringify({
   .tabla-ins tr.grupo-cab td { background: var(--cierzo-claro); color: var(--tinta); font-size: 13px; font-weight: 700; padding: 8px 12px; border-bottom: 0; }
   .tabla-ins tr.grupo-cab b { font-family: var(--f-letrero); font-weight: 400; font-size: 16px; color: var(--mora); }
   .tabla-ins tr.en-bloque { background: color-mix(in srgb, var(--cierzo-claro) 40%, #fff); }
+  .tabla-ins tr.en-bloque:has(+ tr:not(.en-bloque)) td, .tabla-ins tr.en-bloque:last-child td { border-bottom: 3px solid var(--mora); }
   @media (max-width: 900px) {
     .tabla-ins tr.grupo-cab { padding: 10px 14px; border: 0; background: var(--cierzo-claro); border-radius: 14px 14px 0 0; margin-bottom: -14px; }
     .tabla-ins tr.grupo-cab td { padding: 0; background: transparent; }
@@ -304,6 +305,7 @@ const datosJson = JSON.stringify({
   .coordinacion .btn-aprobar { background: var(--hierbabuena); color: #fff; border-color: #0F6B5F; box-shadow: 0 3px 0 #0F6B5F; }
   .coordinacion .btn-rechazar { background: var(--papel); color: #B42318; border-color: #B42318; box-shadow: 0 3px 0 #B42318; }
   .coordinacion .btn[aria-busy='true'] { opacity: .6; pointer-events: none; }
+  .aviso-fila { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 800; background: #FFF4CC; color: #7A4F00; }
   .sin-wsp { font-size: 11.5px; font-weight: 800; color: #B42318; }
 
   /* Celular y tableta: cada fila es una tarjeta */

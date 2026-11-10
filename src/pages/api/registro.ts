@@ -4,7 +4,7 @@ import type { APIRoute } from 'astro';
 import { avisoCuentaNueva, avisoInscripcion } from '../../lib/avisos';
 import { hashClave } from '../../lib/auth';
 import { LIMITES } from '../../lib/constantes';
-import { completarBorrador, crearCuenta, crearEmprendimiento, crearInscripcion, listarFechas } from '../../lib/db';
+import { completarBorrador, crearCuenta, crearEmprendimiento, crearInscripcion, enviarARevision, listarCategorias, listarFechas, obtenerRegistro } from '../../lib/db';
 import { aceptaInscripciones } from '../../lib/fechas';
 import { celularCO } from '../../lib/ferias';
 import { celular, esCategoria, esEmail, esTorre, texto } from '../../lib/validacion';
@@ -47,7 +47,12 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
   if (feria) {
     const slug = await crearEmprendimiento(db, { nombre_vecino: nombre, torre, apartamento, whatsapp, nombre_emprendimiento: emp.nombre }, email);
-    await completarBorrador(db, slug, { categoria: esCategoria(emp.categoria) ? emp.categoria : 'otros', descripcion_corta: emp.corta });
+    const cat = esCategoria(emp.categoria) ? emp.categoria : 'otros';
+    // El emoji de su categoría permite publicarlo aunque aún no tenga foto.
+    const emoji = (await listarCategorias(db)).find((c) => c.id === cat)?.emoji ?? '✨';
+    await completarBorrador(db, slug, { categoria: cat, descripcion_corta: emp.corta || emp.queVende.slice(0, LIMITES.descripcionCorta), emoji_placeholder: emoji });
+    // Ya llenó su emprendimiento: va directo a revisión del comité (si no, nunca saldría en la página).
+    await enviarARevision(db, slug, { ...(await obtenerRegistro(db, slug))!.borrador });
     await crearInscripcion(db, { feria_id: feria.id, slug, email, que_vende: emp.queVende, necesidades: emp.necesidades, conjunto_asignado: null });
     await avisoInscripcion(db, { nombre: emp.nombre, emprendedor: nombre, slug }, feria);
     return redirect('/registro/gracias?feria=1', 303);
