@@ -292,6 +292,7 @@ const ESQUEMA = [
     notificado_at TEXT,
     notificado_por TEXT,
     notificado_conjunto TEXT,
+    grupo TEXT,
     UNIQUE (feria_id, slug)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_inscripciones_feria ON inscripciones(feria_id)`,
@@ -360,6 +361,9 @@ async function migrar(db: D1Database) {
   // Bases locales que alcanzaron la primera versión de `reportes` (con contacto y sin evidencias).
   const { results: colsReportes } = await db.prepare(`PRAGMA table_info(reportes)`).all<{ name: string }>();
   if (!colsReportes.some((c) => c.name === 'evidencias')) stmts.push(db.prepare(`ALTER TABLE reportes ADD COLUMN evidencias TEXT NOT NULL DEFAULT '[]'`));
+  // Solicitud en bloque: varios emprendimientos del mismo vecino inscritos juntos comparten `grupo`.
+  const { results: colsIns } = await db.prepare(`PRAGMA table_info(inscripciones)`).all<{ name: string }>();
+  if (!colsIns.some((c) => c.name === 'grupo')) stmts.push(db.prepare(`ALTER TABLE inscripciones ADD COLUMN grupo TEXT`));
   if (esPreviewSobreProduccion) {
     if (stmts.length) await db.batch(stmts);
     return;
@@ -1105,6 +1109,7 @@ interface FilaInscripcionDb {
   notificado_at: string | null;
   notificado_por: string | null;
   notificado_conjunto: string | null;
+  grupo: string | null;
   borrador: string | null;
   owner_email: string | null;
   cuenta_nombre: string | null;
@@ -1115,7 +1120,7 @@ interface FilaInscripcionDb {
 
 const SELECT_INSCRIPCION = `
   SELECT i.id, i.feria_id, i.slug, i.email, i.estado, i.conjunto_asignado, i.que_vende, i.necesidades, i.nota,
-         i.creado_at, i.revisado_at, i.revisado_por, i.pago_at, i.notificado_at, i.notificado_por, i.notificado_conjunto,
+         i.creado_at, i.revisado_at, i.revisado_por, i.pago_at, i.notificado_at, i.notificado_por, i.notificado_conjunto, i.grupo,
          e.borrador, e.owner_email, e.estado AS estado_emp, c.nombre AS cuenta_nombre, c.whatsapp AS cuenta_whatsapp, c.estado AS cuenta_estado
     FROM inscripciones i
     LEFT JOIN emprendedores e ON e.slug = i.slug
@@ -1139,6 +1144,8 @@ function aFilaInscripcion(f: FilaInscripcionDb): FilaInscripcion {
     notificado_at: f.notificado_at,
     notificado_por: f.notificado_por,
     notificado_conjunto: f.notificado_conjunto,
+    grupo: f.grupo ?? null,
+    descripcion: d?.descripcion_corta ?? '',
     nombre: d?.nombre_emprendimiento || (d ? 'Sin nombre todavía' : '(emprendimiento borrado)'),
     emprendedor: d?.nombre_vecino || f.cuenta_nombre || '',
     conjunto_origen: d?.torre ?? null,
@@ -1171,14 +1178,14 @@ export async function inscripcionesDeVecino(db: D1Database, email: string): Prom
 /** Crea la inscripción (pendiente). Devuelve false si ese emprendimiento ya estaba inscrito en esa feria. */
 export async function crearInscripcion(
   db: D1Database,
-  i: { feria_id: string; slug: string; email: string | null; que_vende: string; necesidades: string; conjunto_asignado: TorreId | null },
+  i: { feria_id: string; slug: string; email: string | null; que_vende: string; necesidades: string; conjunto_asignado: TorreId | null; grupo?: string | null },
 ) {
   const r = await db
     .prepare(
-      `INSERT OR IGNORE INTO inscripciones (id, feria_id, slug, email, estado, conjunto_asignado, que_vende, necesidades, creado_at)
-       VALUES (?, ?, ?, ?, 'pendiente', ?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO inscripciones (id, feria_id, slug, email, estado, conjunto_asignado, que_vende, necesidades, creado_at, grupo)
+       VALUES (?, ?, ?, ?, 'pendiente', ?, ?, ?, ?, ?)`,
     )
-    .bind(crypto.randomUUID(), i.feria_id, i.slug, i.email, i.conjunto_asignado, i.que_vende, i.necesidades, ahora())
+    .bind(crypto.randomUUID(), i.feria_id, i.slug, i.email, i.conjunto_asignado, i.que_vende, i.necesidades, ahora(), i.grupo ?? null)
     .run();
   return r.meta.changes > 0;
 }
@@ -1207,11 +1214,15 @@ export async function marcarAvisada(db: D1Database, id: string, conjunto: string
   await db.prepare(`UPDATE inscripciones SET notificado_at = ?, notificado_por = ?, notificado_conjunto = ? WHERE id = ?`).bind(ahora(), quien, conjunto, id).run();
 }
 
-/** El vecino retira una inscripción que aún no se ha revisado. */
+/** El vecino retira una solicitud que aún no se ha revisado (si es en bloque, se retira entera). */
 export async function retirarInscripcion(db: D1Database, id: string, email: string) {
   const r = await db
-    .prepare(`DELETE FROM inscripciones WHERE id = ? AND estado = 'pendiente' AND slug IN (SELECT slug FROM emprendedores WHERE owner_email = ?)`)
-    .bind(id, email)
+    .prepare(
+      `DELETE FROM inscripciones
+        WHERE estado = 'pendiente' AND slug IN (SELECT slug FROM emprendedores WHERE owner_email = ?)
+          AND (id = ? OR (grupo IS NOT NULL AND grupo = (SELECT grupo FROM inscripciones WHERE id = ?)))`,
+    )
+    .bind(email, id, id)
     .run();
   return r.meta.changes > 0;
 }
