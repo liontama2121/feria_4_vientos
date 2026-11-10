@@ -1,0 +1,345 @@
+---
+// Panel de coordinación (rol coordinadora: Luisa y Adriana; el administrador también entra).
+// Inscripciones a ferias (aprobar/rechazar, ubicar por fila, en bloque o con Excel, avisar por
+// WhatsApp) y cuentas nuevas de emprendedores. La lógica vive en src/scripts/coordinacion.ts.
+// Los permisos se validan en /api/coordinacion/*; aquí solo se esconde lo que no aplica.
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import PanelTopbar from '../../components/PanelTopbar.astro';
+import { adminEmails } from '../../lib/auth';
+import { iniciales } from '../../lib/constantes';
+import { listarCuentas, listarFechas, listarInscripciones, listarTorres } from '../../lib/db';
+import { estadoFeria } from '../../lib/fechas';
+
+const usuario = Astro.locals.usuario!;
+const env = Astro.locals.runtime.env;
+const db = env.DB;
+const esAdmin = usuario.rol === 'admin';
+
+const [fechas, inscripciones, torres, cuentas] = await Promise.all([listarFechas(db), listarInscripciones(db), listarTorres(db), listarCuentas(db)]);
+// Las ferias en borrador todavía no reciben inscripciones; las viejas sin conjuntos no usan inscripciones.
+const ferias = fechas.filter((f) => estadoFeria(f) !== 'borrador' && (f.conjuntos?.length || inscripciones.some((i) => i.feria_id === f.id)));
+const pendientes = cuentas.filter((c) => c.estado === 'pending_activation');
+
+const datosJson = JSON.stringify({
+  rol: usuario.rol,
+  ferias: ferias.map((f) => ({ ...f, estado: estadoFeria(f) })),
+  inscripciones,
+  torres,
+  categorias: Astro.locals.categorias,
+  cuentas: pendientes,
+  admins: adminEmails(env),
+}).replace(/</g, '\\u003c');
+---
+
+<Layout title="Coordinación · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel comite coordinacion">
+  <PanelTopbar seccion="Coordinación" nombre={usuario.nombre} detalle={esAdmin ? '· Administrador' : '· Comité'} iniciales={iniciales(usuario.nombre)}>
+    {esAdmin && <a class="top-btn" href="/admin/comite">← Comité</a>}
+  </PanelTopbar>
+
+  <div class="layout comite-layout">
+    <aside class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-title">COORDINACIÓN</div>
+        <nav class="sidebar-nav" aria-label="Secciones de coordinación">
+          <a href="#inscripciones" data-tab="inscripciones" class="active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+            Inscripciones
+            <span class="badge" data-badge="inscripciones"></span>
+          </a>
+          <a href="#cuentas" data-tab="cuentas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="7" r="4"></circle><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M19 8v6M22 11h-6"></path></svg>
+            Cuentas nuevas
+            <span class="badge" data-badge="cuentas"></span>
+          </a>
+        </nav>
+      </div>
+      <div class="sidebar-help">
+        <h4>Cómo se ubica</h4>
+        <p>1. Elija la feria. 2. Ubique a cada emprendedor en un conjunto (en la tabla, varios a la vez o con el Excel). 3. Apruebe. 4. Avíseles por WhatsApp.</p>
+      </div>
+    </aside>
+
+    <main>
+      {/* ═══ Inscripciones ═══ */}
+      <section data-tab-panel="inscripciones" aria-labelledby="tituloIns">
+        <div class="page-head">
+          <div>
+            <h1 id="tituloIns">Inscritos a la <span class="serif">feria</span></h1>
+            <p class="desc">Usted decide en qué conjunto vende cada emprendedor. Solo los aprobados y ubicados salen en la página y reciben el aviso.</p>
+          </div>
+          <div class="field elegir-feria">
+            <label for="cFeria">Feria</label>
+            <select id="cFeria"></select>
+          </div>
+        </div>
+
+        <div id="sinFerias" class="vacio-lista" hidden>
+          Todavía no hay ferias con inscripciones. {esAdmin ? <a href="/admin/comite#fechas">Cree una en Comité · Ferias</a> : 'Cuando el administrador abra una, aparecerá aquí.'}
+        </div>
+
+        <div id="conFeria">
+          <div class="resumen-feria" id="resumenFeria" aria-live="polite"></div>
+          <h2 class="seccion-titulo">Puestos por conjunto</h2>
+          <div class="cupos" id="cupos"></div>
+
+          <div class="card filtros filtros-ins">
+            <div class="field">
+              <label for="cBuscar">Buscar</label>
+              <input id="cBuscar" type="search" placeholder="Emprendimiento, emprendedor o qué vende" />
+            </div>
+            <div class="field">
+              <label for="cEstado">Estado</label>
+              <select id="cEstado"></select>
+            </div>
+            <div class="field">
+              <label for="cConjunto">Conjunto asignado</label>
+              <select id="cConjunto"></select>
+            </div>
+            <div class="excel-acciones">
+              <a class="btn btn-ghost btn-sm" id="btnExcel" href="#" download>Descargar Excel</a>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnSubir">Subir Excel</button>
+            </div>
+          </div>
+
+          <div class="masivo" id="masivo" hidden>
+            <strong id="masivoTexto">0 seleccionados</strong>
+            <div class="masivo-acciones">
+              <label class="sr" for="masivoConjunto">Conjunto para los seleccionados</label>
+              <select id="masivoConjunto"></select>
+              <button type="button" class="btn btn-sm btn-primary" id="masivoUbicar">Ubicar</button>
+              <button type="button" class="btn btn-sm btn-aprobar" id="masivoAprobar">Aprobar</button>
+              <button type="button" class="btn btn-sm btn-wsp" id="masivoAvisar">Avisar por WhatsApp</button>
+              <button type="button" class="btn btn-sm btn-ghost" id="masivoLimpiar">Quitar selección</button>
+            </div>
+          </div>
+
+          <div class="tabla-envoltura">
+            <table class="tabla-ins" id="tablaIns">
+              <caption class="sr">Inscripciones de la feria elegida</caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="col-check"><input type="checkbox" id="checkTodos" aria-label="Seleccionar todos los que se ven" /></th>
+                  <th scope="col">Emprendimiento</th>
+                  <th scope="col">Qué vende</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Conjunto asignado</th>
+                  <th scope="col"><span class="sr">Acciones</span></th>
+                </tr>
+              </thead>
+              <tbody id="cuerpoIns"></tbody>
+            </table>
+            <div class="vacio-lista" id="vacioIns" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ Cuentas nuevas ═══ */}
+      <section data-tab-panel="cuentas" hidden aria-labelledby="tituloCuentas">
+        <div class="page-head">
+          <div>
+            <h1 id="tituloCuentas">Cuentas <span class="serif">nuevas</span></h1>
+            <p class="desc">Vecinos que se registraron y esperan que les activen la cuenta. Al activarla queda un aviso listo para mandarles.</p>
+          </div>
+        </div>
+        <div class="lista" id="listaCuentas"></div>
+      </section>
+
+      <div class="footer-meta">Coordinación · Feria 4 Vientos · <span class="hecho">Hecho por JuanCode</span></div>
+    </main>
+  </div>
+
+  {/* Envío de avisos uno por uno: cada clic abre un WhatsApp (los navegadores bloquean abrir varios a la vez). */}
+  <div class="cola-wsp" id="colaWsp" hidden role="region" aria-label="Avisos por WhatsApp">
+    <div class="cola-info">
+      <span class="cola-paso" id="colaPaso">1 de 1</span>
+      <strong id="colaNombre"></strong>
+      <span id="colaDetalle"></span>
+    </div>
+    <div class="cola-acciones">
+      <a class="btn btn-wsp" id="colaAbrir" href="#" target="_blank" rel="noopener">Abrir WhatsApp</a>
+      <button type="button" class="btn btn-ghost btn-sm" id="colaSaltar">Saltar</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="colaCerrar">Terminar</button>
+    </div>
+  </div>
+
+  <dialog class="dialogo dialogo-excel" id="dlgExcel" aria-labelledby="dlgExcelTitulo">
+    <div class="dialogo-body">
+      <h3 id="dlgExcelTitulo">Subir el Excel diligenciado</h3>
+      <p>Use el Excel que descargó de aquí y llene la columna amarilla <b>Conjunto asignado</b> con Mistral, Gregal, Austro o Cierzo. Antes de guardar le mostramos qué va a cambiar.</p>
+      <form id="formExcel" class="field">
+        <label for="archivoExcel">Archivo .xlsx</label>
+        <input id="archivoExcel" name="archivo" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required />
+      </form>
+      <div id="previa" aria-live="polite"></div>
+      <div class="acciones">
+        <button type="button" class="btn btn-ghost" data-cerrar>Cancelar</button>
+        <button type="button" class="btn btn-ghost" id="excelRevisar">Revisar cambios</button>
+        <button type="button" class="btn btn-primary" id="excelAplicar" disabled>Aplicar cambios</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="dialogo" id="dlgRechazo" aria-labelledby="dlgRechazoTitulo">
+    <form class="dialogo-body" method="dialog">
+      <h3 id="dlgRechazoTitulo">Rechazar inscripción</h3>
+      <p id="rechazoTexto"></p>
+      <div class="field">
+        <label for="rechazoNota">Motivo <span class="opt">Opcional · el vecino lo verá</span></label>
+        <textarea id="rechazoNota" rows="3" maxlength="300"></textarea>
+      </div>
+      <div class="acciones">
+        <button class="btn btn-ghost" value="cancelar">Cancelar</button>
+        <button class="btn btn-rechazar" value="ok">Rechazar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialogo" id="dlgConfirmar" aria-labelledby="dlgConfirmarTitulo">
+    <form class="dialogo-body" method="dialog">
+      <h3 id="dlgConfirmarTitulo">¿Seguro?</h3>
+      <p id="confirmarTexto"></p>
+      <div class="acciones">
+        <button class="btn btn-ghost" value="cancelar">Cancelar</button>
+        <button class="btn btn-primary" value="ok">Sí, continuar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <script type="application/json" id="coord-datos" set:html={datosJson} />
+</Layout>
+
+<script>
+  import { iniciarCoordinacion } from '../../scripts/coordinacion';
+  iniciarCoordinacion();
+</script>
+
+<style is:global>
+  .coordinacion .comite-layout { grid-template-columns: 240px minmax(0, 1fr); }
+  @media (max-width: 860px) { .coordinacion .comite-layout { grid-template-columns: minmax(0, 1fr); } }
+  .coordinacion .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Mismos utilitarios que /admin/comite (allá viven en su propia página) */
+  .coordinacion .lista { display: flex; flex-direction: column; gap: 10px; }
+  .coordinacion .seccion-titulo { font-size: 20px; margin: 26px 0 12px; }
+  .coordinacion .filtros { display: grid; gap: 12px; padding: 18px; }
+  .coordinacion .vacio-lista { text-align: center; padding: 40px 20px; color: var(--tinta-media); font-weight: 700; background: #fff; border-radius: 16px; border: 2px dashed var(--linea-fuerte); }
+  .coordinacion .pill-admin { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--cierzo-claro); color: var(--cierzo); }
+  .coordinacion .elegir-feria { min-width: min(320px, 100%); }
+  .coordinacion .elegir-feria select { font-weight: 800; }
+  .coordinacion .page-head .desc a, .coordinacion .vacio-lista a { color: var(--tinta); text-decoration: underline; font-weight: 800; }
+
+  .resumen-feria { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 14px 18px; border-radius: 16px; background: var(--mango-claro); border: 2px solid var(--tinta); font-weight: 700; }
+  .resumen-feria b { font-family: var(--f-letrero); font-weight: 400; font-size: 20px; }
+
+  .cupos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 900px) { .cupos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .cupo { background: #fff; border: 2px solid var(--c); border-radius: 16px; padding: 12px 14px; display: grid; gap: 2px; }
+  .cupo .nombre { font-family: var(--f-letrero); font-size: 19px; color: var(--tinta); display: flex; align-items: center; gap: 8px; }
+  .cupo .nombre::before { content: ''; width: 12px; height: 12px; border-radius: 4px; background: var(--c); flex: 0 0 auto; }
+  .cupo .num { font-size: 26px; font-family: var(--f-letrero); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .cupo .num small { font-size: 15px; color: var(--tinta-suave); }
+  .cupo .libres { font-size: 12.5px; font-weight: 800; color: var(--tinta-suave); }
+  .cupo.lleno { background: color-mix(in srgb, var(--c) 14%, #fff); }
+  .cupo.lleno .libres { color: #B42318; }
+  .cupo.no-participa { border-style: dashed; border-color: var(--linea-fuerte); opacity: .7; }
+
+  .filtros-ins { grid-template-columns: 1.5fr 1fr 1fr auto; align-items: end; margin-top: 18px; }
+  @media (max-width: 1100px) { .filtros-ins { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .filtros-ins { grid-template-columns: 1fr; } }
+  .excel-acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .masivo {
+    position: sticky; top: 8px; z-index: 30; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
+    margin: 0 0 12px; padding: 12px 16px; border-radius: 16px; background: var(--tinta); color: var(--papel);
+    box-shadow: 0 18px 30px -18px rgba(32, 24, 58, .6);
+  }
+  .masivo strong { font-family: var(--f-letrero); font-weight: 400; font-size: 19px; }
+  .masivo-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .masivo select { min-height: 38px; border-radius: 999px; padding: 0 12px; font-weight: 800; border: 2px solid var(--papel); background: var(--papel); color: var(--tinta); }
+  body.plaza.coordinacion .masivo .btn-primary { background: var(--mango); color: var(--tinta); border-color: var(--mango); box-shadow: 0 3px 0 #C79A1E; }
+
+  .tabla-envoltura { background: #fff; border: 2px solid var(--tinta); border-radius: 18px; overflow: hidden; }
+  .tabla-ins { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tabla-ins thead th { text-align: left; padding: 12px 12px; background: var(--crema-alt); font-weight: 800; font-size: 12.5px; color: var(--tinta); border-bottom: 2px solid var(--tinta); white-space: nowrap; }
+  .tabla-ins td { padding: 12px; vertical-align: middle; border-bottom: 1px solid var(--linea); }
+  .tabla-ins tbody tr:last-child td { border-bottom: 0; }
+  .tabla-ins tbody tr:hover { background: #FFFBEF; }
+  .tabla-ins tr.sel { background: var(--mango-claro); }
+  .tabla-ins tr.rechazada { opacity: .6; }
+  .col-check { width: 44px; }
+  .tabla-ins input[type='checkbox'] { width: 20px; height: 20px; accent-color: var(--tinta); cursor: pointer; }
+  .emp { display: flex; gap: 12px; align-items: center; min-width: 220px; }
+  .emp .mini { width: 52px; height: 52px; border-radius: 12px; overflow: hidden; flex: 0 0 auto; display: grid; place-items: center; font-family: var(--f-letrero); font-size: 20px; color: var(--tinta); background: color-mix(in srgb, var(--c, var(--mango)) 30%, #fff); }
+  .emp .mini img { width: 100%; height: 100%; object-fit: cover; }
+  .emp h3 { font-family: var(--f-texto); font-weight: 800; font-size: 15px; line-height: 1.25; overflow-wrap: anywhere; }
+  .emp .sub { font-size: 12.5px; color: var(--tinta-suave); font-weight: 600; }
+  .origen { display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11.5px; font-weight: 800; color: var(--tinta); }
+  .origen::before { content: ''; width: 9px; height: 9px; border-radius: 3px; background: var(--c); }
+  .vende { max-width: 34ch; color: var(--tinta-media); }
+  .vende .nec { display: block; font-size: 12px; color: var(--tinta-suave); margin-top: 3px; }
+  .pill-ins { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .pill-ins.pendiente { background: #FFF4CC; color: #7A4F00; }
+  .pill-ins.aprobado { background: var(--mistral-claro); color: #0B5E53; }
+  .pill-ins.pago_aprobado { background: #D9F5E3; color: #146C36; }
+  .pill-ins.participando { background: var(--tinta); color: var(--papel); }
+  .pill-ins.rechazada { background: #FEE4E2; color: #B42318; }
+  .avisado { display: block; margin-top: 5px; font-size: 11.5px; font-weight: 700; color: var(--tinta-suave); }
+  .avisado.cambio { color: #A8440C; }
+  .sel-conjunto { min-height: 40px; min-width: 140px; border-radius: 12px; border: 2px solid var(--c, var(--linea-fuerte)); padding: 0 10px; font-weight: 800; background: #fff; color: var(--tinta); }
+  .sel-conjunto:disabled { opacity: .55; cursor: not-allowed; }
+  .acc { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+  .coordinacion .btn-aprobar { background: var(--hierbabuena); color: #fff; border-color: #0F6B5F; box-shadow: 0 3px 0 #0F6B5F; }
+  .coordinacion .btn-rechazar { background: var(--papel); color: #B42318; border-color: #B42318; box-shadow: 0 3px 0 #B42318; }
+  .coordinacion .btn[aria-busy='true'] { opacity: .6; pointer-events: none; }
+  .sin-wsp { font-size: 11.5px; font-weight: 800; color: #B42318; }
+
+  /* Celular y tableta: cada fila es una tarjeta */
+  @media (max-width: 900px) {
+    .tabla-envoltura { background: transparent; border: 0; overflow: visible; }
+    .tabla-ins thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .tabla-ins, .tabla-ins tbody, .tabla-ins tr, .tabla-ins td { display: block; width: 100%; }
+    .tabla-ins tbody { display: grid; gap: 12px; }
+    .tabla-ins tr { position: relative; background: #fff; border: 2px solid var(--tinta); border-radius: 18px; padding: 14px 14px 12px 52px; }
+    .tabla-ins tr:hover { background: #fff; }
+    .tabla-ins tr.sel { background: var(--mango-claro); }
+    .tabla-ins td { border: 0; padding: 6px 0; }
+    .tabla-ins td.col-check { position: absolute; left: 14px; top: 18px; width: auto; padding: 0; }
+    .tabla-ins td[data-label]::before { content: attr(data-label); display: block; font-size: 11.5px; font-weight: 800; color: var(--tinta-suave); margin-bottom: 3px; }
+    .emp { min-width: 0; }
+    .vende { max-width: none; }
+    .sel-conjunto { width: 100%; }
+    .acc { justify-content: flex-start; padding-top: 8px; }
+    .acc .btn { flex: 1 1 auto; }
+  }
+
+  .cola-wsp {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 70;
+    width: min(720px, calc(100vw - 24px)); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-radius: 20px; background: var(--papel); border: 3px solid var(--tinta);
+    box-shadow: 0 30px 60px -20px rgba(32, 24, 58, .55);
+  }
+  .cola-info { display: grid; gap: 2px; min-width: 0; }
+  .cola-paso { font-family: var(--f-mano); font-size: 20px; color: var(--pedir-oscuro); }
+  .cola-info strong { font-family: var(--f-letrero); font-weight: 400; font-size: 20px; overflow-wrap: anywhere; }
+  .cola-info span:last-child { font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
+  .cola-acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .dialogo-excel { width: min(720px, calc(100vw - 24px)); }
+  .previa-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 10px 0; }
+  .previa-tabla th, .previa-tabla td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--linea); }
+  .previa-tabla th { font-size: 12px; color: var(--tinta-suave); }
+  .previa-scroll { max-height: 42vh; overflow: auto; border: 1px solid var(--linea); border-radius: 12px; padding: 0 8px; }
+  .previa-errores { margin: 10px 0 0; padding: 12px 14px 12px 32px; border-radius: 12px; background: #FEF3F2; color: #7A271A; font-size: 13px; font-weight: 600; }
+  .previa-resumen { font-weight: 800; margin-top: 12px; }
+  .flecha { color: var(--tinta-suave); padding: 0 4px; }
+  .cargando { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--tinta-suave); padding: 12px 0; }
+  .cargando::before { content: ''; width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--linea-fuerte); border-top-color: var(--tinta); animation: girar .8s linear infinite; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .cargando::before { animation: none; } }
+
+  .cuenta { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; background: #fff; border: 2px solid var(--tinta); border-radius: 18px; padding: 14px 16px; }
+  .cuenta h3 { font-family: var(--f-texto); font-weight: 800; font-size: 16px; }
+  .cuenta .sub { font-size: 13px; color: var(--tinta-suave); font-weight: 600; overflow-wrap: anywhere; }
+  @media (max-width: 640px) { .cuenta { grid-template-columns: 1fr; } }
+</style>

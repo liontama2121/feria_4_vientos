@@ -16,6 +16,7 @@ import {
   type TorreId,
 } from './constantes';
 import { sanearDatos } from './validacion';
+import { UBICADOS, type EstadoFeria, type EstadoInscripcion, type FilaInscripcion } from './ferias';
 
 // ───────────────────────── Tipos ─────────────────────────
 
@@ -56,11 +57,20 @@ export interface Fecha {
   /** Ventana en que sale en la landing (YYYY-MM-DD, ambos incluidos). Sin valor: desde siempre / hasta el día de la feria. */
   mostrar_desde?: string;
   mostrar_hasta?: string;
+  /** Feria itinerante: conjuntos donde se hace esta edición. Sin valor (fechas viejas) = feria del sistema anterior. */
+  conjuntos?: TorreId[];
+  /** Puestos por conjunto (0 o sin valor = sin límite). */
+  cupos?: Partial<Record<TorreId, number>>;
+  /** Ver ESTADOS_FERIA. Sin valor (fechas viejas) se deduce de `activa`. */
+  estado?: EstadoFeria;
+  /** Valor de participación en pesos (0 = gratis). */
+  valor?: number;
 }
 
 /** El estado de moderación, más `oculto` (aprobado pero con "Publicar en la landing" apagado). */
 export type EstadoVisible = EstadoEmprendimiento | 'oculto';
-export type Rol = 'vecino' | 'admin';
+/** coordinadora: Luisa y Adriana (COORDINADORAS). Solo inscripciones, cuentas nuevas, exportar y avisos. */
+export type Rol = 'vecino' | 'admin' | 'coordinadora';
 
 export interface Registro {
   slug: string;
@@ -106,7 +116,7 @@ export interface Notificacion {
   creado_at: string;
   /** A quién va: el comité (admin) o el vecino. */
   para: Rol;
-  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte' | 'solicitud' | 'solicitud_aprobada' | 'solicitud_rechazada' | 'vinculado' | 'clave_pedida' | 'clave_link';
+  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte' | 'solicitud' | 'solicitud_aprobada' | 'solicitud_rechazada' | 'vinculado' | 'clave_pedida' | 'clave_link' | 'inscripcion' | 'inscripcion_aprobada' | 'inscripcion_rechazada';
   titulo: string;
   mensaje: string;
   /** Celular de 10 dígitos (sin +57) al que hay que mandar el mensaje, si aplica. */
@@ -258,6 +268,30 @@ const ESQUEMA = [
     revisado_por TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_cambios_clave_token ON cambios_clave(token_hash)`,
+  // Inscripción de un emprendimiento a una feria (fechas en `contenido`). Una por feria y emprendimiento.
+  `CREATE TABLE IF NOT EXISTS inscripciones (
+    id TEXT PRIMARY KEY,
+    feria_id TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    email TEXT,
+    estado TEXT NOT NULL DEFAULT 'pendiente',
+    conjunto_asignado TEXT,
+    que_vende TEXT NOT NULL DEFAULT '',
+    necesidades TEXT NOT NULL DEFAULT '',
+    nota TEXT NOT NULL DEFAULT '',
+    creado_at TEXT NOT NULL,
+    revisado_at TEXT,
+    revisado_por TEXT,
+    pago_at TEXT,
+    pago_por TEXT,
+    asignado_at TEXT,
+    asignado_por TEXT,
+    notificado_at TEXT,
+    notificado_por TEXT,
+    notificado_conjunto TEXT,
+    UNIQUE (feria_id, slug)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_inscripciones_feria ON inscripciones(feria_id)`,
   `CREATE TABLE IF NOT EXISTS reportes (
     id TEXT PRIMARY KEY,
     slug TEXT NOT NULL,
@@ -669,7 +703,11 @@ export async function marcarCampo(db: D1Database, slug: string, campo: 'destacad
 
 export async function borrarRegistro(db: D1Database, slug: string) {
   // Los reportes se conservan como historial; las calificaciones se van con el emprendimiento.
-  await db.batch([db.prepare(`DELETE FROM emprendedores WHERE slug = ?`).bind(slug), db.prepare(`DELETE FROM calificaciones WHERE slug = ?`).bind(slug)]);
+  await db.batch([
+    db.prepare(`DELETE FROM emprendedores WHERE slug = ?`).bind(slug),
+    db.prepare(`DELETE FROM calificaciones WHERE slug = ?`).bind(slug),
+    db.prepare(`DELETE FROM inscripciones WHERE slug = ?`).bind(slug),
+  ]);
 }
 
 // ───────────────────────── Nuevos emprendimientos ─────────────────────────
@@ -1043,6 +1081,208 @@ export async function revisarReporte(db: D1Database, id: string, estado: EstadoR
     .run();
   const f = await db.prepare(`SELECT ${COLS_REPORTE} FROM reportes WHERE id = ?`).bind(id).first<Parameters<typeof aReporte>[0]>();
   return f ? aReporte(f) : null;
+}
+
+// ───────────────────────── Inscripciones a ferias ─────────────────────────
+
+interface FilaInscripcionDb {
+  id: string;
+  feria_id: string;
+  slug: string;
+  email: string | null;
+  estado: EstadoInscripcion;
+  conjunto_asignado: TorreId | null;
+  que_vende: string;
+  necesidades: string;
+  nota: string;
+  creado_at: string;
+  revisado_at: string | null;
+  revisado_por: string | null;
+  pago_at: string | null;
+  notificado_at: string | null;
+  notificado_por: string | null;
+  notificado_conjunto: string | null;
+  borrador: string | null;
+  owner_email: string | null;
+  cuenta_nombre: string | null;
+  cuenta_whatsapp: string | null;
+  cuenta_estado: string | null;
+  estado_emp: string | null;
+}
+
+const SELECT_INSCRIPCION = `
+  SELECT i.id, i.feria_id, i.slug, i.email, i.estado, i.conjunto_asignado, i.que_vende, i.necesidades, i.nota,
+         i.creado_at, i.revisado_at, i.revisado_por, i.pago_at, i.notificado_at, i.notificado_por, i.notificado_conjunto,
+         e.borrador, e.owner_email, e.estado AS estado_emp, c.nombre AS cuenta_nombre, c.whatsapp AS cuenta_whatsapp, c.estado AS cuenta_estado
+    FROM inscripciones i
+    LEFT JOIN emprendedores e ON e.slug = i.slug
+    LEFT JOIN cuentas c ON c.email = COALESCE(e.owner_email, i.email)`;
+
+function aFilaInscripcion(f: FilaInscripcionDb): FilaInscripcion {
+  const d = f.borrador ? { ...datosVacios(), ...(JSON.parse(f.borrador) as Partial<DatosEmprendimiento>) } : null;
+  return {
+    id: f.id,
+    feria_id: f.feria_id,
+    slug: f.slug,
+    estado: f.estado,
+    conjunto_asignado: f.conjunto_asignado,
+    que_vende: f.que_vende,
+    necesidades: f.necesidades,
+    nota: f.nota,
+    creado_at: f.creado_at,
+    revisado_at: f.revisado_at,
+    revisado_por: f.revisado_por,
+    pago_at: f.pago_at,
+    notificado_at: f.notificado_at,
+    notificado_por: f.notificado_por,
+    notificado_conjunto: f.notificado_conjunto,
+    nombre: d?.nombre_emprendimiento || (d ? 'Sin nombre todavía' : '(emprendimiento borrado)'),
+    emprendedor: d?.nombre_vecino || f.cuenta_nombre || '',
+    conjunto_origen: d?.torre ?? null,
+    categoria: d?.categoria ?? 'otros',
+    whatsapp: d?.whatsapp || f.cuenta_whatsapp || '',
+    foto: d?.foto_principal ?? '',
+    owner_email: f.owner_email ?? f.email,
+    cuenta_estado: f.cuenta_estado,
+    estado_emprendimiento: f.estado_emp,
+  };
+}
+
+export async function listarInscripciones(db: D1Database, feriaId?: string): Promise<FilaInscripcion[]> {
+  const sql = `${SELECT_INSCRIPCION} ${feriaId ? 'WHERE i.feria_id = ?' : ''} ORDER BY i.creado_at`;
+  const { results } = await (feriaId ? db.prepare(sql).bind(feriaId) : db.prepare(sql)).all<FilaInscripcionDb>();
+  return results.map(aFilaInscripcion);
+}
+
+export async function obtenerInscripcion(db: D1Database, id: string): Promise<FilaInscripcion | null> {
+  const f = await db.prepare(`${SELECT_INSCRIPCION} WHERE i.id = ?`).bind(id).first<FilaInscripcionDb>();
+  return f ? aFilaInscripcion(f) : null;
+}
+
+/** Inscripciones de los emprendimientos de una cuenta (panel del vecino). */
+export async function inscripcionesDeVecino(db: D1Database, email: string): Promise<FilaInscripcion[]> {
+  const { results } = await db.prepare(`${SELECT_INSCRIPCION} WHERE e.owner_email = ? ORDER BY i.creado_at DESC`).bind(email).all<FilaInscripcionDb>();
+  return results.map(aFilaInscripcion);
+}
+
+/** Crea la inscripción (pendiente). Devuelve false si ese emprendimiento ya estaba inscrito en esa feria. */
+export async function crearInscripcion(
+  db: D1Database,
+  i: { feria_id: string; slug: string; email: string | null; que_vende: string; necesidades: string; conjunto_asignado: TorreId | null },
+) {
+  const r = await db
+    .prepare(
+      `INSERT OR IGNORE INTO inscripciones (id, feria_id, slug, email, estado, conjunto_asignado, que_vende, necesidades, creado_at)
+       VALUES (?, ?, ?, ?, 'pendiente', ?, ?, ?, ?)`,
+    )
+    .bind(crypto.randomUUID(), i.feria_id, i.slug, i.email, i.conjunto_asignado, i.que_vende, i.necesidades, ahora())
+    .run();
+  return r.meta.changes > 0;
+}
+
+/**
+ * Cambia el estado solo si sigue en uno de `desde` (evita carreras entre dos personas del comité).
+ * Devuelve false si no se pudo.
+ */
+export async function moverInscripcion(db: D1Database, id: string, desde: readonly EstadoInscripcion[], a: EstadoInscripcion, revisor: string, nota?: string) {
+  const t = ahora();
+  const pago = a === 'pago_aprobado' ? 1 : 0;
+  const r = await db
+    .prepare(
+      `UPDATE inscripciones
+          SET estado = ?, revisado_at = ?, revisado_por = ?, nota = COALESCE(?, nota),
+              pago_at = CASE WHEN ? = 1 THEN ? ELSE pago_at END,
+              pago_por = CASE WHEN ? = 1 THEN ? ELSE pago_por END
+        WHERE id = ? AND estado IN (${desde.map(() => '?').join(',')})`,
+    )
+    .bind(a, t, revisor, nota ?? null, pago, t, pago, revisor, id, ...desde)
+    .run();
+  return r.meta.changes > 0;
+}
+
+export async function marcarAvisada(db: D1Database, id: string, conjunto: string, quien: string) {
+  await db.prepare(`UPDATE inscripciones SET notificado_at = ?, notificado_por = ?, notificado_conjunto = ? WHERE id = ?`).bind(ahora(), quien, conjunto, id).run();
+}
+
+/** El vecino retira una inscripción que aún no se ha revisado. */
+export async function retirarInscripcion(db: D1Database, id: string, email: string) {
+  const r = await db
+    .prepare(`DELETE FROM inscripciones WHERE id = ? AND estado = 'pendiente' AND slug IN (SELECT slug FROM emprendedores WHERE owner_email = ?)`)
+    .bind(id, email)
+    .run();
+  return r.meta.changes > 0;
+}
+
+/**
+ * Ubica varias inscripciones de una feria (selector, asignación masiva o Excel). Cada UPDATE solo
+ * pasa si el conjunto aún tiene cupo (cuenta las ubicadas no rechazadas, sin contarse a sí misma);
+ * el batch corre en orden dentro de una transacción, así dos asignaciones no se pasan del cupo.
+ * Devuelve los ids que NO se pudieron ubicar por falta de cupo.
+ */
+export async function ubicarInscripciones(db: D1Database, feria: Fecha, cambios: { id: string; conjunto: TorreId }[], quien: string) {
+  if (!cambios.length) return [];
+  const t = ahora();
+  const res = await db.batch(
+    cambios.map((c) =>
+      db
+        .prepare(
+          `UPDATE inscripciones SET conjunto_asignado = ?, asignado_at = ?, asignado_por = ?
+            WHERE id = ? AND feria_id = ? AND estado != 'rechazada'
+              AND (? = 0 OR conjunto_asignado = ? OR
+                   (SELECT COUNT(*) FROM inscripciones WHERE feria_id = ? AND conjunto_asignado = ? AND estado != 'rechazada') < ?)`,
+        )
+        .bind(c.conjunto, t, quien, c.id, feria.id, feria.cupos?.[c.conjunto] ?? 0, c.conjunto, feria.id, c.conjunto, feria.cupos?.[c.conjunto] ?? 0),
+    ),
+  );
+  return cambios.filter((_, i) => !res[i].meta.changes).map((c) => c.id);
+}
+
+/** Deja sin ubicar inscripciones que siguen en espera. */
+export async function quitarUbicacion(db: D1Database, feriaId: string, ids: string[]) {
+  await db.batch(
+    ids.map((id) =>
+      db.prepare(`UPDATE inscripciones SET conjunto_asignado = NULL WHERE id = ? AND feria_id = ? AND estado = 'pendiente'`).bind(id, feriaId),
+    ),
+  );
+}
+
+/** Puestos ocupados por conjunto en cada feria (ubicados y no rechazados). */
+export async function ocupacion(db: D1Database): Promise<Record<string, Partial<Record<TorreId, number>>>> {
+  const { results } = await db
+    .prepare(`SELECT feria_id, conjunto_asignado AS c, COUNT(*) AS n FROM inscripciones WHERE conjunto_asignado IS NOT NULL AND estado != 'rechazada' GROUP BY feria_id, c`)
+    .all<{ feria_id: string; c: TorreId; n: number }>();
+  const out: Record<string, Partial<Record<TorreId, number>>> = {};
+  for (const r of results) (out[r.feria_id] ??= {})[r.c] = r.n;
+  return out;
+}
+
+export async function inscripcionesPorFeria(db: D1Database): Promise<Record<string, number>> {
+  const { results } = await db.prepare(`SELECT feria_id, COUNT(*) AS n FROM inscripciones GROUP BY feria_id`).all<{ feria_id: string; n: number }>();
+  return Object.fromEntries(results.map((r) => [r.feria_id, r.n]));
+}
+
+/**
+ * Reparto público: emprendimiento → conjunto donde vende, solo aprobados y ubicados
+ * (nunca pendientes ni rechazados) de estas ferias.
+ */
+export async function repartoPublico(db: D1Database, feriaIds: string[]): Promise<Map<string, TorreId>> {
+  if (!feriaIds.length) return new Map();
+  const { results } = await db
+    .prepare(
+      `SELECT slug, conjunto_asignado AS c FROM inscripciones
+        WHERE feria_id IN (${feriaIds.map(() => '?').join(',')}) AND conjunto_asignado IS NOT NULL
+          AND estado IN (${UBICADOS.map(() => '?').join(',')})
+        ORDER BY creado_at`,
+    )
+    .bind(...feriaIds, ...UBICADOS)
+    .all<{ slug: string; c: TorreId }>();
+  return new Map(results.map((r) => [r.slug, r.c]));
+}
+
+/** Completa el borrador recién creado desde el registro con feria (nombre, categoría…). */
+export async function completarBorrador(db: D1Database, slug: string, cambios: Partial<DatosEmprendimiento>) {
+  const r = await obtenerRegistro(db, slug);
+  if (r) await guardarBorrador(db, slug, { ...r.borrador, ...cambios });
 }
 
 // ───────────────────────── Vistas para panel y comité ─────────────────────────

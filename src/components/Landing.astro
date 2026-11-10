@@ -17,7 +17,9 @@ import PatrocinadorJuanCode from './PatrocinadorJuanCode.astro';
 import Footer from './Footer.astro';
 import DetalleModal from './DetalleModal.astro';
 import Directorio from './Directorio.astro';
-import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres, resumenCalificaciones, type EmprendedorPublico } from '../lib/db';
+import CartelFeria from './CartelFeria.astro';
+import RepartoConjuntos from './RepartoConjuntos.astro';
+import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres, ocupacion, repartoPublico, resumenCalificaciones, type EmprendedorPublico } from '../lib/db';
 import { feriasActivas } from '../lib/fechas';
 import { categoria } from '../lib/constantes';
 
@@ -42,12 +44,20 @@ const [torres, publicos, patrocinadores, todasLasFechas, calificaciones] = await
 
 const fechas = feriasActivas(todasLasFechas);
 const hayFeria = fechas.length > 0;
+// Ferias itinerantes (con conjuntos): "en la feria" = aprobado y ubicado por el comité.
+// Ferias del sistema anterior (sin conjuntos): sigue valiendo la marca `en_feria`.
+const itinerantes = fechas.filter((f) => f.conjuntos?.length);
+const hayLegado = fechas.some((f) => !f.conjuntos?.length);
+const [reparto, ocupacionFerias] = await Promise.all([repartoPublico(db, itinerantes.map((f) => f.id)), ocupacion(db)]);
 // Sin feria activa nadie lleva la etiqueta 🎪 (ni en el directorio ni en el modal).
-const emprendedores = publicos.map((e) => ({ ...e, en_feria: hayFeria && e.en_feria, calificacion: calificaciones[e.slug] }));
+const emprendedores = publicos.map((e) => ({ ...e, en_feria: reparto.has(e.slug) || (hayLegado && e.en_feria), calificacion: calificaciones[e.slug] }));
 
 const enFeria = emprendedores.filter((e) => e.en_feria);
 const porTorre = Object.fromEntries(torres.map((t) => [t.id, enFeria.filter((e) => e.torre === t.id)]));
 const conteo = Object.fromEntries(torres.map((t) => [t.id, porTorre[t.id].length]));
+// Reparto: conjuntos de las ferias itinerantes activas y quién vende en cada uno.
+const conjuntosReparto = torres.filter((t) => itinerantes.some((f) => f.conjuntos!.includes(t.id)));
+const porConjunto = Object.fromEntries(conjuntosReparto.map((t) => [t.id, emprendedores.filter((e) => reparto.get(e.slug) === t.id)]));
 // Vitrina "Feria · <fecha>": todos los de la feria uno a uno (destacados primero); si nadie está en la feria, todos.
 const baseVitrina = enFeria.length ? enFeria : emprendedores;
 // Teclado del citófono: categorías con al menos un emprendimiento (un id desconocido cuenta como "Otros").
@@ -63,22 +73,25 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 
 <Layout title={meta?.title} description={meta?.description} image={meta?.image}>
-  <Nav torres={torres} feria={hayFeria} />
+  <Nav torres={conjuntosReparto.length ? conjuntosReparto : torres} feria={hayFeria} />
   <main>
-    <Hero proxima={fechas[0]} torres={torres} total={emprendedores.length} teclas={teclas} feria={enFeria.length > 0} vitrina={vitrinaHero} />
+    <CartelFeria ferias={fechas} torres={torres} ocupacion={ocupacionFerias} />
+    {/* El cartel de arriba ya anuncia la feria: el aviso del Hero solo queda para ferias del sistema anterior. */}
+    <Hero proxima={fechas.length && !itinerantes.length ? fechas[0] : undefined} torres={torres} total={emprendedores.length} teclas={teclas} feria={enFeria.length > 0} vitrina={vitrinaHero} />
     <Directorio emprendedores={emprendedores} torres={torres} />
+    {conjuntosReparto.length > 0 && <RepartoConjuntos torres={torres} conjuntos={conjuntosReparto} porConjunto={porConjunto} />}
     {
       hayFeria && (
         <>
-          <IndiceTorres torres={torres} conteo={conteo} />
-          <VitrinaCarrusel emprendedores={baseVitrina} torres={torres} proxima={fechas[0]} />
+          {!conjuntosReparto.length && <IndiceTorres torres={torres} conteo={conteo} />}
+          {enFeria.length > 0 && <VitrinaCarrusel emprendedores={baseVitrina} torres={torres} proxima={fechas[0]} />}
         </>
       )
     }
     <Historia />
-    {hayFeria && torres.map((t) => <TorreSection torre={t} emprendedores={porTorre[t.id]} />)}
+    {hayFeria && !conjuntosReparto.length && torres.map((t) => <TorreSection torre={t} emprendedores={porTorre[t.id]} />)}
     <ComoParticipar />
-    <UbicacionFechas fechas={fechas} />
+    <UbicacionFechas fechas={fechas} torres={torres} />
     <ConElRespaldoDe patrocinadores={patrocinadores} />
     <PatrocinadorJuanCode />
   </main>

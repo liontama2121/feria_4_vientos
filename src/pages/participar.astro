@@ -1,0 +1,90 @@
+---
+// "Inscribe tu emprendimiento": puerta de entrada desde la landing. Dos caminos:
+// ya tiene cuenta → entra y elige sus emprendimientos (/admin/ferias);
+// es nuevo → crea la cuenta y llena su emprendimiento (/registro?feria=).
+import '../styles/panel.css';
+import Layout from '../layouts/Layout.astro';
+import Molinete from '../components/Molinete.astro';
+import { listarFechas, listarTorres } from '../lib/db';
+import { aceptaInscripciones, fechaLarga, rangoHoras } from '../lib/fechas';
+import { pesos } from '../lib/ferias';
+
+const db = Astro.locals.runtime.env.DB;
+const [fechas, torres] = await Promise.all([listarFechas(db), listarTorres(db)]);
+const abiertas = fechas.filter((f) => aceptaInscripciones(f)).sort((a, b) => a.fecha.localeCompare(b.fecha));
+const feria = abiertas.find((f) => f.id === Astro.url.searchParams.get('feria')) ?? abiertas[0];
+const conjuntos = (feria?.conjuntos ?? []).map((id) => torres.find((t) => t.id === id)).filter((t) => !!t);
+const q = feria ? `?feria=${encodeURIComponent(feria.id)}` : '';
+---
+
+<Layout title="Inscriba su emprendimiento · Feria 4 Vientos" description="Inscriba su emprendimiento en la próxima Feria 4 Vientos." bodyClass="panel comite">
+  <div class="sin-acceso">
+    <div class="card participar">
+      <Molinete size={64} spin />
+      {
+        feria ? (
+          <>
+            <h1>
+              Inscriba su <span class="serif">emprendimiento</span>
+            </h1>
+            <div class="feria">
+              <p class="titulo">{feria.titulo}</p>
+              <p>
+                {fechaLarga(feria.fecha)} · {rangoHoras(feria)} · {pesos(feria.valor ?? 0)}
+              </p>
+              {conjuntos.length > 0 && (
+                <ul class="conjuntos" aria-label="Conjuntos donde se hace">
+                  {conjuntos.map((t) => (
+                    <li data-conjunto={t.id}>{t.nombre}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <p class="nota">Usted no elige el conjunto: el comité ubica a cada emprendedor y le avisa por WhatsApp dónde le toca vender.</p>
+            <div class="caminos">
+              <a class="camino" href={`/admin/ferias${q}`}>
+                <b>Ya tengo cuenta</b>
+                <span>Entro y elijo cuál de mis emprendimientos inscribo.</span>
+              </a>
+              <a class="camino nuevo" href={`/registro${q}`}>
+                <b>Soy nuevo</b>
+                <span>Creo mi cuenta y lleno los datos de mi emprendimiento.</span>
+              </a>
+            </div>
+          </>
+        ) : (
+          <>
+            <h1>
+              Inscripciones <span class="serif">cerradas</span>
+            </h1>
+            <p>Ahora no hay ferias recibiendo inscripciones. Pronto vendrán más ferias: escríbale al comité para enterarse primero.</p>
+            <a class="btn btn-primary" href="/registro">Crear mi cuenta igual</a>
+          </>
+        )
+      }
+      <a class="volver" href="/">← Volver a la página</a>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .participar { width: 100%; max-width: 600px; display: grid; gap: 16px; }
+  .participar :global(.molinete) { margin: 0 auto; }
+  .feria { padding: 16px 18px; border-radius: 18px; background: var(--mango); border: 3px solid var(--tinta); text-align: left; font-weight: 700; }
+  .feria .titulo { font-family: var(--f-letrero); font-size: 28px; line-height: 1.05; margin-bottom: 4px; }
+  .conjuntos { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 0; }
+  .conjuntos li { padding: 4px 12px; border-radius: 999px; background: var(--papel); border: 2px solid var(--c); font-weight: 800; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+  .conjuntos li::before { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+  .nota { font-size: 15px; color: var(--tinta-media); }
+  .caminos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .caminos { grid-template-columns: 1fr; } }
+  .camino { display: grid; gap: 6px; text-align: left; padding: 18px; border-radius: 18px; border: 3px solid var(--tinta); background: var(--papel); box-shadow: 0 4px 0 var(--tinta); transition: transform .15s ease, box-shadow .15s ease, background .2s ease; }
+  .camino:hover { background: var(--mango-claro); }
+  .camino:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--tinta); }
+  .camino b { font-family: var(--f-letrero); font-weight: 400; font-size: 24px; }
+  .camino span { font-size: 14.5px; color: var(--tinta-media); font-weight: 600; }
+  .camino.nuevo { background: var(--tinta); color: var(--papel); }
+  .camino.nuevo span { color: #E4DFF2; }
+  .camino.nuevo:hover { background: #33295A; }
+  .volver { font-size: 13.5px; font-weight: 700; color: var(--tinta-suave); text-align: center; }
+</style>

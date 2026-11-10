@@ -1,13 +1,15 @@
 import { defineMiddleware } from 'astro:middleware';
-import { COOKIE_SESION, borrarSesion, leerSesion, usuarioComite, usuarioDeCuenta } from './lib/auth';
+import { COOKIE_SESION, borrarSesion, coordinadoraDeSesion, leerSesion, usuarioComite, usuarioCoordinadora, usuarioDeCuenta } from './lib/auth';
 import { asegurarDb, esPreviewSobreProduccion, listarCategorias, obtenerCuenta } from './lib/db';
 import { CATEGORIAS_BASE } from './lib/constantes';
 import { error } from './lib/api';
 
 // /admin/login queda afuera: es donde se inicia sesión.
-const PRIVADO = /^\/(admin(?!\/login)|api\/(panel|comite))(\/|$)/;
+const PRIVADO = /^\/(admin(?!\/login)|coordinacion|api\/(panel|comite|coordinacion))(\/|$)/;
 // Solo rol admin: la cola de moderación, cuentas, notificaciones y contenido del sitio.
 const SOLO_ADMIN = /^\/(admin\/comite|api\/comite)(\/|$)/;
+// Coordinación (inscripciones, cuentas nuevas, exportar, avisos): coordinadoras y admin.
+const COORDINACION = /^\/(coordinacion|api\/coordinacion)(\/|$)/;
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const { pathname, search } = ctx.url;
@@ -35,16 +37,31 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     const cuenta = await obtenerCuenta(env.DB, sujeto.email);
     if (cuenta?.estado === 'active') ctx.locals.usuario = usuarioDeCuenta(env, cuenta);
     else borrarSesion(ctx.cookies);
+  } else if (sujeto?.tipo === 'coordinadora') {
+    // Se valida contra COORDINADORAS en cada request: quitarla o cambiar su clave la saca al instante.
+    const c = await coordinadoraDeSesion(env, sujeto.usuario, sujeto.huella);
+    if (c) ctx.locals.usuario = usuarioCoordinadora(c);
+    else borrarSesion(ctx.cookies);
   }
 
   const u = ctx.locals.usuario;
+  const api = pathname.startsWith('/api/');
   if (!u) {
-    if (pathname.startsWith('/api/')) return error('Tu sesión expiró. Vuelve a entrar.', 401);
+    if (api) return error('Tu sesión expiró. Vuelve a entrar.', 401);
     return ctx.redirect(`/admin/login?next=${encodeURIComponent(pathname + search)}`);
   }
   if (SOLO_ADMIN.test(pathname) && u.rol !== 'admin') {
-    if (pathname.startsWith('/api/')) return error('Solo el comité puede hacer esto.', 403);
+    if (api) return error('Solo el comité puede hacer esto.', 403);
+    return ctx.redirect(u.rol === 'coordinadora' ? '/coordinacion' : '/admin');
+  }
+  if (COORDINACION.test(pathname) && u.rol === 'vecino') {
+    if (api) return error('Solo coordinación y el comité pueden hacer esto.', 403);
     return ctx.redirect('/admin');
+  }
+  // La coordinadora no tiene emprendimientos ni panel de vecino.
+  if (u.rol === 'coordinadora' && !COORDINACION.test(pathname)) {
+    if (api) return error('Tu usuario de coordinación no puede hacer esto.', 403);
+    return ctx.redirect('/coordinacion');
   }
 
   const res = await next();

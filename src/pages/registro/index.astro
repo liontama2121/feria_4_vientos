@@ -4,10 +4,17 @@
 import '../../styles/panel.css';
 import Layout from '../../layouts/Layout.astro';
 import Molinete from '../../components/Molinete.astro';
-import { listarTorres } from '../../lib/db';
+import { listarFechas, listarTorres } from '../../lib/db';
+import { LIMITES } from '../../lib/constantes';
+import { aceptaInscripciones, fechaLarga } from '../../lib/fechas';
 
-const torres = await listarTorres(Astro.locals.runtime.env.DB);
+const db = Astro.locals.runtime.env.DB;
+const [torres, fechas] = await Promise.all([listarTorres(db), listarFechas(db)]);
+// Viene de "Inscribe tu emprendimiento": además de la cuenta, llena su emprendimiento y queda inscrito.
+const feria = fechas.find((f) => f.id === Astro.url.searchParams.get('feria') && aceptaInscripciones(f));
+const categorias = Astro.locals.categorias.filter((c) => !c.oculta);
 const ERRORES: Record<string, string> = {
+  emprendimiento: 'Escribe el nombre de tu emprendimiento y qué vas a vender en la feria.',
   datos: 'Revisa los datos: nombre, conjunto, WhatsApp, correo y contraseña son obligatorios.',
   whatsapp: 'El WhatsApp debe ser un celular colombiano de 10 dígitos, por ejemplo 300 123 4567.',
   clave: 'La contraseña debe tener al menos 8 caracteres.',
@@ -21,7 +28,16 @@ const fallo = ERRORES[Astro.url.searchParams.get('error') ?? ''];
     <form class="card registro" method="post" action="/api/registro">
       <Molinete size={64} spin />
       <h1>Súmate a la <span class="serif">feria</span></h1>
-      <p>Crea tu cuenta para registrar tu emprendimiento. El comité la activa en menos de 24 horas y te avisa por WhatsApp.</p>
+      {
+        feria ? (
+          <p>
+            Te estás inscribiendo a <strong>{feria.titulo}</strong> del {fechaLarga(feria.fecha)}. Crea tu cuenta y cuéntanos de tu emprendimiento; el comité aprueba tu cuenta y te ubica en un conjunto.
+          </p>
+        ) : (
+          <p>Crea tu cuenta para registrar tu emprendimiento. El comité la activa en menos de 24 horas y te avisa por WhatsApp.</p>
+        )
+      }
+      {feria && <input type="hidden" name="feria" value={feria.id} />}
 
       {
         fallo && (
@@ -67,13 +83,46 @@ const fallo = ERRORES[Astro.url.searchParams.get('error') ?? ''];
         </div>
       </div>
 
+      {
+        feria && (
+          <fieldset class="tu-emp">
+            <legend>Tu emprendimiento</legend>
+            <div class="field-grid">
+              <div class="field full">
+                <label for="nombre_emprendimiento">Nombre del emprendimiento <span class="req">●</span></label>
+                <input id="nombre_emprendimiento" name="nombre_emprendimiento" type="text" maxlength="80" required />
+              </div>
+              <div class="field full">
+                <label for="categoria">Categoría</label>
+                <select id="categoria" name="categoria">
+                  {categorias.map((c) => <option value={c.id}>{c.emoji} {c.label}</option>)}
+                </select>
+              </div>
+              <div class="field full">
+                <label for="descripcion_corta">Descripción corta <span class="opt">Sale en tu puesto del directorio</span></label>
+                <input id="descripcion_corta" name="descripcion_corta" type="text" maxlength={LIMITES.descripcionCorta} />
+              </div>
+              <div class="field full">
+                <label for="que_vende">Qué vas a vender en la feria <span class="req">●</span></label>
+                <textarea id="que_vende" name="que_vende" rows="2" maxlength="300" required placeholder="Ej.: tortas por porción y galletas"></textarea>
+              </div>
+              <div class="field full">
+                <label for="necesidades">Necesidades del puesto <span class="opt">Opcional</span></label>
+                <textarea id="necesidades" name="necesidades" rows="2" maxlength="300" placeholder="Ej.: toma de corriente, una mesa"></textarea>
+              </div>
+            </div>
+            <p class="nota-conjunto">No eliges conjunto: el comité decide dónde vende cada emprendedor y te avisa por WhatsApp.</p>
+          </fieldset>
+        )
+      }
+
       {/* Campo trampa para bots: oculto a humanos y lectores de pantalla. */}
       <div class="trampa" aria-hidden="true">
         <label for="sitio">No llenar</label>
         <input id="sitio" name="sitio" type="text" tabindex="-1" autocomplete="off" />
       </div>
 
-      <button class="btn btn-primary" type="submit">Crear mi cuenta</button>
+      <button class="btn btn-primary" type="submit">{feria ? 'Crear cuenta e inscribirme' : 'Crear mi cuenta'}</button>
       <p class="pie">¿Ya tienes cuenta? <a href="/admin/login">Entra al panel</a></p>
       <a class="volver" href="/">← Volver a la feria</a>
     </form>
@@ -92,9 +141,9 @@ const fallo = ERRORES[Astro.url.searchParams.get('error') ?? ''];
   inp?.addEventListener('input', () => inp.setCustomValidity(''));
   inp?.form?.addEventListener('submit', (ev) => {
     const d = digitos(inp.value);
-    if (d.length !== 10) {
+    if (!/^3\d{9}$/.test(d)) {
       ev.preventDefault();
-      inp.setCustomValidity('Escribe tu celular de 10 dígitos, por ejemplo 300 123 4567.');
+      inp.setCustomValidity('Escribe tu celular de 10 dígitos que empiece por 3, por ejemplo 300 123 4567.');
       inp.reportValidity();
       return;
     }
@@ -111,6 +160,9 @@ const fallo = ERRORES[Astro.url.searchParams.get('error') ?? ''];
   .registro .btn { margin-top: 6px; width: 100%; }
   .registro .pie { font-size: 13.5px; margin: 0; }
   .registro .pie a { color: var(--cierzo); font-weight: 800; }
+  .tu-emp { border: 2px solid var(--tinta); border-radius: 18px; padding: 16px; background: var(--crema-alt); margin: 0; }
+  .tu-emp legend { font-family: var(--f-letrero); font-size: 22px; padding: 0 8px; }
+  .nota-conjunto { font-size: 13.5px; font-weight: 700; color: var(--tinta-media); margin-top: 12px; }
   .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
   .volver { text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
 </style>

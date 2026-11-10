@@ -1,0 +1,147 @@
+---
+// "¿Quién está en cada conjunto?": la distribución que decidió el comité. Una pestaña por
+// conjunto con los emprendimientos APROBADOS Y UBICADOS ahí (nunca pendientes ni rechazados),
+// cada uno con su puesto: WhatsApp y redes. Sin JavaScript se ven todos los conjuntos seguidos.
+// Los ids de panel (#mistral, #gregal…) mantienen los enlaces del menú.
+import EmprendedorCard from './EmprendedorCard.astro';
+import type { EmprendedorPublico, Torre } from '../lib/db';
+
+interface Props {
+  torres: Torre[];
+  /** Conjuntos donde se hace la feria (en orden). */
+  conjuntos: Torre[];
+  porConjunto: Record<string, EmprendedorPublico[]>;
+}
+const { conjuntos, porConjunto } = Astro.props;
+const total = conjuntos.reduce((s, t) => s + (porConjunto[t.id]?.length ?? 0), 0);
+---
+
+<section class="reparto" id="reparto" aria-labelledby="reparto-titulo">
+  <div class="wrap">
+    <h2 id="reparto-titulo">¿Quién está en cada conjunto?</h2>
+    <p class="bajada">
+      {total ? 'Así quedaron los puestos. Elija un conjunto y pídale directo por WhatsApp a quien quiera.' : 'El comité está ubicando a los emprendedores. Apenas los apruebe, aparecen aquí por conjunto.'}
+    </p>
+
+    <div class="pestanas" role="tablist" aria-label="Conjuntos de la feria" data-pestanas hidden>
+      {
+        conjuntos.map((t, i) => (
+          <button type="button" role="tab" class="pestana" id={`tab-${t.id}`} aria-controls={t.id} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-conjunto={t.id}>
+            {t.nombre}
+            <span class="n">{porConjunto[t.id]?.length ?? 0}</span>
+          </button>
+        ))
+      }
+    </div>
+
+    {
+      conjuntos.map((t) => {
+        const lista = porConjunto[t.id] ?? [];
+        return (
+          <div class="panel-conjunto" role="tabpanel" id={t.id} aria-labelledby={`tab-${t.id}`} data-conjunto={t.id} tabindex="0">
+            <h3 class="panel-titulo">
+              {t.nombre}
+              <span>{lista.length === 1 ? '1 puesto' : `${lista.length} puestos`}</span>
+            </h3>
+            {lista.length ? (
+              <div class="lista lista-compacta">
+                {lista.map((e) => (
+                  <EmprendedorCard e={e} torre={t} enFeria />
+                ))}
+              </div>
+            ) : (
+              <div class="vacio letrero">
+                <p class="vacio-titulo">Aún no hay puestos ubicados en {t.nombre}</p>
+                <p>
+                  Cuando el comité apruebe y ubique emprendimientos aquí, los verá en esta pestaña. Mientras tanto, mire <a href="#muro">todos los puestos</a>.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })
+    }
+  </div>
+</section>
+
+<script>
+  // Pestañas accesibles (flechas, Inicio/Fin). El enlace #mistral abre su pestaña.
+  document.querySelectorAll<HTMLElement>('.reparto').forEach((sec) => {
+    const lista = sec.querySelector<HTMLElement>('[data-pestanas]');
+    if (!lista) return;
+    const tabs = [...lista.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const paneles = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls')!)!);
+    lista.hidden = false;
+    sec.classList.add('con-pestanas');
+    const elegir = (i: number, foco = false) => {
+      tabs.forEach((t, j) => {
+        t.setAttribute('aria-selected', String(i === j));
+        t.tabIndex = i === j ? 0 : -1;
+        paneles[j].hidden = i !== j;
+      });
+      if (foco) tabs[i].focus();
+    };
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => elegir(i));
+      t.addEventListener('keydown', (ev) => {
+        const n = tabs.length;
+        const k = ev.key;
+        const destino = k === 'ArrowRight' ? (i + 1) % n : k === 'ArrowLeft' ? (i - 1 + n) % n : k === 'Home' ? 0 : k === 'End' ? n - 1 : -1;
+        if (destino < 0) return;
+        ev.preventDefault();
+        elegir(destino, true);
+      });
+    });
+    const desdeHash = () => {
+      const i = paneles.findIndex((p) => `#${p.id}` === location.hash);
+      if (i >= 0) {
+        elegir(i);
+        sec.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      }
+    };
+    // Primera pestaña con puestos; si llega con #gregal, esa.
+    const conPuestos = paneles.findIndex((p) => p.querySelector('.puesto'));
+    elegir(Math.max(0, conPuestos));
+    desdeHash();
+    addEventListener('hashchange', desdeHash);
+  });
+</script>
+
+<style>
+  .reparto { padding: 70px 0 80px; scroll-margin-top: 60px; }
+  h2 { font-size: clamp(42px, 5.6vw, 80px); margin-bottom: 10px; }
+  .bajada { font-size: 19px; font-weight: 600; max-width: 56ch; margin-bottom: 24px; }
+
+  .pestanas { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+  .pestanas[hidden] { display: none; }
+  .pestana {
+    display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 20px;
+    font-family: var(--f-letrero); font-size: 22px; color: var(--tinta); background: var(--papel);
+    border: 3px solid var(--c); border-radius: 999px; box-shadow: 0 4px 0 var(--c); cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
+  }
+  .pestana:hover { background: color-mix(in srgb, var(--c) 12%, #fff); }
+  .pestana:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--c); }
+  .pestana[aria-selected='true'] { background: var(--c); color: #fff; border-color: var(--tinta); box-shadow: 0 4px 0 var(--tinta); }
+  .pestana[data-conjunto='gregal'][aria-selected='true'] { color: var(--tinta); }
+  .pestana .n { min-width: 30px; height: 30px; padding: 0 8px; border-radius: 999px; display: inline-grid; place-items: center; font-family: var(--f-texto); font-weight: 800; font-size: 15px; background: var(--papel); color: var(--tinta); }
+
+  .panel-conjunto { padding-top: 6px; margin-bottom: 40px; }
+  .panel-conjunto:focus-visible { outline-offset: 6px; }
+  .panel-titulo { display: flex; align-items: baseline; gap: 14px; font-size: 38px; margin-bottom: 18px; color: var(--c); }
+  .panel-titulo span { font-family: var(--f-mano); font-size: 24px; color: var(--tinta-suave); }
+  /* Con pestañas, el nombre ya está en la pestaña elegida */
+  .con-pestanas .panel-titulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  .lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 34px 26px; align-items: start; }
+  @media (max-width: 640px) {
+    .reparto { padding: 50px 0 60px; }
+    .pestanas { display: grid; grid-template-columns: 1fr 1fr; }
+    .pestanas[hidden] { display: none; }
+    .pestana { justify-content: space-between; font-size: 19px; min-height: 50px; padding: 8px 14px; }
+    .lista { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; align-items: stretch; }
+  }
+  .vacio { padding: 22px 24px; max-width: 760px; font-size: 17px; }
+  .vacio-titulo { font-family: var(--f-letrero); font-size: 28px; line-height: 1.05; margin-bottom: 8px; }
+  .vacio a { text-decoration: underline; font-weight: 700; }
+</style>

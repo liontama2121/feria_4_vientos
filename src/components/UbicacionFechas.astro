@@ -1,13 +1,18 @@
 ---
 // Dónde y cuándo: letrero con la ubicación y las fechas como carteles de colores.
-import type { Fecha } from '../lib/db';
-import { diaMes, diaSemana, rangoHoras } from '../lib/fechas';
+import type { Fecha, Torre } from '../lib/db';
+import { aceptaInscripciones, diaMes, diaSemana, rangoHoras } from '../lib/fechas';
 import { MENSAJES, SITIO, linkWhatsApp } from '../lib/sitio';
 
 interface Props {
   fechas: Fecha[];
+  torres: Torre[];
 }
-const { fechas } = Astro.props;
+const { fechas, torres } = Astro.props;
+const nombres = (f: Fecha) => (f.conjuntos ?? []).map((id) => torres.find((t) => t.id === id)?.nombre).filter((n): n is string => !!n);
+const enFrase = (n: string[]) => (n.length > 1 ? `${n.slice(0, -1).join(', ')} y ${n.at(-1)}` : (n[0] ?? ''));
+// Feria itinerante: el lugar son los conjuntos de la próxima feria; si no, el terminalito de siempre.
+const itinerante = fechas[0] ? nombres(fechas[0]) : [];
 const COLORES = ['var(--pitahaya)', 'var(--mora)', 'var(--lulo)', 'var(--hierbabuena)'];
 ---
 
@@ -15,9 +20,23 @@ const COLORES = ['var(--pitahaya)', 'var(--mora)', 'var(--lulo)', 'var(--hierbab
   <div class="wrap ubic-grid">
     <div>
       <h2 id="ubicacion-titulo">Dónde y cuándo</h2>
-      <p class="lugar">El terminalito</p>
-      <p class="direccion">{SITIO.conjunto} · {SITIO.ciudad}</p>
-      <p class="indicacion">Al lado de la portería secundaria, con entrada por la peatonal. Si es su primera vez, cualquier vecino le indica.</p>
+      {
+        itinerante.length ? (
+          <>
+            <p class="lugar">{itinerante.length === 4 ? 'En los cuatro conjuntos' : `En ${enFrase(itinerante)}`}</p>
+            <p class="direccion">{SITIO.conjunto} · {SITIO.ciudad}</p>
+            <p class="indicacion">
+              La feria rota por los conjuntos: cada emprendedor vende en el conjunto que le asignó el comité. <a href="#reparto">Mire quién está en cada uno</a>.
+            </p>
+          </>
+        ) : (
+          <>
+            <p class="lugar">El terminalito</p>
+            <p class="direccion">{SITIO.conjunto} · {SITIO.ciudad}</p>
+            <p class="indicacion">Al lado de la portería secundaria, con entrada por la peatonal. Si es su primera vez, cualquier vecino le indica.</p>
+          </>
+        )
+      }
       <ul class="extras">
         <li class="etiqueta">Vacunación para mascotas</li>
         <li class="etiqueta">Vacunación para niños</li>
@@ -48,7 +67,13 @@ const COLORES = ['var(--pitahaya)', 'var(--mora)', 'var(--lulo)', 'var(--hierbab
                   <p>
                     {diaSemana(f.fecha)} · {rangoHoras(f)}
                   </p>
+                  {nombres(f).length > 0 && <p class="conjuntos-fecha">En {enFrase(nombres(f))}</p>}
                   {f.descripcion && <p class="desc-fecha">{f.descripcion}</p>}
+                  {aceptaInscripciones(f) && (
+                    <a class="inscribir" href={`/participar?feria=${encodeURIComponent(f.id)}`}>
+                      Inscribe tu emprendimiento
+                    </a>
+                  )}
                 </div>
               </div>
             );
@@ -83,6 +108,9 @@ const COLORES = ['var(--pitahaya)', 'var(--mora)', 'var(--lulo)', 'var(--hierbab
   .dd { font-family: var(--f-letrero); font-size: 44px; line-height: .9; }
   .mm { font-family: var(--f-letrero); font-size: 18px; }
   .cartel-titulo { font-family: var(--f-letrero); font-size: 28px; line-height: 1; margin-bottom: 4px; }
+  .conjuntos-fecha { font-weight: 800; margin-top: 4px; }
+  .inscribir { display: inline-block; margin-top: 8px; font-weight: 800; text-decoration: underline; text-decoration-thickness: 2px; }
+  .indicacion a { text-decoration: underline; font-weight: 700; }
   .desc-fecha { font-size: 15.5px; margin-top: 6px; color: var(--tinta-suave); }
   .pronto { font-size: 16.5px; line-height: 1.5; max-width: 52ch; }
   .pronto a { text-decoration: underline; font-weight: 700; }

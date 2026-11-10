@@ -475,3 +475,9 @@ button.photo-slot:hover, .photo-slot.drop { border-color: var(--torre); backgrou
 .mi-link-url { width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--linea-fuerte); background: var(--crema); font: inherit; font-size: 12px; color: var(--tinta); }
 .mi-link-acciones { display: flex; gap: 6px; margin-top: 8px; }
 .mi-link-visitas { font-size: 12px; font-weight: 700; color: var(--tinta-suave); margin: 8px 0 0; }
+
+/* Panel del vecino: acceso a "Mis ferias" (inscripciones y su estado) */
+.mis-ferias-link { display: grid; gap: 4px; text-decoration: none; color: var(--tinta); background: var(--mango); border: 2px solid var(--tinta); transition: transform .15s ease; }
+.mis-ferias-link:hover { transform: translateY(-2px); }
+.mis-ferias-link .mfl-texto { font-weight: 700; font-size: 14px; }
+.mis-ferias-link .mfl-ir { font-family: var(--display); font-size: 17px; }

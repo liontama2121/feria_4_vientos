@@ -1,7 +1,8 @@
 // Lógica de /admin/comite. Todo se pinta desde los datos en memoria y cada acción
 // llama a /api/comite/* y actualiza solo lo que cambió.
 import type { Calificacion, CambioClave, Cuenta, EstadoReporte, EstadoVisible, Fecha, FilaComite, Notificacion, Patrocinador, Reporte, Solicitud, Torre } from '../lib/db';
-import { estaActiva as estaActivaEn } from '../lib/fechas';
+import { estaActiva as estaActivaEn, estadoFeria } from '../lib/fechas';
+import { ESTADOS_FERIA, ETIQUETA_FERIA, FERIA_VISIBLE } from '../lib/ferias';
 import { CATEGORIA_COMODIN, categoria, type Categoria } from '../lib/constantes';
 
 interface DatosComite {
@@ -24,6 +25,8 @@ interface DatosComite {
   usosCategorias: Record<string, number>;
   /** Las base no se borran, solo se ocultan. */
   categoriasBase: string[];
+  /** Inscripciones por id de feria (no se puede borrar una feria con inscripciones). */
+  inscritosPorFeria: Record<string, number>;
 }
 
 const TABS = ['emprendedores', 'cuentas', 'resenas', 'notificaciones', 'categorias', 'torres', 'patrocinadores', 'fechas'] as const;
@@ -1198,9 +1201,12 @@ export function iniciarComite() {
 
   const hasta = (fe: Fecha) => fe.mostrar_hasta || fe.fecha;
   const estaActiva = (fe: Fecha) => estaActivaEn(fe, hoy);
+  const inscritosPorFeria = D.inscritosPorFeria ?? {};
 
   function pillFecha(fe: Fecha) {
-    if (!fe.activa) return h('span', { class: 'pill-inactiva', text: 'Apagada · oculta' });
+    const est = estadoFeria(fe);
+    if (est === 'borrador') return h('span', { class: 'pill-inactiva', text: 'Borrador · oculta' });
+    if (est === 'finalizada') return h('span', { class: 'pill-inactiva', text: 'Finalizada · oculta' });
     if (hoy > hasta(fe)) return h('span', { class: 'pill-inactiva', text: 'Terminó · oculta' });
     if (fe.mostrar_desde && hoy < fe.mostrar_desde) return h('span', { class: 'pill-programada', text: `Programada · sale el ${fe.mostrar_desde}` });
     return h('span', { class: 'pill-activa', text: `🎪 En la landing hasta el ${hasta(fe)}` });
@@ -1218,6 +1224,10 @@ export function iniciarComite() {
       activa: true,
       mostrar_desde: hoy,
       mostrar_hasta: hoy,
+      estado: 'inscripciones',
+      conjuntos: D.torres.map((t) => t.id),
+      cupos: {},
+      valor: 0,
     };
     const terminada = !!base.id && hoy > hasta(base);
     const f = {
@@ -1226,10 +1236,19 @@ export function iniciarComite() {
       hi: inp(base.hora_inicio, { type: 'time' }),
       hf: inp(base.hora_fin, { type: 'time' }),
       desc: inp(base.descripcion, { maxlength: 300, placeholder: 'Qué habrá: emprendimientos, vacunación, música…' }),
-      activa: h('input', { type: 'checkbox', checked: base.activa === true }) as HTMLInputElement,
+      estado: h('select', {}, ...ESTADOS_FERIA.map((e) => h('option', { value: e, text: ETIQUETA_FERIA[e] }))) as HTMLSelectElement,
+      valor: inp(String(base.valor ?? 0), { type: 'number', min: '0', step: '1000', inputmode: 'numeric' }),
       desde: inp(base.mostrar_desde ?? '', { type: 'date' }),
       hasta: inp(hasta(base), { type: 'date' }),
     };
+    f.estado.value = estadoFeria(base);
+    // Conjuntos donde se hace + cupos por conjunto (0 = sin límite).
+    const conj = D.torres.map((t) => ({
+      t,
+      chk: h('input', { type: 'checkbox', checked: !base.conjuntos?.length ? !fe : base.conjuntos.includes(t.id) }) as HTMLInputElement,
+      cupo: inp(String(base.cupos?.[t.id] ?? 0), { type: 'number', min: '0', max: '999', inputmode: 'numeric', 'aria-label': `Cupos en ${t.nombre}` }),
+    }));
+    const n = inscritosPorFeria[base.id] ?? 0;
     // En una feria nueva, mover el día de la feria arrastra "Mostrar hasta" si quedaba antes.
     f.fecha.addEventListener('change', () => {
       if (!base.id && f.fecha.value && f.hasta.value < f.fecha.value) f.hasta.value = f.fecha.value;
@@ -1239,12 +1258,20 @@ export function iniciarComite() {
       h(
         'div',
         { class: 'fecha-estado' },
-        h('label', { class: 'check check-feria' }, f.activa, 'Feria activa'),
+        campo('Estado', f.estado),
         base.id ? pillFecha(base) : h('span', { class: 'pill-inactiva', text: 'Nueva · sin guardar' }),
+        base.id ? h('a', { class: 'btn btn-ghost btn-sm', href: `/coordinacion?feria=${encodeURIComponent(base.id)}`, text: `Inscripciones (${n}) ↗` }) : null,
+      ),
+      h(
+        'fieldset',
+        { class: 'fecha-conjuntos' },
+        h('legend', { text: 'Conjuntos donde se hace y puestos por conjunto (0 = sin límite)' }),
+        ...conj.map(({ t, chk, cupo }) => h('label', { class: 'conj-cupo', style: `--t:${t.color_hex}` }, chk, h('span', { text: t.nombre }), cupo)),
       ),
       h(
         'div',
         { class: 'fecha-ventana' },
+        campo('Valor de participación (pesos, 0 = gratis)', f.valor),
         campo('Mostrar en la landing desde', f.desde),
         campo('Mostrar hasta (incluido)', f.hasta),
       ),
@@ -1269,6 +1296,7 @@ export function iniciarComite() {
                   click: async () => {
                     if (!(await confirmar(`Se borrará la feria “${base.titulo}” (${base.fecha}).`))) return;
                     try {
+                      if (n) throw new Error(`Esta feria tiene ${n} inscripción(es). Márquela como finalizada en vez de borrarla.`);
                       await api('/api/comite/contenido', 'DELETE', { coleccion: 'fechas', id: base.id });
                       D.fechas = D.fechas.filter((x) => x.id !== base.id);
                       toast('Fecha borrada', 'ok');
@@ -1296,16 +1324,21 @@ export function iniciarComite() {
                       hora_inicio: f.hi.value,
                       hora_fin: f.hf.value,
                       descripcion: f.desc.value,
-                      activa: f.activa.checked,
+                      estado: f.estado.value,
+                      conjuntos: conj.filter((c) => c.chk.checked).map((c) => c.t.id),
+                      cupos: Object.fromEntries(conj.map((c) => [c.t.id, Number(c.cupo.value) || 0])),
+                      valor: Number(f.valor.value) || 0,
                       mostrar_desde: f.desde.value,
                       mostrar_hasta: f.hasta.value,
                     },
                   });
                   D.fechas = [...D.fechas.filter((x) => x.id !== nueva.id), nueva].sort((a, b) => a.fecha.localeCompare(b.fecha));
                   const msg = estaActiva(nueva)
-                    ? 'Feria activa ✓ Ya se ve en la landing'
-                    : !nueva.activa
-                      ? 'Guardada ✓ Está apagada: no sale en la landing'
+                    ? estadoFeria(nueva) === 'inscripciones'
+                      ? 'Feria guardada ✓ Ya se ve en la landing con "Inscribe tu emprendimiento"'
+                      : 'Feria guardada ✓ Se ve en la landing (inscripciones cerradas)'
+                    : !FERIA_VISIBLE.includes(estadoFeria(nueva))
+                      ? `Guardada ✓ Está en "${ETIQUETA_FERIA[estadoFeria(nueva)]}": no sale en la landing`
                       : hoy > hasta(nueva)
                         ? 'Guardada, pero su "Mostrar hasta" ya pasó: no se muestra'
                         : `Guardada ✓ Saldrá en la landing el ${nueva.mostrar_desde}`;
