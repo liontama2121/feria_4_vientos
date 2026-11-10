@@ -77,13 +77,22 @@ Astro.response.headers.set('Cache-Control', 'no-store');
   <main>
     <CartelFeria ferias={fechas} torres={torres} ocupacion={ocupacionFerias} />
     {/* El cartel de arriba ya anuncia la feria: el aviso del Hero solo queda para ferias del sistema anterior. */}
-    <Hero proxima={fechas.length && !itinerantes.length ? fechas[0] : undefined} torres={torres} total={emprendedores.length} teclas={teclas} feria={enFeria.length > 0} vitrina={vitrinaHero} />
-    <Directorio emprendedores={emprendedores} torres={torres} />
+    {/* Con feria itinerante, la feria va primero y el directorio de todo el año pasa a segundo plano. */}
     {conjuntosReparto.length > 0 && <RepartoConjuntos torres={torres} conjuntos={torres} participan={conjuntosReparto.map((t) => t.id)} porConjunto={porConjunto} />}
+    <Hero
+      proxima={fechas.length && !itinerantes.length ? fechas[0] : undefined}
+      torres={torres}
+      total={emprendedores.length}
+      teclas={teclas}
+      feria={enFeria.length > 0}
+      vitrina={vitrinaHero}
+      secundario={conjuntosReparto.length > 0}
+    />
+    <Directorio emprendedores={emprendedores} torres={torres} />
     {
-      hayFeria && (
+      hayFeria && !conjuntosReparto.length && (
         <>
-          {!conjuntosReparto.length && <IndiceTorres torres={torres} conteo={conteo} />}
+          <IndiceTorres torres={torres} conteo={conteo} />
           {enFeria.length > 0 && <VitrinaCarrusel emprendedores={baseVitrina} torres={torres} proxima={fechas[0]} />}
         </>
       )
