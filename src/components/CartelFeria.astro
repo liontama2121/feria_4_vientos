@@ -5,7 +5,7 @@
 // salen debajo como carteles pequeños.
 import type { Fecha, Torre } from '../lib/db';
 import type { TorreId } from '../lib/constantes';
-import { aceptaInscripciones, diaMes, fechaLarga, rangoHoras } from '../lib/fechas';
+import { aceptaInscripciones, cierreInscripciones, diaMes, fechaLarga, inscripcionesPorAbrir, rangoHoras } from '../lib/fechas';
 import { pesos } from '../lib/ferias';
 
 interface Props {
@@ -33,6 +33,7 @@ const libres = (f: Fecha, id: TorreId) => {
 const totalCupos = feria ? participantes.reduce((s, t) => s + (feria.cupos?.[t.id] ?? 0), 0) : 0;
 const totalLibres = feria ? participantes.reduce((s, t) => s + (libres(feria, t.id) ?? 0), 0) : 0;
 const abierta = feria ? aceptaInscripciones(feria) : false;
+const porAbrir = feria ? inscripcionesPorAbrir(feria) : false;
 const inicio = feria ? `${feria.fecha}T${feria.hora_inicio}:00-05:00` : '';
 const fin = feria ? `${feria.fecha}T${feria.hora_fin}:00-05:00` : '';
 const lista = (ts: Torre[]) => (ts.length > 1 ? `${ts.slice(0, -1).map((t) => t.nombre).join(', ')} y ${ts.at(-1)!.nombre}` : (ts[0]?.nombre ?? ''));
@@ -43,6 +44,22 @@ const lista = (ts: Torre[]) => (ts.length > 1 ? `${ts.slice(0, -1).map((t) => t.
     <section class="cartel-feria" id="feria" aria-labelledby="cartel-titulo">
       <div class="cartel-toldo" style={`background:${toldo}`} aria-hidden="true" />
       <div class="wrap">
+        {!abierta ? (
+          /* Inscripciones cerradas (a mano o por fecha límite) o aún por abrir: solo el título grande. */
+          <div class="cartel letrero cartel-solo-titulo">
+            <div class="cartel-dia" aria-hidden="true">
+              <span class="dd">{diaMes(feria.fecha).dd}</span>
+              <span class="mm">{diaMes(feria.fecha).mm}</span>
+            </div>
+            <div>
+              <h2 id="cartel-titulo">{feria.titulo}</h2>
+              <p class="cuando">
+                {fechaLarga(feria.fecha)} · {rangoHoras(feria)}
+              </p>
+              {porAbrir && <p class="nota-cerrada">Inscripciones desde el {fechaLarga(feria.inscripciones_desde!).toLowerCase()}</p>}
+            </div>
+          </div>
+        ) : (
         <div class="cartel letrero">
           <div class="cartel-dia" aria-hidden="true">
             <span class="dd">{diaMes(feria.fecha).dd}</span>
@@ -94,18 +111,15 @@ const lista = (ts: Torre[]) => (ts.length > 1 ? `${ts.slice(0, -1).map((t) => t.
                 {totalLibres === 0 ? 'Puestos llenos: queda lista de espera' : `Quedan ${totalLibres} de ${totalCupos} puestos`}
               </p>
             )}
-            {abierta ? (
-              <a class="boton boton-tinta cartel-cta" href={`/participar?feria=${encodeURIComponent(feria.id)}`}>
-                Inscribe tu emprendimiento
-              </a>
-            ) : (
-              <a class="boton cartel-cta" href="#reparto">
-                ¿Quién va a cada conjunto?
-              </a>
-            )}
-            <p class="valor">{abierta ? `Participar: ${pesos(feria.valor ?? 0)} · el comité te ubica` : 'Inscripciones cerradas'}</p>
+            <a class="boton boton-tinta cartel-cta" href={`/participar?feria=${encodeURIComponent(feria.id)}`}>
+              Inscribe tu emprendimiento
+            </a>
+            <p class="valor">
+              Participar: {pesos(feria.valor ?? 0)} · inscripciones hasta el {fechaLarga(cierreInscripciones(feria)).toLowerCase()}
+            </p>
           </div>
         </div>
+        )}
 
         {otras.length > 0 && (
           <div class="otras">
@@ -176,6 +190,11 @@ const lista = (ts: Torre[]) => (ts.length > 1 ? `${ts.slice(0, -1).map((t) => t.
     display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(260px, 340px); gap: 28px; align-items: center;
     margin-top: 6px; padding: 26px 28px; border-color: var(--mango); box-shadow: 0 30px 50px -30px rgba(0, 0, 0, .6);
   }
+  /* Cerrada: solo el título, grande */
+  .cartel-solo-titulo { grid-template-columns: auto minmax(0, 1fr); gap: 32px; padding: 34px 40px; }
+  .cartel-solo-titulo h2 { font-size: clamp(48px, 7.4vw, 112px); line-height: .92; margin-bottom: 12px; }
+  .cartel-solo-titulo .cuando { font-size: clamp(18px, 1.8vw, 24px); }
+  .nota-cerrada { font-family: var(--f-mano); font-size: 26px; color: var(--tinta-suave); margin-top: 6px; }
   .cartel-dia { width: 116px; height: 116px; border-radius: 18px; background: var(--mango); border: 4px solid var(--tinta); display: grid; place-content: center; text-align: center; transform: rotate(-4deg); }
   .cartel-dia .dd { font-family: var(--f-letrero); font-size: 60px; line-height: .85; }
   .cartel-dia .mm { font-family: var(--f-letrero); font-size: 22px; }

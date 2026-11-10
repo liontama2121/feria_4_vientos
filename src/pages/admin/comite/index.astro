@@ -543,7 +543,7 @@ const TABS = [
   .conj-cupo { display: grid; grid-template-columns: auto 1fr 76px; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; background: #fff; border: 2px solid var(--t); font-weight: 800; }
   .conj-cupo input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--t); }
   .conj-cupo input[type='number'] { min-height: 38px; padding: 4px 8px; border-radius: 10px; border: 1.5px solid var(--linea-fuerte); width: 100%; }
-  .fecha-ventana { grid-template-columns: 1fr 1fr 1fr; }
+  .fecha-ventana { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
   @media (max-width: 760px) { .fecha-ventana { grid-template-columns: 1fr; } }
   .estado-feria.on { background: var(--austro-claro); border: 1px solid var(--austro); color: #A3155A; }
 </style>
