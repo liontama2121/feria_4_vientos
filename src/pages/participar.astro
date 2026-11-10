@@ -1,90 +1,295 @@
 ---
-// "Inscribe tu emprendimiento": puerta de entrada desde la landing. Dos caminos:
-// ya tiene cuenta → entra y elige sus emprendimientos (/admin/ferias);
-// es nuevo → crea la cuenta y llena su emprendimiento (/registro?feria=).
-import '../styles/panel.css';
+// "Inscribe tu emprendimiento": página pública de la plaza para inscribirse a una feria.
+// Dos caminos: ya tiene cuenta → /admin/ferias (elige sus emprendimientos); es nuevo →
+// /registro?feria= (cuenta + emprendimiento + inscripción en un paso). El conjunto lo decide el comité.
 import Layout from '../layouts/Layout.astro';
-import Molinete from '../components/Molinete.astro';
-import { listarFechas, listarTorres } from '../lib/db';
-import { aceptaInscripciones, fechaLarga, rangoHoras } from '../lib/fechas';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import { listarFechas, listarTorres, ocupacion, type Fecha, type Torre } from '../lib/db';
+import { aceptaInscripciones, diaMes, fechaLarga, hoyBogota, rangoHoras } from '../lib/fechas';
 import { pesos } from '../lib/ferias';
+import { MENSAJES, linkWhatsApp } from '../lib/sitio';
 
 const db = Astro.locals.runtime.env.DB;
-const [fechas, torres] = await Promise.all([listarFechas(db), listarTorres(db)]);
+const [fechas, torres, ocupados] = await Promise.all([listarFechas(db), listarTorres(db), ocupacion(db)]);
 const abiertas = fechas.filter((f) => aceptaInscripciones(f)).sort((a, b) => a.fecha.localeCompare(b.fecha));
 const feria = abiertas.find((f) => f.id === Astro.url.searchParams.get('feria')) ?? abiertas[0];
-const conjuntos = (feria?.conjuntos ?? []).map((id) => torres.find((t) => t.id === id)).filter((t) => !!t);
+const otras = abiertas.filter((f) => f !== feria);
+
+const conjuntosDe = (f: Fecha) => (f.conjuntos ?? []).map((id) => torres.find((t) => t.id === id)).filter((t): t is Torre => !!t);
+const participantes = feria ? conjuntosDe(feria) : [];
+const libres = (f: Fecha, t: Torre) => {
+  const cupo = f.cupos?.[t.id] ?? 0;
+  return cupo > 0 ? Math.max(0, cupo - (ocupados[f.id]?.[t.id] ?? 0)) : null;
+};
+const lista = (ts: Torre[]) => (ts.length > 1 ? `${ts.slice(0, -1).map((t) => t.nombre).join(', ')} y ${ts.at(-1)!.nombre}` : (ts[0]?.nombre ?? ''));
+const dias = feria ? Math.round((Date.parse(`${feria.fecha}T12:00:00Z`) - Date.parse(`${hoyBogota()}T12:00:00Z`)) / 86_400_000) : 0;
+const cuantoFalta = dias <= 0 ? '¡Es hoy!' : dias === 1 ? 'Es mañana' : `Faltan ${dias} días`;
 const q = feria ? `?feria=${encodeURIComponent(feria.id)}` : '';
+const COLOR: Record<string, string> = { mistral: 'var(--hierbabuena)', gregal: 'var(--lulo)', austro: 'var(--pitahaya)', cierzo: 'var(--mora)' };
+const rayas = (participantes.length ? participantes : torres).map((t) => COLOR[t.id] ?? 'var(--mango)');
+const toldo = `repeating-linear-gradient(90deg, ${rayas.flatMap((c, i) => [`${c} ${i * 88}px ${i * 88 + 44}px`, `#fff ${i * 88 + 44}px ${i * 88 + 88}px`]).join(', ')})`;
+
+const pasos = [
+  { t: 'Se inscribe', d: 'Elige su emprendimiento y nos cuenta qué va a vender y qué necesita su puesto.' },
+  { t: 'El comité lo ubica', d: 'Revisa las inscripciones y decide en qué conjunto vende cada emprendedor.' },
+  ...(feria && (feria.valor ?? 0) > 0 ? [{ t: 'Paga su puesto', d: `El valor es ${pesos(feria.valor ?? 0)}. Lo coordina con el comité por WhatsApp.` }] : []),
+  { t: 'Le avisamos y vende', d: 'Le escribimos por WhatsApp con el conjunto que le tocó. ¡A vender!' },
+];
+const COLORES_PASO = ['var(--lulo)', 'var(--pitahaya)', 'var(--mora)', 'var(--hierbabuena)'];
 ---
 
-<Layout title="Inscriba su emprendimiento · Feria 4 Vientos" description="Inscriba su emprendimiento en la próxima Feria 4 Vientos." bodyClass="panel comite">
-  <div class="sin-acceso">
-    <div class="card participar">
-      <Molinete size={64} spin />
-      {
-        feria ? (
-          <>
-            <h1>
-              Inscriba su <span class="serif">emprendimiento</span>
-            </h1>
-            <div class="feria">
-              <p class="titulo">{feria.titulo}</p>
-              <p>
-                {fechaLarga(feria.fecha)} · {rangoHoras(feria)} · {pesos(feria.valor ?? 0)}
-              </p>
-              {conjuntos.length > 0 && (
-                <ul class="conjuntos" aria-label="Conjuntos donde se hace">
-                  {conjuntos.map((t) => (
-                    <li data-conjunto={t.id}>{t.nombre}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <p class="nota">Usted no elige el conjunto: el comité ubica a cada emprendedor y le avisa por WhatsApp dónde le toca vender.</p>
-            <div class="caminos">
-              <a class="camino" href={`/admin/ferias${q}`}>
-                <b>Ya tengo cuenta</b>
-                <span>Entro y elijo cuál de mis emprendimientos inscribo.</span>
-              </a>
-              <a class="camino nuevo" href={`/registro${q}`}>
-                <b>Soy nuevo</b>
-                <span>Creo mi cuenta y lleno los datos de mi emprendimiento.</span>
-              </a>
-            </div>
-          </>
-        ) : (
-          <>
-            <h1>
-              Inscripciones <span class="serif">cerradas</span>
-            </h1>
-            <p>Ahora no hay ferias recibiendo inscripciones. Pronto vendrán más ferias: escríbale al comité para enterarse primero.</p>
-            <a class="btn btn-primary" href="/registro">Crear mi cuenta igual</a>
-          </>
-        )
-      }
-      <a class="volver" href="/">← Volver a la página</a>
-    </div>
-  </div>
+<Layout title="Inscriba su emprendimiento · Feria 4 Vientos" description={feria ? `Inscriba su emprendimiento en ${feria.titulo}, ${fechaLarga(feria.fecha)}.` : 'Inscriba su emprendimiento en la próxima Feria 4 Vientos.'}>
+  <Nav torres={torres} feria={false} />
+  <main>
+    <header class="entrada">
+      <div class="entrada-toldo" style={`background:${toldo}`} aria-hidden="true"></div>
+      <div class="wrap entrada-grid">
+        {
+          feria ? (
+            <>
+              <div class="letrero feria-sign">
+                <p class="etiqueta falta">{cuantoFalta}</p>
+                <h1>Inscriba su emprendimiento</h1>
+                <div class="feria-datos">
+                  <div class="dia" aria-hidden="true">
+                    <span class="dd">{diaMes(feria.fecha).dd}</span>
+                    <span class="mm">{diaMes(feria.fecha).mm}</span>
+                  </div>
+                  <div>
+                    <p class="feria-nombre">{feria.titulo}</p>
+                    <p class="feria-cuando">
+                      {fechaLarga(feria.fecha)} · {rangoHoras(feria)}
+                    </p>
+                    <p class="feria-valor">Valor del puesto: {pesos(feria.valor ?? 0)}</p>
+                  </div>
+                </div>
+                {participantes.length > 0 && (
+                  <>
+                    <p class="donde">Se hace en {participantes.length === 4 ? 'los cuatro conjuntos' : lista(participantes)}</p>
+                    <ul class="chips" aria-label="Conjuntos y puestos libres">
+                      {participantes.map((t) => {
+                        const l = libres(feria, t);
+                        return (
+                          <li data-conjunto={t.id}>
+                            <b>{t.nombre}</b>
+                            {l !== null && <span>{l === 0 ? 'lleno' : `${l} ${l === 1 ? 'libre' : 'libres'}`}</span>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+                <p class="aviso-conjunto">Usted no elige el conjunto: el comité ubica a cada emprendedor y le avisa por WhatsApp.</p>
+              </div>
+
+              <div class="caminos" role="list">
+                <a class="camino" href={`/admin/ferias${q}`} role="listitem" style="--c:var(--hierbabuena)">
+                  <span class="toldo camino-toldo" aria-hidden="true" />
+                  <span class="camino-cuerpo">
+                    <span class="camino-titulo">Ya tengo cuenta</span>
+                    <span class="camino-texto">Entro con mi correo y elijo cuál de mis emprendimientos inscribo.</span>
+                    <span class="boton boton-tinta camino-cta">Entrar e inscribir</span>
+                  </span>
+                </a>
+                <a class="camino" href={`/registro${q}`} role="listitem" style="--c:var(--pitahaya)">
+                  <span class="toldo camino-toldo" aria-hidden="true" />
+                  <span class="camino-cuerpo">
+                    <span class="camino-titulo">Soy nuevo</span>
+                    <span class="camino-texto">Creo mi cuenta y lleno los datos de mi emprendimiento, todo en un solo paso.</span>
+                    <span class="boton camino-cta camino-cta-claro">Crear cuenta e inscribir</span>
+                  </span>
+                </a>
+              </div>
+            </>
+          ) : (
+            <>
+              <div class="letrero feria-sign">
+                <p class="etiqueta falta">Inscripciones cerradas</p>
+                <h1>Por ahora no hay feria abierta</h1>
+                <p class="cerrada-texto">
+                  Cuando el comité abra la próxima feria, aquí podrá inscribirse. Mientras tanto, cree su cuenta y publique su puesto en el directorio: así queda listo para inscribirse con un clic.
+                </p>
+              </div>
+              <div class="caminos" role="list">
+                <a class="camino" href="/registro" role="listitem" style="--c:var(--pitahaya)">
+                  <span class="toldo camino-toldo" aria-hidden="true" />
+                  <span class="camino-cuerpo">
+                    <span class="camino-titulo">Crear mi cuenta</span>
+                    <span class="camino-texto">Publique su emprendimiento en el directorio de los 4 Vientos. Es gratis.</span>
+                    <span class="boton boton-tinta camino-cta">Registrarme</span>
+                  </span>
+                </a>
+                <a class="camino" href={linkWhatsApp('Hola comité 👋 Quiero que me avisen cuando abran inscripciones para la próxima Feria 4 Vientos.')} target="_blank" rel="noopener" role="listitem" style="--c:var(--pedir)">
+                  <span class="toldo camino-toldo" aria-hidden="true" />
+                  <span class="camino-cuerpo">
+                    <span class="camino-titulo">Que me avisen</span>
+                    <span class="camino-texto">Escríbale al comité y le avisamos cuando abra la próxima feria.</span>
+                    <span class="boton boton-pedir camino-cta">Escribir al comité</span>
+                  </span>
+                </a>
+              </div>
+            </>
+          )
+        }
+      </div>
+    </header>
+
+    {
+      otras.length > 0 && (
+        <section class="wrap otras" aria-labelledby="otras-titulo">
+          <h2 id="otras-titulo">Otras ferias abiertas</h2>
+          <ul class="otras-lista">
+            {otras.map((f) => (
+              <li>
+                <a class="otra letrero" href={`/participar?feria=${encodeURIComponent(f.id)}`}>
+                  <span class="otra-dia">
+                    <b>{diaMes(f.fecha).dd}</b> {diaMes(f.fecha).mm}
+                  </span>
+                  <span>
+                    <b class="otra-nombre">{f.titulo}</b>
+                    <span class="otra-donde">{conjuntosDe(f).length ? lista(conjuntosDe(f)) : rangoHoras(f)}</span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    {
+      feria && (
+        <section class="wrap como" aria-labelledby="como-titulo">
+          <h2 id="como-titulo">Así funciona</h2>
+          <ol class="pasos" style={`--n:${pasos.length}`}>
+            {pasos.map((p, i) => (
+              <li class="paso" style={`--pc:${COLORES_PASO[i % 4]}`}>
+                <span class="paso-num" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <h3>{p.t}</h3>
+                <p>{p.d}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )
+    }
+
+    <section class="wrap preguntas" aria-labelledby="preguntas-titulo">
+      <h2 id="preguntas-titulo">Preguntas de los vecinos</h2>
+      <div class="pregs">
+        <details class="preg">
+          <summary>¿Puedo escoger en qué conjunto vendo?</summary>
+          <p>No. El comité reparte los puestos entre los conjuntos para que haya de todo en cada uno. Le avisamos por WhatsApp dónde le tocó y también lo ve en "Mis ferias".</p>
+        </details>
+        <details class="preg">
+          <summary>¿Puedo inscribir más de un emprendimiento?</summary>
+          <p>Sí. Si ya tiene cuenta, al entrar marca todos los que quiera inscribir y nos cuenta qué va a vender con cada uno.</p>
+        </details>
+        <details class="preg">
+          <summary>¿Cómo sé si quedé?</summary>
+          <p>En "Mis ferias" ve cada paso: solicitud recibida, aprobado y ubicado, pago aprobado y participa. Cuando lo ubiquemos, le escribimos por WhatsApp.</p>
+        </details>
+        <details class="preg">
+          <summary>¿Tengo que vivir en los 4 Vientos?</summary>
+          <p>Sí, la feria es de los vecinos de Mistral, Gregal, Austro y Cierzo.</p>
+        </details>
+      </div>
+      <a class="enlace-comite" href={linkWhatsApp(MENSAJES.general)} target="_blank" rel="noopener">¿Otra duda? Escríbale al comité</a>
+    </section>
+  </main>
+  <Footer torres={torres} feria={false} />
 </Layout>
 
 <style>
-  .participar { width: 100%; max-width: 600px; display: grid; gap: 16px; }
-  .participar :global(.molinete) { margin: 0 auto; }
-  .feria { padding: 16px 18px; border-radius: 18px; background: var(--mango); border: 3px solid var(--tinta); text-align: left; font-weight: 700; }
-  .feria .titulo { font-family: var(--f-letrero); font-size: 28px; line-height: 1.05; margin-bottom: 4px; }
-  .conjuntos { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 0; }
-  .conjuntos li { padding: 4px 12px; border-radius: 999px; background: var(--papel); border: 2px solid var(--c); font-weight: 800; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
-  .conjuntos li::before { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
-  .nota { font-size: 15px; color: var(--tinta-media); }
-  .caminos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  @media (max-width: 560px) { .caminos { grid-template-columns: 1fr; } }
-  .camino { display: grid; gap: 6px; text-align: left; padding: 18px; border-radius: 18px; border: 3px solid var(--tinta); background: var(--papel); box-shadow: 0 4px 0 var(--tinta); transition: transform .15s ease, box-shadow .15s ease, background .2s ease; }
-  .camino:hover { background: var(--mango-claro); }
-  .camino:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--tinta); }
-  .camino b { font-family: var(--f-letrero); font-weight: 400; font-size: 24px; }
-  .camino span { font-size: 14.5px; color: var(--tinta-media); font-weight: 600; }
-  .camino.nuevo { background: var(--tinta); color: var(--papel); }
-  .camino.nuevo span { color: #E4DFF2; }
-  .camino.nuevo:hover { background: #33295A; }
-  .volver { font-size: 13.5px; font-weight: 700; color: var(--tinta-suave); text-align: center; }
+  .entrada { background: var(--mango); padding-bottom: 56px; }
+  .entrada-toldo {
+    height: 64px;
+    -webkit-mask: radial-gradient(circle at 22px 0, #000 22px, transparent 22.5px) bottom left / 44px 16px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 16px) no-repeat;
+    mask: radial-gradient(circle at 22px 0, #000 22px, transparent 22.5px) bottom left / 44px 16px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 16px) no-repeat;
+  }
+  .entrada-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 32px; align-items: stretch; padding-top: 40px; }
+  @media (max-width: 960px) { .entrada-grid { grid-template-columns: 1fr; gap: 22px; } }
+
+  .feria-sign { padding: 28px 30px 30px; position: relative; }
+  .falta { position: absolute; top: -18px; right: 22px; transform: rotate(3deg); background: var(--pitahaya); color: #fff; font-size: 24px; }
+  .falta::before { background: rgba(255, 255, 255, .7); }
+  h1 { font-size: clamp(40px, 5.4vw, 76px); line-height: .95; margin-bottom: 22px; max-width: 12ch; }
+  .feria-datos { display: flex; gap: 18px; align-items: center; margin-bottom: 16px; }
+  .dia { flex: 0 0 auto; width: 96px; height: 96px; border-radius: 16px; display: grid; place-content: center; text-align: center; background: var(--tinta); color: var(--papel); transform: rotate(-3deg); }
+  .dd { font-family: var(--f-letrero); font-size: 48px; line-height: .85; }
+  .mm { font-family: var(--f-letrero); font-size: 19px; color: var(--mango); }
+  .feria-nombre { font-family: var(--f-letrero); font-size: 28px; line-height: 1.05; }
+  .feria-cuando { font-size: 18px; font-weight: 800; margin-top: 4px; }
+  .feria-valor { font-size: 15.5px; font-weight: 700; color: var(--tinta-suave); margin-top: 2px; }
+  .donde { font-family: var(--f-mano); font-size: 26px; line-height: 1.1; color: var(--tinta-suave); margin-bottom: 10px; }
+  .chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; padding: 0; }
+  .chips li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 12px; border-radius: 999px; background: color-mix(in srgb, var(--c) 14%, #fff); border: 2.5px solid var(--c); }
+  .chips b { font-family: var(--f-letrero); font-weight: 400; font-size: 19px; display: inline-flex; align-items: center; gap: 7px; }
+  .chips b::before { content: ''; width: 11px; height: 11px; border-radius: 3px; background: var(--c); }
+  .chips span { font-size: 13.5px; font-weight: 800; color: var(--tinta-suave); }
+  .aviso-conjunto { font-size: 15.5px; font-weight: 700; padding: 12px 14px; border-radius: 12px; background: var(--mango-claro); }
+  .cerrada-texto { font-size: 19px; max-width: 46ch; }
+
+  .caminos { display: grid; gap: 18px; align-content: start; }
+  .camino { display: block; border-radius: var(--r-puesto); background: var(--papel); border: 4px solid var(--tinta); box-shadow: 0 6px 0 var(--tinta); overflow: hidden; transition: transform .18s var(--ease), box-shadow .18s var(--ease); }
+  .camino:hover { transform: translateY(-3px); box-shadow: 0 9px 0 var(--tinta); }
+  .camino:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--tinta); }
+  .camino-toldo { display: block; height: 34px; --t1: var(--c); --ancho: 30px; --feston: 11px; }
+  .camino-cuerpo { display: grid; gap: 8px; padding: 10px 22px 22px; }
+  .camino-titulo { font-family: var(--f-letrero); font-size: 34px; line-height: 1; }
+  .camino-texto { font-size: 16.5px; font-weight: 600; color: var(--tinta-suave); max-width: 40ch; }
+  .camino-cta { justify-self: start; margin-top: 6px; pointer-events: none; }
+  .camino-cta-claro { background: var(--mango); }
+
+  .otras { margin-top: 64px; }
+  .otras h2, .como h2, .preguntas h2 { font-size: clamp(36px, 4.4vw, 60px); margin-bottom: 22px; }
+  .otras-lista { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; padding: 0; }
+  .otra { display: flex; gap: 14px; align-items: center; padding: 12px 16px; }
+  .otra:hover { background: var(--mango-claro); }
+  .otra-dia { width: 58px; height: 58px; border-radius: 12px; display: grid; place-content: center; text-align: center; background: var(--tinta); color: var(--mango); font-family: var(--f-letrero); font-size: 14px; line-height: 1; }
+  .otra-dia b { font-weight: 400; font-size: 26px; color: var(--papel); }
+  .otra-nombre { display: block; font-family: var(--f-letrero); font-weight: 400; font-size: 20px; }
+  .otra-donde { font-size: 14px; font-weight: 700; color: var(--tinta-suave); }
+
+  .como { margin-top: 72px; }
+  .pasos { list-style: none; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 18px; padding: 0; counter-reset: paso; }
+  @media (max-width: 960px) { .pasos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .pasos { grid-template-columns: 1fr; gap: 12px; } }
+  .paso { background: color-mix(in srgb, var(--pc) 12%, var(--papel)); border-radius: var(--r-puesto); padding: 22px; border: 3px solid var(--pc); }
+  .paso-num { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--pc); color: #fff; font-family: var(--f-letrero); font-size: 26px; margin-bottom: 12px; }
+  .paso h3 { font-size: 26px; margin-bottom: 6px; }
+  .paso p { font-size: 16px; line-height: 1.45; color: var(--tinta-suave); }
+  @media (max-width: 560px) {
+    .paso { display: grid; grid-template-columns: 48px 1fr; column-gap: 14px; padding: 16px; }
+    .paso-num { grid-row: span 2; margin: 0; }
+  }
+
+  .preguntas { margin-top: 72px; margin-bottom: 90px; }
+  .pregs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 760px) { .pregs { grid-template-columns: 1fr; } }
+  .preg { background: var(--papel); border: 3px solid var(--tinta); border-radius: var(--r-puesto); padding: 4px 18px; }
+  .preg summary { cursor: pointer; list-style: none; font-family: var(--f-letrero); font-size: 21px; padding: 14px 30px 14px 0; position: relative; min-height: 44px; }
+  .preg summary::-webkit-details-marker { display: none; }
+  .preg summary::after { content: '+'; position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 30px; line-height: 1; color: var(--pitahaya); transition: transform .2s var(--ease); }
+  .preg[open] summary::after { transform: translateY(-50%) rotate(45deg); }
+  .preg p { font-size: 16.5px; padding-bottom: 16px; color: var(--tinta-suave); max-width: 60ch; }
+  .enlace-comite { font-weight: 800; text-decoration: underline; text-decoration-thickness: 2px; min-height: 44px; display: inline-flex; align-items: center; }
+
+  @media (max-width: 640px) {
+    .entrada { padding-bottom: 40px; }
+    .entrada-toldo { height: 42px; }
+    .feria-sign { padding: 26px 18px 20px; }
+    .falta { font-size: 20px; right: 14px; }
+    .dia { width: 76px; height: 76px; }
+    .dd { font-size: 38px; }
+    .feria-nombre { font-size: 23px; }
+    .feria-cuando { font-size: 16px; }
+    .camino-titulo { font-size: 29px; }
+    .camino-cuerpo { padding: 8px 18px 18px; }
+    .camino-cta { justify-self: stretch; text-align: center; white-space: normal; }
+  }
+  @media (prefers-reduced-motion: reduce) { .camino, .preg summary::after { transition: none; } }
 </style>

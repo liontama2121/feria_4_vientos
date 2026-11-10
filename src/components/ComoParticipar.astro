@@ -2,7 +2,15 @@
 // Convocatoria para vecinos con emprendimiento: "Ponga su puesto en la plaza".
 // Refleja el flujo real: registro → el comité activa la cuenta → llena su ficha → aprobación.
 import { LIMITES } from '../lib/constantes';
+import type { Fecha } from '../lib/db';
+import { fechaLarga } from '../lib/fechas';
 import { MENSAJES, linkWhatsApp } from '../lib/sitio';
+
+interface Props {
+  /** Feria con inscripciones abiertas: la convocatoria invita a inscribirse en ella. */
+  feria?: Fecha;
+}
+const { feria } = Astro.props;
 
 const pasos = [
   { t: 'Cree su cuenta', d: 'En el registro, con su correo, su conjunto y su WhatsApp.' },
@@ -20,9 +28,17 @@ const COLORES = ['var(--lulo)', 'var(--pitahaya)', 'var(--mora)', 'var(--hierbab
       <div class="conv-grid">
         <div>
           <h2 id="participar-titulo">Ponga su puesto en la plaza</h2>
-          <p class="bajada">Si vive en uno de los 4 conjuntos y tiene un emprendimiento, publíquelo gratis. Sin inscripción, sin comisiones.</p>
+          <p class="bajada">Si vive en uno de los 4 conjuntos y tiene un emprendimiento, publíquelo gratis en el directorio, sin comisiones.</p>
+          {
+            feria && (
+              <p class="feria-abierta">
+                <span class="etiqueta">Inscripciones abiertas</span> {feria.titulo}, {fechaLarga(feria.fecha)}. El comité lo ubica en un conjunto.
+              </p>
+            )
+          }
           <div class="acciones">
-            <a href="/registro" class="boton boton-tinta">Registrar mi emprendimiento</a>
+            {feria && <a href={`/participar?feria=${encodeURIComponent(feria.id)}`} class="boton boton-tinta">Inscribe tu emprendimiento</a>}
+            <a href="/registro" class:list={['boton', { 'boton-tinta': !feria }]}>{feria ? 'Solo el directorio' : 'Registrar mi emprendimiento'}</a>
             <a href={linkWhatsApp(MENSAJES.participar)} class="enlace-comite" target="_blank" rel="noopener">¿Dudas? Escríbale al comité</a>
           </div>
         </div>
@@ -53,6 +69,8 @@ const COLORES = ['var(--lulo)', 'var(--pitahaya)', 'var(--mora)', 'var(--hierbab
   @media (max-width: 900px) { .conv-grid { grid-template-columns: 1fr; padding: 24px 20px 32px; gap: 30px; } }
   h2 { font-size: clamp(44px, 5.4vw, 76px); margin-bottom: 16px; }
   .bajada { font-size: 18px; max-width: 44ch; margin-bottom: 26px; }
+  .feria-abierta { font-size: 17px; font-weight: 700; margin: -10px 0 22px; max-width: 46ch; }
+  .feria-abierta .etiqueta { font-size: 20px; background: var(--mango); margin-right: 6px; transform: rotate(-2deg); }
   .acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
   .enlace-comite { font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; min-height: 44px; display: inline-flex; align-items: center; }
   .pasos { list-style: none; display: grid; gap: 16px; }

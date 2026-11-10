@@ -20,7 +20,7 @@ import Directorio from './Directorio.astro';
 import CartelFeria from './CartelFeria.astro';
 import RepartoConjuntos from './RepartoConjuntos.astro';
 import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres, ocupacion, repartoPublico, resumenCalificaciones, type EmprendedorPublico } from '../lib/db';
-import { feriasActivas } from '../lib/fechas';
+import { aceptaInscripciones, feriasActivas } from '../lib/fechas';
 import { categoria } from '../lib/constantes';
 
 interface Props {
@@ -90,7 +90,7 @@ Astro.response.headers.set('Cache-Control', 'no-store');
     }
     <Historia />
     {hayFeria && !conjuntosReparto.length && torres.map((t) => <TorreSection torre={t} emprendedores={porTorre[t.id]} />)}
-    <ComoParticipar />
+    <ComoParticipar feria={fechas.find((f) => aceptaInscripciones(f))} />
     <UbicacionFechas fechas={fechas} torres={torres} />
     <ConElRespaldoDe patrocinadores={patrocinadores} />
     <PatrocinadorJuanCode />
