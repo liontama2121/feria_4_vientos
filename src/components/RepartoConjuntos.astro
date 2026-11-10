@@ -1,9 +1,11 @@
 ---
-// "¿Quién está en cada conjunto?": la distribución que decidió el comité. Una pestaña por
-// conjunto con los emprendimientos APROBADOS Y UBICADOS ahí (nunca pendientes ni rechazados),
-// cada uno con su puesto: WhatsApp y redes. Sin JavaScript se ven todos los conjuntos seguidos.
-// Los ids de panel (#mistral, #gregal…) mantienen los enlaces del menú.
+// "¿Quién está en cada conjunto?": la feria de noche. Zona oscura con guirnalda de bombillos,
+// una CARPA por conjunto (toldo que ondea, contador y los puestos pasando) y debajo TODOS los
+// de la feria con filtro por conjunto. Solo aprobados y ubicados (nunca pendientes ni rechazados).
+// Sin JavaScript se ve todo; con movimiento reducido no se anima nada.
+// Los ids #mistral, #gregal… (enlaces del menú) apuntan a cada carpa.
 import EmprendedorCard from './EmprendedorCard.astro';
+import { categoria, iniciales } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
 
 interface Props {
@@ -16,143 +18,251 @@ interface Props {
 }
 const { torres, conjuntos, participan, porConjunto } = Astro.props;
 const total = conjuntos.reduce((s, t) => s + (porConjunto[t.id]?.length ?? 0), 0);
+const todos = conjuntos.flatMap((t) => (porConjunto[t.id] ?? []).map((e) => ({ e, t })));
+const COLORES = ['var(--hierbabuena)', 'var(--lulo)', 'var(--pitahaya)', 'var(--mora)'];
+// Guirnalda: bombillos colgando en curva suave, en los colores de los conjuntos.
+const bombillos = Array.from({ length: 26 }, (_, i) => ({
+  x: (i + 0.5) * (100 / 26),
+  y: Math.round(Math.sin((i / 25) * Math.PI * 3) * 9 + 14),
+  c: COLORES[i % 4],
+  d: ((i * 37) % 23) / 10,
+}));
 ---
 
-<section class="reparto" id="reparto" aria-labelledby="reparto-titulo">
+<section class="feria-viva" id="reparto" aria-labelledby="reparto-titulo">
+  <div class="guirnalda" aria-hidden="true">
+    {bombillos.map((b, i) => <span class="bombillo" style={`left:${b.x}%;top:${b.y}px;--b:${b.c};--d:${b.d}s;--i:${i}`} />)}
+  </div>
+
   <div class="wrap">
-    <h2 id="reparto-titulo">¿Quién está en cada conjunto?</h2>
+    <h2 id="reparto-titulo">¿Quién está en cada <span class="resalta">conjunto</span>?</h2>
     <p class="bajada">
-      {total ? 'Así quedaron los puestos. Elija un conjunto y pídale directo por WhatsApp a quien quiera.' : 'El comité está ubicando a los emprendedores. Apenas los apruebe, aparecen aquí por conjunto.'}
+      {total ? `${total} puestos repartidos por el comité. Busque su conjunto y pídale directo por WhatsApp.` : 'El comité está ubicando a los emprendedores. Apenas los apruebe, aparecen aquí por conjunto.'}
     </p>
 
-    <div class="pestanas" role="tablist" aria-label="Conjuntos de la feria" data-pestanas hidden>
+    <div class="carpas">
       {
-        conjuntos.map((t, i) => (
-          <button type="button" role="tab" class="pestana" id={`tab-${t.id}`} aria-controls={t.id} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-conjunto={t.id} data-participa={participan.includes(t.id) ? 'si' : 'no'}>
-            {t.nombre}
-            <span class="n">{participan.includes(t.id) ? (porConjunto[t.id]?.length ?? 0) : 'no va'}</span>
-          </button>
-        ))
+        conjuntos.map((t, i) => {
+          const lista = porConjunto[t.id] ?? [];
+          const va = participan.includes(t.id);
+          const mueve = lista.length > 3;
+          return (
+            <article class:list={['carpa', { 'no-va': !va }]} id={t.id} data-conjunto={t.id} style={`--d:${i}`} aria-labelledby={`carpa-${t.id}`}>
+              <div class="carpa-toldo" aria-hidden="true" />
+              <div class="carpa-cuerpo">
+                <h3 id={`carpa-${t.id}`}>{t.nombre}</h3>
+                {va ? (
+                  <p class="carpa-cuenta">
+                    <b data-contar={lista.length}>{lista.length}</b> {lista.length === 1 ? 'puesto' : 'puestos'}
+                  </p>
+                ) : (
+                  <p class="carpa-cuenta">
+                    <b class="no">Esta vez no</b>
+                  </p>
+                )}
+                {va && lista.length > 0 ? (
+                  <div class:list={['ticker', { mueve }]} style={`--n:${lista.length}`}>
+                    <ul class="ticker-lista">
+                      {[...lista, ...(mueve ? lista : [])].map((e, k) => (
+                        <li aria-hidden={k >= lista.length ? 'true' : undefined}>
+                          <span class="mini">{e.foto_principal ? <img src={e.foto_principal} alt="" loading="lazy" /> : iniciales(e.nombre_emprendimiento)}</span>
+                          <span class="mini-texto">
+                            <b>{e.nombre_emprendimiento}</b>
+                            <span>{categoria(e.categoria, Astro.locals.categorias).label}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p class="carpa-vacia">{va ? 'Aún no hay puestos ubicados aquí.' : `La feria no pasa por ${t.nombre} esta vez. Sus vecinos pueden vender en los otros conjuntos.`}</p>
+                )}
+                {va && lista.length > 0 && (
+                  <a class="carpa-ver" href="#todos-feria" data-filtrar={t.id}>
+                    Ver los de {t.nombre}
+                  </a>
+                )}
+              </div>
+            </article>
+          );
+        })
       }
     </div>
 
     {
-      conjuntos.map((t) => {
-        const lista = porConjunto[t.id] ?? [];
-        return (
-          <div class="panel-conjunto" role="tabpanel" id={t.id} aria-labelledby={`tab-${t.id}`} data-conjunto={t.id} data-participa={participan.includes(t.id) ? 'si' : 'no'} tabindex="0">
-            <h3 class="panel-titulo">
-              {t.nombre}
-              <span>{lista.length === 1 ? '1 puesto' : `${lista.length} puestos`}</span>
-            </h3>
-            {lista.length ? (
-              <div class="lista lista-compacta">
-                {lista.map((e) => (
-                  <EmprendedorCard e={e} torre={torres.find((x) => x.id === e.torre) ?? t} enFeria />
+      total > 0 && (
+        <div class="todos" id="todos-feria">
+          <div class="todos-cabeza">
+            <h3>Todos los de la feria</h3>
+            <div class="filtros-feria" role="group" aria-label="Filtrar por conjunto">
+              <button type="button" class="filtro" data-filtro="" aria-pressed="true">
+                Todos <span>{total}</span>
+              </button>
+              {conjuntos
+                .filter((t) => (porConjunto[t.id]?.length ?? 0) > 0)
+                .map((t) => (
+                  <button type="button" class="filtro" data-filtro={t.id} data-conjunto={t.id} aria-pressed="false">
+                    {t.nombre} <span>{porConjunto[t.id].length}</span>
+                  </button>
                 ))}
-              </div>
-            ) : !participan.includes(t.id) ? (
-              <div class="vacio letrero">
-                <p class="vacio-titulo">Esta vez la feria no pasa por {t.nombre}</p>
-                <p>
-                  Los vecinos de {t.nombre} pueden inscribirse y vender en los otros conjuntos. Mire <a href="#muro">todos los puestos</a> del directorio.
-                </p>
-              </div>
-            ) : (
-              <div class="vacio letrero">
-                <p class="vacio-titulo">Aún no hay puestos ubicados en {t.nombre}</p>
-                <p>
-                  Cuando el comité apruebe y ubique emprendimientos aquí, los verá en esta pestaña. Mientras tanto, mire <a href="#muro">todos los puestos</a>.
-                </p>
-              </div>
-            )}
+            </div>
           </div>
-        );
-      })
+          <div class="lista lista-compacta">
+            {todos.map(({ e, t }) => (
+              <div class="item" data-vende={t.id}>
+                <EmprendedorCard e={e} torre={torres.find((x) => x.id === e.torre) ?? t} vendeEn={t} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )
     }
   </div>
 </section>
 
 <script>
-  // Pestañas accesibles (flechas, Inicio/Fin). El enlace #mistral abre su pestaña.
-  document.querySelectorAll<HTMLElement>('.reparto').forEach((sec) => {
-    const lista = sec.querySelector<HTMLElement>('[data-pestanas]');
-    if (!lista) return;
-    const tabs = [...lista.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-    const paneles = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls')!)!);
-    lista.hidden = false;
-    sec.classList.add('con-pestanas');
-    const elegir = (i: number, foco = false) => {
-      tabs.forEach((t, j) => {
-        t.setAttribute('aria-selected', String(i === j));
-        t.tabIndex = i === j ? 0 : -1;
-        paneles[j].hidden = i !== j;
-      });
-      if (foco) tabs[i].focus();
+  document.querySelectorAll<HTMLElement>('.feria-viva').forEach((sec) => {
+    const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Contadores: suben de 0 al entrar en pantalla.
+    const contadores = [...sec.querySelectorAll<HTMLElement>('[data-contar]')];
+    if (!quieto && 'IntersectionObserver' in window) {
+      contadores.forEach((c) => (c.textContent = '0'));
+      const io = new IntersectionObserver(
+        (entradas) =>
+          entradas.forEach((en) => {
+            if (!en.isIntersecting) return;
+            io.unobserve(en.target);
+            const el = en.target as HTMLElement;
+            const fin = Number(el.dataset.contar);
+            const t0 = performance.now();
+            const paso = (t: number) => {
+              const p = Math.min(1, (t - t0) / 900);
+              el.textContent = String(Math.round(fin * (1 - Math.pow(1 - p, 3))));
+              if (p < 1) requestAnimationFrame(paso);
+            };
+            requestAnimationFrame(paso);
+          }),
+        { threshold: 0.4 },
+      );
+      contadores.forEach((c) => io.observe(c));
+    }
+
+    // Filtro por conjunto de la lista "Todos los de la feria".
+    const filtros = [...sec.querySelectorAll<HTMLButtonElement>('[data-filtro]')];
+    const items = [...sec.querySelectorAll<HTMLElement>('[data-vende]')];
+    const filtrar = (id: string) => {
+      filtros.forEach((f) => f.setAttribute('aria-pressed', String(f.dataset.filtro === id)));
+      items.forEach((it) => (it.hidden = !!id && it.dataset.vende !== id));
     };
-    tabs.forEach((t, i) => {
-      t.addEventListener('click', () => elegir(i));
-      t.addEventListener('keydown', (ev) => {
-        const n = tabs.length;
-        const k = ev.key;
-        const destino = k === 'ArrowRight' ? (i + 1) % n : k === 'ArrowLeft' ? (i - 1 + n) % n : k === 'Home' ? 0 : k === 'End' ? n - 1 : -1;
-        if (destino < 0) return;
+    filtros.forEach((f) => f.addEventListener('click', () => filtrar(f.dataset.filtro ?? '')));
+    sec.querySelectorAll<HTMLAnchorElement>('[data-filtrar]').forEach((a) =>
+      a.addEventListener('click', (ev) => {
         ev.preventDefault();
-        elegir(destino, true);
-      });
-    });
+        filtrar(a.dataset.filtrar!);
+        document.getElementById('todos-feria')?.scrollIntoView({ behavior: quieto ? 'auto' : 'smooth' });
+      }),
+    );
+    // Llegar con #mistral (menú) también filtra la lista.
     const desdeHash = () => {
-      const i = paneles.findIndex((p) => `#${p.id}` === location.hash);
-      if (i >= 0) {
-        elegir(i);
-        sec.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-      }
+      const id = location.hash.slice(1);
+      if (filtros.some((f) => f.dataset.filtro === id)) filtrar(id);
     };
-    // Primera pestaña con puestos; si llega con #gregal, esa.
-    const conPuestos = paneles.findIndex((p) => p.querySelector('.puesto'));
-    const participa = paneles.findIndex((p) => p.dataset.participa === 'si');
-    elegir(conPuestos >= 0 ? conPuestos : Math.max(0, participa));
     desdeHash();
     addEventListener('hashchange', desdeHash);
   });
 </script>
 
 <style>
-  .reparto { padding: 70px 0 80px; scroll-margin-top: 60px; }
-  h2 { font-size: clamp(42px, 5.6vw, 80px); margin-bottom: 10px; }
-  .bajada { font-size: 19px; font-weight: 600; max-width: 56ch; margin-bottom: 24px; }
+  .feria-viva { position: relative; background: var(--tinta); color: var(--papel); padding: 70px 0 90px; overflow: hidden; scroll-margin-top: 60px; }
 
-  .pestanas { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
-  .pestanas[hidden] { display: none; }
-  .pestana {
-    display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 20px;
-    font-family: var(--f-letrero); font-size: 22px; color: var(--tinta); background: var(--papel);
-    border: 3px solid var(--c); border-radius: 999px; box-shadow: 0 4px 0 var(--c); cursor: pointer;
-    transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
+  /* Guirnalda de bombillos */
+  .guirnalda { position: absolute; inset: 0 0 auto; height: 44px; pointer-events: none; }
+  .guirnalda::before { content: ''; position: absolute; left: -2%; right: -2%; top: -30px; height: 50px; border-bottom: 2px solid rgba(255, 253, 248, .28); border-radius: 0 0 50% 50% / 0 0 100% 100%; }
+  .bombillo { position: absolute; width: 12px; height: 16px; margin-left: -6px; border-radius: 50% 50% 45% 45%; background: var(--b); box-shadow: 0 0 14px 2px color-mix(in srgb, var(--b) 70%, transparent); }
+  .bombillo::before { content: ''; position: absolute; left: 3px; top: -5px; width: 6px; height: 6px; border-radius: 2px; background: #5D567A; }
+  @media (max-width: 700px) { .bombillo:nth-child(2n) { display: none; } }
+
+  h2 { font-size: clamp(42px, 6vw, 88px); line-height: .95; color: var(--papel); margin-bottom: 14px; max-width: 16ch; }
+  .resalta { color: var(--mango); }
+  .bajada { font-size: 19px; font-weight: 600; max-width: 56ch; color: #E4DFF2; margin-bottom: 34px; }
+
+  /* Carpas */
+  .carpas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+  @media (max-width: 1080px) { .carpas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 600px) {
+    .carpas { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 84%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; margin: 0 -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
+    .carpa { scroll-snap-align: start; }
   }
-  .pestana:hover { background: color-mix(in srgb, var(--c) 12%, #fff); }
-  .pestana:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--c); }
-  .pestana[aria-selected='true'] { background: var(--c); color: #fff; border-color: var(--tinta); box-shadow: 0 4px 0 var(--tinta); }
-  .pestana[data-conjunto='gregal'][aria-selected='true'] { color: var(--tinta); }
-  .pestana[data-participa='no'] { border-style: dashed; box-shadow: none; }
-  .pestana .n { min-width: 30px; height: 30px; padding: 0 8px; border-radius: 999px; display: inline-grid; place-items: center; font-family: var(--f-texto); font-weight: 800; font-size: 15px; background: var(--papel); color: var(--tinta); }
+  .carpa { position: relative; border-radius: var(--r-puesto); background: var(--papel); color: var(--tinta); overflow: hidden; box-shadow: 0 24px 40px -24px rgba(0, 0, 0, .7); scroll-margin-top: 80px; display: flex; flex-direction: column; }
+  .carpa-toldo {
+    height: 58px; transform-origin: 50% 0;
+    background: repeating-linear-gradient(90deg, var(--c) 0 30px, #fff 30px 60px);
+    -webkit-mask: radial-gradient(circle at 15px 0, #000 15px, transparent 15.5px) bottom left / 30px 14px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 14px) no-repeat;
+    mask: radial-gradient(circle at 15px 0, #000 15px, transparent 15.5px) bottom left / 30px 14px repeat-x, linear-gradient(#000 0 0) top / 100% calc(100% - 14px) no-repeat;
+  }
+  .carpa-cuerpo { padding: 6px 20px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .carpa h3 { font-size: clamp(34px, 3vw, 44px); color: var(--c); line-height: 1; }
+  .carpa[data-conjunto='gregal'] h3 { color: #C2620B; }
+  .carpa-cuenta { font-weight: 800; font-size: 15px; color: var(--tinta-suave); }
+  .carpa-cuenta b { font-family: var(--f-letrero); font-weight: 400; font-size: 46px; line-height: 1; color: var(--tinta); font-variant-numeric: tabular-nums; margin-right: 4px; }
+  .carpa-cuenta b.no { font-size: 26px; }
+  .carpa.no-va { background: color-mix(in srgb, var(--papel) 88%, var(--tinta)); }
+  .carpa.no-va .carpa-toldo { filter: saturate(.35); opacity: .7; }
 
-  .panel-conjunto { padding-top: 6px; margin-bottom: 40px; }
-  .panel-conjunto:focus-visible { outline-offset: 6px; }
-  .panel-titulo { display: flex; align-items: baseline; gap: 14px; font-size: 38px; margin-bottom: 18px; color: var(--c); }
-  .panel-titulo span { font-family: var(--f-mano); font-size: 24px; color: var(--tinta-suave); }
-  /* Con pestañas, el nombre ya está en la pestaña elegida */
-  .con-pestanas .panel-titulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .ticker { height: 192px; overflow: hidden; border-radius: 12px; background: color-mix(in srgb, var(--c) 9%, #fff); position: relative; }
+  .ticker::after { content: ''; position: absolute; inset: auto 0 0; height: 36px; background: linear-gradient(transparent, color-mix(in srgb, var(--c) 9%, #fff)); pointer-events: none; }
+  .ticker-lista { list-style: none; margin: 0; padding: 0; }
+  .ticker li { display: flex; gap: 10px; align-items: center; height: 60px; padding: 0 10px; }
+  .mini { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; display: grid; place-items: center; background: var(--c); color: #fff; font-family: var(--f-letrero); font-size: 17px; }
+  .mini img { width: 100%; height: 100%; object-fit: cover; }
+  .mini-texto { display: grid; min-width: 0; line-height: 1.2; }
+  .mini-texto b { font-weight: 800; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini-texto span { font-family: var(--f-mano); font-size: 17px; color: var(--tinta-suave); }
+  .carpa-vacia { font-size: 15px; font-weight: 600; color: var(--tinta-suave); padding: 12px; border-radius: 12px; border: 2px dashed var(--linea-fuerte, rgba(32, 24, 58, .24)); }
+  .carpa-ver { margin-top: auto; align-self: flex-start; font-family: var(--f-letrero); font-size: 18px; padding: 8px 18px; border-radius: 999px; background: var(--c); color: #fff; border: 2.5px solid var(--tinta); box-shadow: 0 3px 0 var(--tinta); transition: transform .15s ease, box-shadow .15s ease; }
+  .carpa[data-conjunto='gregal'] .carpa-ver { color: var(--tinta); }
+  .carpa-ver:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--tinta); }
 
-  .lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 34px 26px; align-items: start; }
+  /* Lista de todos */
+  .todos { margin-top: 64px; scroll-margin-top: 72px; }
+  .todos-cabeza { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+  .todos h3 { font-size: clamp(32px, 3.6vw, 50px); color: var(--papel); }
+  .filtros-feria { display: flex; flex-wrap: wrap; gap: 8px; }
+  .filtro { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 16px; border-radius: 999px; font-family: var(--f-letrero); font-size: 18px; background: transparent; color: var(--papel); border: 2.5px solid var(--c, var(--papel)); cursor: pointer; }
+  .filtro span { font-family: var(--f-texto); font-weight: 800; font-size: 13px; padding: 1px 8px; border-radius: 999px; background: rgba(255, 253, 248, .16); }
+  .filtro[aria-pressed='true'] { background: var(--c, var(--papel)); color: #fff; }
+  .filtro[data-filtro=''][aria-pressed='true'], .filtro[data-conjunto='gregal'][aria-pressed='true'] { color: var(--tinta); }
+  .filtro[aria-pressed='true'] span { background: rgba(32, 24, 58, .18); }
+  .lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 30px 22px; align-items: start; }
+  .item { color: var(--tinta); }
+  .item[hidden] { display: none; }
   @media (max-width: 640px) {
-    .reparto { padding: 50px 0 60px; }
-    .pestanas { display: grid; grid-template-columns: 1fr 1fr; }
-    .pestanas[hidden] { display: none; }
-    .pestana { justify-content: space-between; font-size: 19px; min-height: 50px; padding: 8px 14px; }
+    .feria-viva { padding: 56px 0 64px; }
+    .bajada { font-size: 17px; }
     .lista { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; align-items: stretch; }
+    .item { display: flex; }
+    .item > :global(*) { flex: 1; }
   }
-  .vacio { padding: 22px 24px; max-width: 760px; font-size: 17px; }
-  .vacio-titulo { font-family: var(--f-letrero); font-size: 28px; line-height: 1.05; margin-bottom: 8px; }
-  .vacio a { text-decoration: underline; font-weight: 700; }
+
+  /* Movimiento: el toldo ondea, los bombillos titilan, los puestos pasan. Nada si piden quietud. */
+  @media (prefers-reduced-motion: no-preference) {
+    .carpa-toldo { animation: ondear 3.4s ease-in-out infinite; animation-delay: calc(var(--d) * -0.85s); }
+    @keyframes ondear {
+      0%, 100% { transform: scaleY(1) skewX(0deg); }
+      35% { transform: scaleY(1.14) skewX(-3deg); }
+      70% { transform: scaleY(.94) skewX(2deg); }
+    }
+    .bombillo { animation: titilar 2.6s ease-in-out infinite; animation-delay: calc(var(--d) * -1s); }
+    @keyframes titilar {
+      0%, 100% { opacity: 1; filter: brightness(1.15); }
+      50% { opacity: .45; filter: brightness(.8); box-shadow: 0 0 4px 0 color-mix(in srgb, var(--b) 40%, transparent); }
+    }
+    .ticker.mueve .ticker-lista { animation: pasar calc(var(--n) * 2.4s) linear infinite; }
+    .ticker.mueve:hover .ticker-lista, .carpa:focus-within .ticker-lista { animation-play-state: paused; }
+    @keyframes pasar { to { transform: translateY(-50%); } }
+    .carpa { animation: abrir-carpa .8s var(--ease) backwards; animation-delay: calc(var(--d) * 90ms); }
+    @keyframes abrir-carpa { from { opacity: 0; transform: translateY(24px); } }
+    .carpa-ver:hover { transform: translateY(-2px); }
+  }
 </style>

@@ -9,8 +9,10 @@ interface Props {
   torre: Torre;
   /** Muestra el letrerito "En la feria". */
   enFeria?: boolean;
+  /** Feria itinerante: conjunto donde vende (puede ser distinto al suyo). */
+  vendeEn?: Torre;
 }
-const { e, torre, enFeria = false } = Astro.props;
+const { e, torre, enFeria = false, vendeEn } = Astro.props;
 const cat = categoria(e.categoria, Astro.locals.categorias);
 // Instagram, TikTok, Facebook; el WhatsApp es el botón grande.
 const redes = enlacesRedes(e).filter((r) => r.red !== 'whatsapp');
@@ -37,7 +39,15 @@ const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
   </button>
 
   <div class="puesto-cuerpo">
-    {enFeria && <p class="en-feria">En la feria</p>}
+    {
+      vendeEn ? (
+        <p class="en-feria vende-en" data-conjunto={vendeEn.id}>
+          Vende en {vendeEn.nombre}
+        </p>
+      ) : (
+        enFeria && <p class="en-feria">En la feria</p>
+      )
+    }
     <h3>
       <button type="button" data-detalle={e.slug}>{e.nombre_emprendimiento}</button>
     </h3>
@@ -123,6 +133,8 @@ const wsp = `https://wa.me/57${e.whatsapp}?text=${encodeURIComponent(
   .cat { position: absolute; left: 10px; bottom: 10px; transform: rotate(-3deg); font-size: 21px; }
 
   .puesto-cuerpo { padding: 16px 18px 18px; display: flex; flex-direction: column; flex: 1; }
+  .en-feria.vende-en { background: var(--c); }
+  .en-feria.vende-en[data-conjunto='gregal'] { color: var(--tinta); }
   .en-feria { align-self: flex-start; margin-bottom: 8px; padding: 3px 12px; border-radius: 999px; background: var(--pitahaya); color: #fff; font-family: var(--f-letrero); font-size: 16px; }
   h3 { font-size: clamp(28px, 2.6vw, 34px); margin-bottom: 6px; }
   h3 button { all: unset; cursor: pointer; overflow-wrap: anywhere; }

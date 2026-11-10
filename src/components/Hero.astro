@@ -17,17 +17,20 @@ interface Props {
   feria: boolean;
   /** Hasta 4 emprendimientos para la vitrina del puesto (primero los que tienen foto). */
   vitrina: EmprendedorPublico[];
+  /** Hay feria itinerante arriba: el directorio de todo el año pasa a segundo plano. */
+  secundario?: boolean;
 }
-const { proxima, torres, total, teclas, feria, vitrina } = Astro.props;
+const { proxima, torres, total, teclas, feria, vitrina, secundario = false } = Astro.props;
 const nombres = torres.map((t) => t.nombre);
 const listaTorres = `${nombres.slice(0, -1).join(', ')} y ${nombres.at(-1)}`;
 const GIROS = [-4, 3, -2, 5];
 ---
 
-<header class="hero">
+<header class:list={['hero', { 'hero-secundario': secundario }]}>
   <div class="toldo toldo-grande" aria-hidden="true"></div>
   <div class="wrap hero-grid">
     <div class="hero-copy abrir">
+      {secundario && <p class="ademas">Además de la feria, todo el año:</p>}
       <h1>¿Qué se le ofrece, vecino?</h1>
       <p class="bajada">Lo que hacen y venden los vecinos de {listaTorres}. Búsquelo y pídalo por WhatsApp.</p>
 
@@ -117,6 +120,10 @@ const GIROS = [-4, 3, -2, 5];
 
   h1 { font-size: clamp(52px, 7vw, 100px); line-height: .95; margin-bottom: 16px; color: var(--tinta); }
   .bajada { font-size: 20px; font-weight: 600; max-width: 38ch; margin-bottom: 24px; }
+  .ademas { font-family: var(--f-mano); font-size: 28px; line-height: 1; margin-bottom: 8px; color: var(--tinta-suave); }
+  .hero-secundario .toldo-grande { height: 46px; --ancho: 40px; --feston: 14px; }
+  .hero-secundario h1 { font-size: clamp(40px, 4.6vw, 66px); }
+  .hero-secundario .bajada { font-size: 17px; }
 
   .buscar { margin-bottom: 22px; }
   .buscar-label { display: block; font-family: var(--f-mano); font-size: 28px; line-height: 1; margin-bottom: 6px; }
