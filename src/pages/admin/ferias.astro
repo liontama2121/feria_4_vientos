@@ -137,7 +137,14 @@ const feriaPedida = q.get('feria');
                   )}
 
                   <footer class="ins-pie">
-                    <span class="sub">Qué va a vender: {i.que_vende}</span>
+                    <span class="sub">
+                      {i.grupo
+                        ? `En la misma solicitud con ${misIns
+                            .filter((x) => x.grupo === i.grupo && x.id !== i.id)
+                            .map((x) => x.nombre)
+                            .join(' y ')}`
+                        : 'Solicitud individual'}
+                    </span>
                     <div class="ins-acciones">
                       {i.estado === 'aprobado' && (
                         <a class="btn btn-sm btn-wsp" href={linkWhatsApp(`Hola comité 👋 Quiero pagar la participación de "${i.nombre}" en ${f?.titulo ?? 'la feria'}.`)} target="_blank" rel="noopener">
@@ -149,7 +156,7 @@ const feriaPedida = q.get('feria');
                           <input type="hidden" name="accion" value="retirar" />
                           <input type="hidden" name="id" value={i.id} />
                           <button class="btn btn-sm btn-ghost" type="submit">
-                            Retirar inscripción
+                            {i.grupo ? 'Retirar la solicitud completa' : 'Retirar inscripción'}
                           </button>
                         </form>
                       )}
@@ -194,35 +201,25 @@ const feriaPedida = q.get('feria');
                   <p class="vacio">Ya inscribió todos sus emprendimientos en esta feria.</p>
                 ) : (
                   <>
-                    <fieldset class="elegir">
-                      <legend>¿Cuáles inscribe?</legend>
+                    <fieldset class="elegir" data-elegir>
+                      <legend>{disponibles.length > 1 ? '¿Con cuál va? Puede marcar uno o varios' : 'Su emprendimiento'}</legend>
                       {disponibles.map((e, n) => (
-                        <div class="emp-opcion">
-                          <label class="emp-check">
-                            <input type="checkbox" name="slug" value={e.slug} checked={disponibles.length === 1 || feriaPedida === f.id ? n === 0 : false} data-detalle={`det-${f.id}-${e.slug}`} />
-                            <span>
-                              <b>{e.nombre || 'Sin nombre todavía'}</b>
-                              {e.estado !== 'approved' && <span class="sub"> · aún no está publicado en el directorio</span>}
-                            </span>
-                          </label>
-                          <div class="detalle" id={`det-${f.id}-${e.slug}`}>
-                            <div class="field">
-                              <label for={`qv-${f.id}-${e.slug}`}>
-                                Qué va a vender <span class="req">●</span>
-                              </label>
-                              <textarea id={`qv-${f.id}-${e.slug}`} name={`que_vende_${e.slug}`} rows="2" maxlength="300" placeholder="Ej.: empanadas de pipián y ají casero"></textarea>
-                            </div>
-                            <div class="field">
-                              <label for={`nc-${f.id}-${e.slug}`}>
-                                Necesidades del puesto <span class="opt">Opcional</span>
-                              </label>
-                              <textarea id={`nc-${f.id}-${e.slug}`} name={`necesidades_${e.slug}`} rows="2" maxlength="300" placeholder="Ej.: toma de corriente, una mesa, sombra"></textarea>
-                            </div>
-                          </div>
-                        </div>
+                        <label class="emp-opcion">
+                          <input type="checkbox" name="slug" value={e.slug} checked={disponibles.length === 1 || (feriaPedida === f.id && n === 0)} />
+                          <span class="emp-marca" aria-hidden="true" />
+                          <span class="emp-texto">
+                            <b>{e.nombre || 'Sin nombre todavía'}</b>
+                            {e.estado !== 'approved' && <span class="sub">Aún no está publicado en el directorio</span>}
+                          </span>
+                        </label>
                       ))}
                     </fieldset>
-                    <button class="btn btn-primary" type="submit">
+                    {disponibles.length > 1 && (
+                      <p class="nota-bloque" data-nota-bloque hidden>
+                        Van juntos en <b>una sola solicitud</b>: el comité los ubica en el mismo conjunto y le avisa una sola vez.
+                      </p>
+                    )}
+                    <button class="btn btn-primary" type="submit" data-enviar>
                       Enviar solicitud
                     </button>
                   </>
@@ -241,15 +238,20 @@ const feriaPedida = q.get('feria');
 </Layout>
 
 <script>
-  // Los campos "qué va a vender" solo se piden para los emprendimientos marcados.
-  document.querySelectorAll<HTMLInputElement>('.emp-check input[type="checkbox"]').forEach((chk) => {
-    const det = document.getElementById(chk.dataset.detalle ?? '');
+  // Con varios marcados se avisa que van en bloque; sin ninguno, no se puede enviar.
+  document.querySelectorAll<HTMLFormElement>('.feria-abierta').forEach((form) => {
+    const marcas = [...form.querySelectorAll<HTMLInputElement>('input[name="slug"]')];
+    const nota = form.querySelector<HTMLElement>('[data-nota-bloque]');
+    const enviar = form.querySelector<HTMLButtonElement>('[data-enviar]');
     const sync = () => {
-      if (!det) return;
-      det.hidden = !chk.checked;
-      det.querySelector<HTMLTextAreaElement>('textarea')!.required = chk.checked;
+      const n = marcas.filter((m) => m.checked).length;
+      if (nota) nota.hidden = n < 2;
+      if (enviar) {
+        enviar.disabled = n === 0;
+        enviar.textContent = n > 1 ? `Enviar solicitud en bloque (${n})` : 'Enviar solicitud';
+      }
     };
-    chk.addEventListener('change', sync);
+    marcas.forEach((m) => m.addEventListener('change', sync));
     sync();
   });
 </script>
@@ -304,13 +306,19 @@ const feriaPedida = q.get('feria');
   .donde { font-weight: 700; color: var(--tinta-media); }
   .elegir { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
   .elegir legend { font-weight: 800; margin-bottom: 8px; }
-  .emp-opcion { border: 2px solid var(--linea-fuerte); border-radius: 16px; padding: 12px 14px; background: #fff; }
-  .emp-opcion:has(input:checked) { border-color: var(--tinta); background: #FFFBEF; }
-  .emp-check { display: flex; gap: 12px; align-items: center; cursor: pointer; font-size: 16px; min-height: 32px; }
-  .emp-check input { width: 22px; height: 22px; accent-color: var(--tinta); flex: 0 0 auto; }
-  .detalle { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-  .detalle[hidden] { display: none; }
-  @media (max-width: 600px) { .detalle { grid-template-columns: 1fr; } }
+  .elegir { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .elegir legend { grid-column: 1 / -1; }
+  .emp-opcion { position: relative; display: flex; gap: 12px; align-items: center; cursor: pointer; min-height: 64px; border: 2.5px solid var(--linea-fuerte); border-radius: 16px; padding: 12px 14px; background: #fff; transition: border-color .15s ease, background .15s ease, transform .15s ease; }
+  .emp-opcion:hover { border-color: var(--tinta); }
+  .emp-opcion:has(input:checked) { border-color: var(--tinta); background: var(--mango-claro); box-shadow: 0 3px 0 var(--tinta); }
+  .emp-opcion:has(input:focus-visible) { outline: 3px solid var(--tinta); outline-offset: 3px; }
+  .emp-opcion input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .emp-marca { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; border: 2.5px solid var(--tinta); background: #fff; display: grid; place-items: center; }
+  .emp-opcion:has(input:checked) .emp-marca { background: var(--tinta); }
+  .emp-opcion:has(input:checked) .emp-marca::after { content: ''; width: 7px; height: 12px; border: solid var(--mango); border-width: 0 3px 3px 0; transform: translateY(-2px) rotate(45deg); }
+  .emp-texto { display: grid; gap: 2px; font-size: 16px; }
+  .nota-bloque { font-size: 14.5px; font-weight: 600; padding: 10px 14px; border-radius: 12px; background: var(--cierzo-claro); color: var(--tinta); }
+  .nota-bloque[hidden] { display: none; }
   .feria-abierta .btn { justify-self: start; }
   @media (max-width: 600px) { .feria-abierta .btn { justify-self: stretch; } }
   .ayuda { margin-top: 28px; text-align: center; font-weight: 700; }

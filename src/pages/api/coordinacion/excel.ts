@@ -10,7 +10,7 @@ import { listarCategorias, listarFechas, listarInscripciones, listarTorres } fro
 import { ETIQUETA_INSCRIPCION, conjuntoDeTexto } from '../../../lib/ferias';
 import { escribirXlsx, leerXlsx } from '../../../lib/xlsx';
 
-const ENCABEZADO = ['ID de inscripción', 'Emprendimiento', 'Emprendedor', 'Conjunto de origen', 'Categoría', 'Qué vende', 'WhatsApp', 'Estado', 'Conjunto asignado'];
+const ENCABEZADO = ['ID de inscripción', 'Emprendimiento', 'Emprendedor', 'Conjunto de origen', 'Categoría', 'Qué vende', 'WhatsApp', 'Estado', 'En bloque con', 'Conjunto asignado'];
 const MAX_BYTES = 2 * 1024 * 1024;
 
 /** "ID de inscripción" → "iddeinscripcion": así da igual si Excel cambió mayúsculas o tildes. */
@@ -33,17 +33,23 @@ export const GET: APIRoute = async ({ locals, url }) => {
     i.emprendedor,
     nombre(i.conjunto_origen),
     cat(i.categoria, categorias).label,
-    i.que_vende,
+    i.que_vende || i.descripcion,
     i.whatsapp ? `+57 ${i.whatsapp}` : '',
     ETIQUETA_INSCRIPCION[i.estado],
+    i.grupo
+      ? inscripciones
+          .filter((x) => x.grupo === i.grupo && x.id !== i.id)
+          .map((x) => x.nombre)
+          .join(', ')
+      : '',
     nombre(i.conjunto_asignado),
   ]);
   const datos = escribirXlsx({
     nombre: 'Inscritos',
     encabezado: ENCABEZADO,
     filas,
-    anchos: [38, 28, 24, 18, 16, 36, 16, 30, 20],
-    paraLlenar: [8],
+    anchos: [38, 28, 24, 18, 16, 36, 16, 30, 26, 20],
+    paraLlenar: [9],
   });
   const archivo = `inscritos-${feria.fecha}-${feria.titulo.normalize('NFD').replace(/[^\w]+/g, '-').toLowerCase()}.xlsx`.replace(/-+/g, '-');
   return new Response(datos, {
@@ -121,5 +127,21 @@ export const POST: APIRoute = async ({ locals, request }) => {
     if (ins.conjunto_asignado) ocupados[ins.conjunto_asignado] = (ocupados[ins.conjunto_asignado] ?? 1) - 1;
     cambios.push({ id, fila, nombre: ins.nombre, emprendedor: ins.emprendedor, de: ins.conjunto_asignado, a });
   });
+  // Solicitudes en bloque: si mueven uno, el otro lo sigue al mismo conjunto; si el Excel los
+  // separa en conjuntos distintos, es un error (van juntos).
+  for (const c of [...cambios]) {
+    const g = actuales.get(c.id)!.grupo;
+    if (!g) continue;
+    const choque = cambios.find((x) => x.id !== c.id && actuales.get(x.id)!.grupo === g && x.a !== c.a);
+    if (choque) {
+      errores.push({ fila: c.fila, id: c.id, mensaje: `${c.nombre} va en bloque con ${choque.nombre}: deben quedar en el mismo conjunto.` });
+      for (let k = cambios.length - 1; k >= 0; k--) if (actuales.get(cambios[k].id)!.grupo === g) cambios.splice(k, 1);
+      continue;
+    }
+    for (const h of actuales.values()) {
+      if (h.grupo !== g || h.id === c.id || h.estado === 'rechazada' || h.conjunto_asignado === c.a || cambios.some((x) => x.id === h.id)) continue;
+      cambios.push({ id: h.id, fila: c.fila, nombre: `${h.nombre} (va en bloque)`, emprendedor: h.emprendedor, de: h.conjunto_asignado, a: c.a });
+    }
+  }
   return json({ cambios, errores, sinCambios, leidas });
 };

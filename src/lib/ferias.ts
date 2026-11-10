@@ -83,8 +83,14 @@ export function fechaEnFrase(iso: string) {
   return new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }).format(d).replace(',', '');
 }
 
-export function mensajeSeleccion(p: { nombre: string; emprendimiento: string; fecha: string; conjunto: string }) {
-  return `Hola ${p.nombre}, tu emprendimiento ${p.emprendimiento} fue seleccionado para la Feria 4 Vientos del ${fechaEnFrase(p.fecha)}. Tu lugar de venta es el conjunto ${p.conjunto}. ¡Te esperamos!`;
+/** Uno: "tu emprendimiento X fue seleccionado…". Solicitud en bloque: "tus emprendimientos X y Y fueron seleccionados…". */
+export function mensajeSeleccion(p: { nombre: string; emprendimiento: string | string[]; fecha: string; conjunto: string }) {
+  const lista = Array.isArray(p.emprendimiento) ? p.emprendimiento : [p.emprendimiento];
+  const que =
+    lista.length > 1
+      ? `tus emprendimientos ${lista.slice(0, -1).join(', ')} y ${lista.at(-1)} fueron seleccionados`
+      : `tu emprendimiento ${lista[0]} fue seleccionado`;
+  return `Hola ${p.nombre}, ${que} para la Feria 4 Vientos del ${fechaEnFrase(p.fecha)}. Tu lugar de venta es el conjunto ${p.conjunto}. ¡Te esperamos!`;
 }
 
 export function pesos(valor: number) {
@@ -113,6 +119,10 @@ export interface FilaInscripcion {
   notificado_at: string | null;
   notificado_por: string | null;
   notificado_conjunto: string | null;
+  /** Solicitud en bloque: inscripciones del mismo vecino enviadas juntas (se ubican, aprueban y avisan juntas). */
+  grupo: string | null;
+  /** Descripción corta del emprendimiento (se muestra si no escribió "qué vende"). */
+  descripcion: string;
   /** Datos del emprendimiento y su dueño (pueden faltar si se borró). */
   nombre: string;
   emprendedor: string;

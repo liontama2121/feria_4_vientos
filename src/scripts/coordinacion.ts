@@ -245,22 +245,33 @@ export function iniciarCoordinacion() {
   const orden: Record<string, number> = { pendiente: 0, aprobado: 1, pago_aprobado: 2, participando: 3, rechazada: 4 };
   function visibles() {
     const q = fBuscar.value.trim().toLowerCase();
-    return deFeria()
+    const lista = deFeria()
       .filter(
         (i) =>
           (!fEstado.value || (fEstado.value === 'por_avisar' ? avisable(i) && (!i.notificado_at || i.notificado_conjunto !== i.conjunto_asignado) : i.estado === fEstado.value)) &&
           (!fConjunto.value || (fConjunto.value === '-' ? !i.conjunto_asignado : i.conjunto_asignado === fConjunto.value)) &&
-          (!q || `${i.nombre} ${i.emprendedor} ${i.que_vende}`.toLowerCase().includes(q)),
+          (!q || `${i.nombre} ${i.emprendedor} ${i.que_vende} ${i.descripcion}`.toLowerCase().includes(q)),
       )
       .sort((a, b) => orden[a.estado] - orden[b.estado] || a.nombre.localeCompare(b.nombre, 'es'));
+    // Solicitudes en bloque: sus emprendimientos quedan seguidos, en el lugar del primero.
+    const juntos: FilaInscripcion[] = [];
+    for (const i of lista) {
+      if (juntos.includes(i)) continue;
+      juntos.push(...(i.grupo ? lista.filter((x) => x.grupo === i.grupo) : [i]));
+    }
+    return juntos;
   }
+  /** Deja uno por solicitud en bloque (el servidor aplica la acción a todo el bloque). */
+  const unoPorBloque = (l: FilaInscripcion[]) => l.filter((i, k) => !i.grupo || l.findIndex((x) => x.grupo === i.grupo) === k);
+  /** Los emprendimientos de la misma solicitud en bloque (o solo este). */
+  const bloque = (i: FilaInscripcion) => (i.grupo ? deFeria().filter((x) => x.grupo === i.grupo) : [i]);
 
   // ───────────────────────── Acciones ─────────────────────────
   async function accion(i: FilaInscripcion, cuerpo: Record<string, unknown>, ok: string, boton?: HTMLElement) {
     boton?.setAttribute('aria-busy', 'true');
     try {
-      const r = await api<{ fila: FilaInscripcion; notificacion: Notificacion | null }>('/api/coordinacion/inscripciones', 'PATCH', { id: i.id, ...cuerpo });
-      reemplazar(r.fila);
+      const r = await api<{ fila: FilaInscripcion; filas?: FilaInscripcion[]; notificacion: Notificacion | null }>('/api/coordinacion/inscripciones', 'PATCH', { id: i.id, ...cuerpo });
+      (r.filas ?? [r.fila]).forEach(reemplazar);
       toast(ok, 'ok');
       pintarFeria();
       return true;
@@ -301,15 +312,19 @@ export function iniciarCoordinacion() {
     );
   }
 
+  /** Un solo mensaje por solicitud: si va en bloque, nombra todos sus emprendimientos ubicados. */
   function mensaje(i: FilaInscripcion) {
-    return mensajeSeleccion({ nombre: primerNombre(i.emprendedor || 'vecino'), emprendimiento: i.nombre, fecha: feria()!.fecha, conjunto: nombreTorre(i.conjunto_asignado) });
+    const nombres = bloque(i)
+      .filter(avisable)
+      .map((x) => x.nombre);
+    return mensajeSeleccion({ nombre: primerNombre(i.emprendedor || 'vecino'), emprendimiento: nombres.length ? nombres : [i.nombre], fecha: feria()!.fecha, conjunto: nombreTorre(i.conjunto_asignado) });
   }
 
-  /** Registra el aviso (el WhatsApp ya se abrió con el clic del enlace). */
+  /** Registra el aviso (el WhatsApp ya se abrió con el clic del enlace). En bloque, marca a todos. */
   async function registrarAviso(i: FilaInscripcion) {
     try {
-      const r = await api<{ fila: FilaInscripcion }>('/api/coordinacion/inscripciones', 'PATCH', { id: i.id, accion: 'avisado' });
-      reemplazar(r.fila);
+      const r = await api<{ fila: FilaInscripcion; filas?: FilaInscripcion[] }>('/api/coordinacion/inscripciones', 'PATCH', { id: i.id, accion: 'avisado' });
+      (r.filas ?? [r.fila]).forEach(reemplazar);
       pintarFeria();
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -338,6 +353,9 @@ export function iniciarCoordinacion() {
 
   function botonAviso(i: FilaInscripcion) {
     if (!avisable(i)) return null;
+    // En bloque, el aviso (uno solo) va en el primer emprendimiento de la solicitud.
+    const primero = bloque(i).find(avisable);
+    if (primero && primero.id !== i.id) return h('span', { class: 'avisado', text: 'Va en el mismo aviso' });
     const link = linkWa(i.whatsapp, mensaje(i));
     if (!link) return h('span', { class: 'sin-wsp', text: 'WhatsApp inválido' });
     const repetido = !!i.notificado_at && i.notificado_conjunto === i.conjunto_asignado;
@@ -356,8 +374,9 @@ export function iniciarCoordinacion() {
     const cat = categoria(i.categoria, D.categorias);
     const chk = h('input', { type: 'checkbox', checked: sel.has(i.id), 'aria-label': `Seleccionar ${i.nombre}` }) as HTMLInputElement;
     chk.addEventListener('change', () => {
-      if (chk.checked) sel.add(i.id);
-      else sel.delete(i.id);
+      // Una solicitud en bloque se selecciona entera.
+      bloque(i).forEach((x) => (chk.checked ? sel.add(x.id) : sel.delete(x.id)));
+      if (i.grupo) return renderTabla();
       tr.classList.toggle('sel', chk.checked);
       renderMasivo();
     });
@@ -398,7 +417,7 @@ export function iniciarCoordinacion() {
 
     const tr = h(
       'tr',
-      { class: `${sel.has(i.id) ? 'sel ' : ''}${i.estado}` },
+      { class: `${sel.has(i.id) ? 'sel ' : ''}${i.estado}${i.grupo ? ' en-bloque' : ''}` },
       h('td', { class: 'col-check' }, chk),
       h(
         'td',
@@ -417,7 +436,7 @@ export function iniciarCoordinacion() {
           ),
         ),
       ),
-      h('td', { 'data-label': 'Qué vende' }, h('div', { class: 'vende' }, i.que_vende || 'Sin detalle', i.necesidades ? h('span', { class: 'nec', text: `Necesita: ${i.necesidades}` }) : null)),
+      h('td', { 'data-label': 'Qué vende' }, h('div', { class: 'vende' }, i.que_vende || i.descripcion || 'Sin detalle', i.necesidades ? h('span', { class: 'nec', text: `Necesita: ${i.necesidades}` }) : null)),
       h('td', { 'data-label': 'Estado' }, h('span', { class: `pill-ins ${i.estado}`, text: ETIQUETA_INSCRIPCION[i.estado] }), avisoTxt, i.estado === 'rechazada' && i.nota ? h('span', { class: 'avisado', text: `Motivo: ${i.nota}` }) : null),
       h('td', { 'data-label': 'Conjunto asignado' }, selectorConjunto(i)),
       h('td', {}, h('div', { class: 'acc' }, ...acciones)),
@@ -427,7 +446,22 @@ export function iniciarCoordinacion() {
 
   function renderTabla() {
     const lista = visibles();
-    $('cuerpoIns').replaceChildren(...lista.map(fila));
+    // Encabezado antes de cada solicitud en bloque: deja claro que se deciden juntos.
+    const filas: HTMLElement[] = [];
+    lista.forEach((i, k) => {
+      if (i.grupo && lista[k - 1]?.grupo !== i.grupo) {
+        const n = bloque(i).length;
+        filas.push(
+          h(
+            'tr',
+            { class: 'grupo-cab' },
+            h('td', { colspan: 6 }, h('b', { text: 'Solicitud en bloque' }), ` · ${i.emprendedor || 'Vecino'} · ${n} emprendimientos: se ubican, aprueban y avisan juntos`),
+          ),
+        );
+      }
+      filas.push(fila(i));
+    });
+    $('cuerpoIns').replaceChildren(...filas);
     const vacio = $('vacioIns');
     vacio.hidden = lista.length > 0;
     $('tablaIns').hidden = lista.length === 0;
@@ -476,13 +510,13 @@ export function iniciarCoordinacion() {
     await ubicar(s.map((i) => ({ id: i.id, conjunto: c })));
   });
   $('masivoAprobar').addEventListener('click', async () => {
-    const s = seleccionadas().filter((i) => i.estado === 'pendiente' && i.conjunto_asignado);
+    const s = unoPorBloque(seleccionadas().filter((i) => i.estado === 'pendiente' && i.conjunto_asignado));
     if (!(await confirmar(`Se aprobarán ${s.length} inscripción(es) en el conjunto que tienen asignado. Las que no están ubicadas se quedan en espera.`, 'Sí, aprobar'))) return;
     let ok = 0;
     for (const i of s) {
       try {
-        const r = await api<{ fila: FilaInscripcion }>('/api/coordinacion/inscripciones', 'PATCH', { id: i.id, accion: 'aprobar' });
-        reemplazar(r.fila);
+        const r = await api<{ fila: FilaInscripcion; filas?: FilaInscripcion[] }>('/api/coordinacion/inscripciones', 'PATCH', { id: i.id, accion: 'aprobar' });
+        (r.filas ?? [r.fila]).forEach(reemplazar);
         ok++;
       } catch (e) {
         toast(`${i.nombre}: ${(e as Error).message}`, 'error');
@@ -505,7 +539,7 @@ export function iniciarCoordinacion() {
       s = s.filter((i) => !repetidos.includes(i));
     }
     if (!s.length) return toast('No queda nadie por avisar en la selección.', 'info');
-    cola = s;
+    cola = unoPorBloque(s);
     paso = 0;
     pintarCola();
   });

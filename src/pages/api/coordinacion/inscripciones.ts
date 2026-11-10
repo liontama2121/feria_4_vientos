@@ -70,6 +70,23 @@ export const PATCH: APIRoute = async ({ locals, request }) => {
       }
       validos.push({ id: ins.id, conjunto: c.conjunto });
     }
+    // Solicitud en bloque: los emprendimientos del mismo grupo van SIEMPRE al mismo conjunto.
+    for (const v of [...validos]) {
+      const g = actuales.get(v.id)!.grupo;
+      if (!g) continue;
+      const otro = validos.find((x) => x.id !== v.id && actuales.get(x.id)!.grupo === g && x.conjunto !== v.conjunto);
+      if (otro) {
+        errores.push(`${actuales.get(v.id)!.nombre}: va en bloque con ${actuales.get(otro.id)!.nombre}; deben quedar en el mismo conjunto.`);
+        validos.splice(0, validos.length, ...validos.filter((x) => actuales.get(x.id)!.grupo !== g));
+        continue;
+      }
+      for (const h of actuales.values())
+        if (h.grupo === g && h.estado !== 'rechazada' && !validos.some((x) => x.id === h.id)) validos.push({ id: h.id, conjunto: v.conjunto });
+    }
+    for (const id of [...quitar]) {
+      const g = actuales.get(id)!.grupo;
+      if (g) for (const h of actuales.values()) if (h.grupo === g && h.estado === 'pendiente' && !quitar.includes(h.id)) quitar.push(h.id);
+    }
     const sinCupo = await ubicarInscripciones(db, feria, validos, quien);
     if (quitar.length) await quitarUbicacion(db, feria.id, quitar);
     for (const id of sinCupo) {
@@ -85,26 +102,38 @@ export const PATCH: APIRoute = async ({ locals, request }) => {
   if (!ins) return error('No encontramos esa inscripción.', 404);
   const feria = ferias.find((f) => f.id === ins.feria_id);
   if (!feria) return error('La feria de esta inscripción ya no existe.', 404);
-  const mover = (desde: readonly EstadoInscripcion[], a: EstadoInscripcion, nota?: string) => moverInscripcion(db, ins.id, desde, a, quien, nota);
+  // Solicitud en bloque: la decisión vale para todos los emprendimientos del grupo.
+  const grupo = ins.grupo ? (await listarInscripciones(db, feria.id)).filter((x) => x.grupo === ins.grupo) : [ins];
+  const mover = async (desde: readonly EstadoInscripcion[], a: EstadoInscripcion, nota?: string) => {
+    let alguno = false;
+    for (const g of grupo) if (await moverInscripcion(db, g.id, desde, a, quien, nota)) alguno = true;
+    return alguno;
+  };
+  const respuesta = async (notificacion: unknown) => {
+    const filas = await Promise.all(grupo.map((g) => obtenerInscripcion(db, g.id)));
+    return json({ fila: filas.find((f) => f?.id === ins.id), filas: filas.filter(Boolean), notificacion });
+  };
 
   if (accion === 'avisado') {
     if (!UBICADOS.includes(ins.estado) || !ins.conjunto_asignado) return error('Solo se avisa a quienes están aprobados y ubicados.', 409);
     if (!celularCO(ins.whatsapp)) return error('El WhatsApp de este emprendimiento no es un celular colombiano válido (10 dígitos, empieza por 3).', 409);
-    await marcarAvisada(db, ins.id, ins.conjunto_asignado, quien);
-    return json({ fila: await obtenerInscripcion(db, ins.id), notificacion: null });
+    for (const g of grupo) if (UBICADOS.includes(g.estado) && g.conjunto_asignado) await marcarAvisada(db, g.id, g.conjunto_asignado, quien);
+    return respuesta(null);
   }
 
   let ok = false;
   let notificacion = null;
   if (accion === 'aprobar') {
-    if (!ins.conjunto_asignado) return error('Primero ubíquelo: elija el conjunto donde va a vender.', 409);
+    if (grupo.some((g) => g.estado === 'pendiente' && !g.conjunto_asignado)) return error('Primero ubíquelo: elija el conjunto donde va a vender.', 409);
     // Si la feria no cobra, aprobar ya deja el pago listo.
     ok = await mover(['pendiente'], (feria.valor ?? 0) > 0 ? 'aprobado' : 'pago_aprobado', '');
   } else if (accion === 'rechazar') {
     const motivo = texto(body.nota, 300);
     // La coordinadora no deshace un pago ya confirmado: eso es del administrador.
     ok = await mover(u.rol === 'admin' ? ['pendiente', 'aprobado', 'pago_aprobado'] : ['pendiente', 'aprobado'], 'rechazada', motivo);
-    if (ok) notificacion = await avisoInscripcionRechazada(db, ins, feria, motivo);
+    const nombres = grupo.map((g) => g.nombre);
+    const nombre = nombres.length > 1 ? `${nombres.slice(0, -1).join(', ')} y ${nombres.at(-1)}` : nombres[0];
+    if (ok) notificacion = await avisoInscripcionRechazada(db, { ...ins, nombre }, feria, motivo);
   } else if (accion === 'aprobar_pago') {
     ok = await mover(['aprobado'], 'pago_aprobado');
   } else if (accion === 'participando') {
@@ -113,5 +142,5 @@ export const PATCH: APIRoute = async ({ locals, request }) => {
     ok = await mover(['rechazada'], 'pendiente', '');
   }
   if (!ok) return error('Esta inscripción ya cambió de estado. Recargue la página.', 409);
-  return json({ fila: await obtenerInscripcion(db, ins.id), notificacion });
+  return respuesta(notificacion);
 };
