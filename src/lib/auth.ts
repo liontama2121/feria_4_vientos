@@ -111,13 +111,66 @@ export async function nuevoTokenClave() {
   return { token, hash: await hashToken(token), vence };
 }
 
+// ───────────────────────── Coordinadoras (Luisa y Adriana) ─────────────────────────
+// Secret COORDINADORAS: `usuario:contraseña` separados por coma o salto de línea, p. ej.
+// `luisa:UnaClaveLarga,adriana:OtraClaveLarga`. La contraseña no puede tener comas.
+// Quitar a alguien de la variable (o cambiar su contraseña) corta su sesión en el siguiente request.
+
+export interface Coordinadora {
+  usuario: string;
+  nombre: string;
+  clave: string;
+}
+
+export function coordinadoras(env: Env): Coordinadora[] {
+  return (env.COORDINADORAS ?? '')
+    .split(/[\n,]+/)
+    .map((par) => {
+      const i = par.indexOf(':');
+      const usuario = par.slice(0, i).trim().toLowerCase();
+      const clave = par.slice(i + 1).trim();
+      return { usuario, nombre: usuario.charAt(0).toUpperCase() + usuario.slice(1), clave };
+    })
+    .filter((c) => /^[a-z0-9._-]{2,40}$/.test(c.usuario) && c.clave.length >= 8);
+}
+
+/** Huella corta de la contraseña: va en la sesión para que cambiarla cierre las sesiones abiertas. */
+async function huella(clave: string) {
+  return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`coord|${clave}`)))).slice(0, 16);
+}
+
+export async function coordinadoraValida(env: Env, usuario: string, clave: string) {
+  const u = usuario.trim().toLowerCase();
+  for (const c of coordinadoras(env)) {
+    // Se comparan todas (no se corta en la primera) para no filtrar cuál usuario existe por tiempo.
+    const [okU, okC] = await Promise.all([iguales(u, c.usuario), iguales(clave, c.clave)]);
+    if (okU && okC) return c;
+  }
+  return null;
+}
+
+export function usuarioCoordinadora(c: Coordinadora): Usuario {
+  return { email: c.usuario, nombre: c.nombre, rol: 'coordinadora', torre: null, apartamento: '', whatsapp: '' };
+}
+
+/** La coordinadora de la sesión, si sigue en COORDINADORAS con la misma contraseña. */
+export async function coordinadoraDeSesion(env: Env, usuario: string, h: string) {
+  const c = coordinadoras(env).find((x) => x.usuario === usuario);
+  return c && (await iguales(await huella(c.clave), h)) ? c : null;
+}
+
 // ───────────────────────── Sesión ─────────────────────────
 
-export type Sujeto = { tipo: 'comite' } | { tipo: 'cuenta'; email: string };
+export type Sujeto = { tipo: 'comite' } | { tipo: 'cuenta'; email: string } | { tipo: 'coordinadora'; usuario: string; huella: string };
+
+export async function sujetoCoordinadora(c: Coordinadora): Promise<Sujeto> {
+  return { tipo: 'coordinadora', usuario: c.usuario, huella: await huella(c.clave) };
+}
 
 export async function crearSesion(env: Env, sujeto: Sujeto) {
   const exp = Math.floor(Date.now() / 1000) + DURACION_S;
-  const quien = b64url(enc.encode(sujeto.tipo === 'comite' ? 'comite' : `c:${sujeto.email}`));
+  const texto = sujeto.tipo === 'comite' ? 'comite' : sujeto.tipo === 'cuenta' ? `c:${sujeto.email}` : `k:${sujeto.usuario}:${sujeto.huella}`;
+  const quien = b64url(enc.encode(texto));
   return `${exp}.${quien}.${await hmac(env, `sesion.${exp}.${quien}`)}`;
 }
 
@@ -128,6 +181,10 @@ export async function leerSesion(env: Env, token: string | undefined): Promise<S
   if (!(await iguales(firma, await hmac(env, `sesion.${exp}.${quien}`)))) return null;
   const s = new TextDecoder().decode(deB64url(quien));
   if (s === 'comite') return { tipo: 'comite' };
+  if (s.startsWith('k:')) {
+    const [, usuario, h] = s.split(':');
+    return usuario && h ? { tipo: 'coordinadora', usuario, huella: h } : null;
+  }
   return s.startsWith('c:') ? { tipo: 'cuenta', email: s.slice(2) } : null;
 }
 

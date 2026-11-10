@@ -3,7 +3,8 @@
 // con un clic desde /admin/comite#notificaciones (wa.me con el texto listo).
 // Para automatizar (Twilio, Meta Cloud API o webhook a n8n), el punto único es `avisar()`.
 import { LIMITES, TORRES_BASE, motivoReporte, type TorreId } from './constantes';
-import { crearNotificacion, type Cuenta, type Notificacion, type Registro, type Reporte, type Solicitud } from './db';
+import { crearNotificacion, type Cuenta, type Fecha, type Notificacion, type Registro, type Reporte, type Solicitud } from './db';
+import { celularCO, fechaEnFrase, type FilaInscripcion } from './ferias';
 
 const conjunto = (t: TorreId) => TORRES_BASE[t]?.nombre ?? t;
 /** "Mistral 402", o solo "Mistral" si no dio torre/apto. */
@@ -187,5 +188,32 @@ El link sirve una sola vez y vence en ${horas} horas. Tu correo para entrar es $
     whatsapp: c.whatsapp,
     email: c.email,
     slug: null,
+  });
+}
+
+// ───────────────────────── Inscripciones a ferias ─────────────────────────
+
+export function avisoInscripcion(db: D1Database, i: Pick<FilaInscripcion, 'nombre' | 'emprendedor' | 'slug'>, feria: Fecha) {
+  return avisar(db, {
+    para: 'admin',
+    tipo: 'inscripcion',
+    titulo: 'Nueva inscripción a una feria',
+    mensaje: `${i.emprendedor || 'Un vecino'} inscribió "${i.nombre}" a ${feria.titulo} (${feria.fecha}). Revísala en Inscripciones.`,
+    whatsapp: '',
+    email: '',
+    slug: i.slug,
+  });
+}
+
+/** Rechazo: queda el aviso listo en la bandeja del comité para mandárselo al vecino. */
+export function avisoInscripcionRechazada(db: D1Database, i: FilaInscripcion, feria: Fecha, motivo = '') {
+  return avisar(db, {
+    para: 'vecino',
+    tipo: 'inscripcion_rechazada',
+    titulo: `Inscripción no aprobada: ${i.nombre}`,
+    mensaje: `Hola ${i.emprendedor}. Esta vez no pudimos aprobar la inscripción de "${i.nombre}" a ${feria.titulo} del ${fechaEnFrase(feria.fecha)}.${motivo ? ` Motivo: ${motivo}.` : ''} Si tiene dudas, respóndanos por aquí.`,
+    whatsapp: celularCO(i.whatsapp),
+    email: i.owner_email ?? '',
+    slug: i.slug,
   });
 }

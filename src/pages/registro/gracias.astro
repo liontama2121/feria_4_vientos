@@ -4,17 +4,35 @@ import '../../styles/panel.css';
 import Layout from '../../layouts/Layout.astro';
 import Molinete from '../../components/Molinete.astro';
 import { SITIO, linkWhatsApp } from '../../lib/sitio';
+import { MENSAJE_RECIBIDA } from '../../lib/ferias';
+
+const conFeria = Astro.url.searchParams.get('feria') === '1';
 ---
+
+<style>
+  .recibida { font-weight: 800; color: var(--tinta); background: var(--mango-claro); border: 2px solid var(--tinta); border-radius: 14px; padding: 12px 14px; text-align: left; }
+</style>
 
 <Layout title="¡Gracias! · Feria 4 Vientos" noindex bodyClass="panel comite">
   <div class="sin-acceso">
     <div class="card">
       <Molinete size={72} spin />
       <h1>¡Listo, <span class="serif">vecino</span>!</h1>
-      <p>
-        Recibimos tu solicitud. El comité activa tu cuenta en <strong>menos de 24 horas</strong> y te avisa por WhatsApp. Cuando esté activa, entra al panel con tu correo y
-        contraseña y registra tu emprendimiento.
-      </p>
+      {
+        conFeria ? (
+          <>
+            <p class="recibida">{MENSAJE_RECIBIDA}</p>
+            <p>
+              Tu cuenta también queda pendiente de aprobación. Cuando el comité la active, entra con tu correo y contraseña: en <strong>Mis ferias</strong> verás cada paso de tu inscripción, y en tu panel podrás subir las fotos de tu emprendimiento.
+            </p>
+          </>
+        ) : (
+          <p>
+            Recibimos tu solicitud. El comité activa tu cuenta en <strong>menos de 24 horas</strong> y te avisa por WhatsApp. Cuando esté activa, entra al panel con tu correo y
+            contraseña y registra tu emprendimiento.
+          </p>
+        )
+      }
       <div class="acciones">
         <a class="btn btn-primary" href="/admin/login">Ir al panel</a>
         <a class="btn btn-ghost" href={linkWhatsApp(`Hola comité 👋 Acabo de crear mi cuenta en ${SITIO.nombre}. ¿Me la pueden activar?`)} target="_blank" rel="noopener">

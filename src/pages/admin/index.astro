@@ -10,7 +10,8 @@ import PanelTopbar from '../../components/PanelTopbar.astro';
 import PanelSinAcceso from '../../components/PanelSinAcceso.astro';
 import { puedeEditar, registroPermitido } from '../../lib/api';
 import { ICONOS, LIMITES, iniciales } from '../../lib/constantes';
-import { crearEmprendimiento, estadoVisible, listarDeVecino, listarSolicitudes, listarTorres, obtenerRegistro, resumenPanel, visitasDe } from '../../lib/db';
+import { crearEmprendimiento, estadoVisible, listarDeVecino, listarFechas, listarSolicitudes, listarTorres, obtenerRegistro, resumenPanel, visitasDe } from '../../lib/db';
+import { aceptaInscripciones } from '../../lib/fechas';
 import { MENSAJES, SITIO, linkWhatsApp } from '../../lib/sitio';
 
 const usuario = Astro.locals.usuario!;
@@ -61,7 +62,8 @@ const ESTADO_CORTO: Record<string, string> = {
   changes_requested: 'Cambios pedidos',
 };
 
-const torres = await listarTorres(db);
+const [torres, fechas] = await Promise.all([listarTorres(db), listarFechas(db)]);
+const feriaAbierta = fechas.filter((f) => aceptaInscripciones(f)).sort((a, b) => a.fecha.localeCompare(b.fecha))[0];
 const resumen = registro ? resumenPanel(registro) : null;
 const d = resumen?.borrador;
 const torreActual = torres.find((t) => t.id === d?.torre) ?? torres[0];
@@ -136,6 +138,15 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                 ))}
               </nav>
             </div>
+            {
+              !esAdmin && (
+                <a class="sidebar-card mis-ferias-link" href="/admin/ferias">
+                  <span class="sidebar-title">MIS FERIAS</span>
+                  <span class="mfl-texto">{feriaAbierta ? `Inscripciones abiertas: ${feriaAbierta.titulo}` : 'Vea sus inscripciones y su estado'}</span>
+                  <span class="mfl-ir">{feriaAbierta ? 'Inscribirme →' : 'Ver mis ferias →'}</span>
+                </a>
+              )
+            }
             <div class="sidebar-card mi-link">
               <div class="sidebar-title">{esAdmin ? 'SU LINK PARA COMPARTIR' : 'TU LINK PARA COMPARTIR'}</div>
               {linkActivo ? (

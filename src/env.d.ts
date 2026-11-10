@@ -21,6 +21,8 @@ interface Env {
   SESSION_SECRET?: string;
   /** Correos de cuentas con rol admin, separados por coma */
   ADMIN_EMAILS?: string;
+  /** Coordinadoras: `usuario:contraseña` separados por coma (p. ej. luisa:…,adriana:…) */
+  COORDINADORAS?: string;
 }
 
 type Runtime = import('@astrojs/cloudflare').Runtime<Env>;

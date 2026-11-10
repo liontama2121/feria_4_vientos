@@ -1,7 +1,8 @@
 // Edición de torres, patrocinadores, fechas y categorías desde /admin/comite.
 import type { APIRoute } from 'astro';
 import { error, json, leerJson } from '../../../lib/api';
-import { CATEGORIAS_BASE, CATEGORIA_COMODIN, TIPOS_PATROCINADOR, type Categoria } from '../../../lib/constantes';
+import { CATEGORIAS_BASE, CATEGORIA_COMODIN, TIPOS_PATROCINADOR, TORRE_IDS, type Categoria } from '../../../lib/constantes';
+import { ESTADOS_FERIA, FERIA_VISIBLE, type EstadoFeria } from '../../../lib/ferias';
 import {
   borrarCategoria,
   borrarFecha,
@@ -10,6 +11,7 @@ import {
   guardarFecha,
   guardarPatrocinador,
   guardarTorre,
+  inscripcionesPorFeria,
   listarCategorias,
   listarFechas,
   listarPatrocinadores,
@@ -97,6 +99,12 @@ export const PUT: APIRoute = async ({ locals, request }) => {
     if (desde && !/^\d{4}-\d{2}-\d{2}$/.test(desde)) return error('"Mostrar desde" inválido.');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(hasta)) return error('"Mostrar hasta" inválido.');
     if (desde && desde > hasta) return error('"Mostrar desde" no puede ser después de "Mostrar hasta".');
+    const estado: EstadoFeria = ESTADOS_FERIA.includes(i.estado as EstadoFeria) ? (i.estado as EstadoFeria) : 'borrador';
+    const conjuntos = TORRE_IDS.filter((t) => Array.isArray(i.conjuntos) && i.conjuntos.includes(t));
+    if (estado !== 'borrador' && !conjuntos.length) return error('Elige al menos un conjunto donde se hace la feria.');
+    const cuposIn = (i.cupos && typeof i.cupos === 'object' ? i.cupos : {}) as Record<string, unknown>;
+    const cupos = Object.fromEntries(conjuntos.map((t) => [t, Math.max(0, Math.min(999, Math.round(Number(cuposIn[t]) || 0)))]));
+    const valor = Math.max(0, Math.min(10_000_000, Math.round(Number(i.valor) || 0)));
     const f: Fecha = {
       id: texto(i.id, 60) || `${fecha}-${crypto.randomUUID().slice(0, 8)}`,
       titulo: texto(i.titulo, 80) || 'Feria 4 Vientos',
@@ -104,9 +112,14 @@ export const PUT: APIRoute = async ({ locals, request }) => {
       hora_inicio: hi,
       hora_fin: hf,
       descripcion: texto(i.descripcion, 300),
-      activa: i.activa === true,
+      // `activa` se mantiene en sincronía para que el código anterior (si se revierte) siga entendiendo la feria.
+      activa: FERIA_VISIBLE.includes(estado),
       mostrar_desde: desde,
       mostrar_hasta: hasta,
+      estado,
+      conjuntos,
+      cupos,
+      valor,
     };
     await guardarFecha(db, f);
     return json(f);
@@ -143,7 +156,11 @@ export const DELETE: APIRoute = async ({ locals, request }) => {
   const body = await leerJson<{ coleccion?: Coleccion; id?: string }>(request);
   if (!body?.id) return error('Falta el id.');
   const db = locals.runtime.env.DB;
-  if (body.coleccion === 'fechas') await borrarFecha(db, body.id);
+  if (body.coleccion === 'fechas') {
+    const n = (await inscripcionesPorFeria(db))[body.id] ?? 0;
+    if (n) return error(`Esta feria tiene ${n} inscripción(es). Márquela como finalizada en vez de borrarla.`, 409);
+    await borrarFecha(db, body.id);
+  }
   else if (body.coleccion === 'patrocinadores') await borrarPatrocinador(db, body.id);
   else if (body.coleccion === 'categorias') {
     if (CATEGORIAS_BASE.some((c) => c.id === body.id)) return error('Las categorías base no se borran; ocúltala.');

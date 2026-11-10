@@ -21,13 +21,14 @@ import {
   listarCambiosClave,
   listarTorres,
   usosCategorias,
+  inscripcionesPorFeria,
 } from '../../../lib/db';
 
 const usuario = Astro.locals.usuario!;
 const env = Astro.locals.runtime.env;
 const db = env.DB;
 
-const [registros, torres, patrocinadores, fechas, cuentas, notificaciones, calificaciones, reportes, usos, solicitudes, cambiosClave] = await Promise.all([
+const [registros, torres, patrocinadores, fechas, cuentas, notificaciones, calificaciones, reportes, usos, solicitudes, cambiosClave, inscritosPorFeria] = await Promise.all([
   listarRegistros(db),
   listarTorres(db),
   listarPatrocinadores(db),
@@ -39,6 +40,7 @@ const [registros, torres, patrocinadores, fechas, cuentas, notificaciones, calif
   usosCategorias(db),
   listarSolicitudes(db),
   listarCambiosClave(db),
+  inscripcionesPorFeria(db),
 ]);
 const datosJson = JSON.stringify({
   filas: registros.map(filaComite),
@@ -56,6 +58,7 @@ const datosJson = JSON.stringify({
   categorias: Astro.locals.categorias,
   usosCategorias: usos,
   categoriasBase: CATEGORIAS_BASE.map((c) => c.id),
+  inscritosPorFeria,
 }).replace(/</g, '\\u003c');
 
 const TABS = [
@@ -90,6 +93,10 @@ const TABS = [
                     <span class="badge" data-badge={t.id} />
                   </a>
                 ))}
+                <a href="/coordinacion" class="nav-externo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                  Inscripciones y pagos
+                </a>
               </nav>
             </div>
             <div class="sidebar-help">
@@ -529,5 +536,14 @@ const TABS = [
   .calif-fila .est { color: #F5A524; letter-spacing: 1px; }
   .cerrados { margin: 4px 0 24px; }
   .cerrados summary { cursor: pointer; font-weight: 800; font-size: 13.5px; color: var(--tinta-media); margin-bottom: 10px; }
+  .fecha-estado .field { min-width: 220px; }
+  .fecha-conjuntos { border: 0; padding: 12px; margin: 0 0 12px; border-radius: 12px; background: var(--crema); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .fecha-conjuntos legend { font-weight: 800; font-size: 13.5px; padding: 0; margin-bottom: 8px; float: left; width: 100%; }
+  @media (max-width: 760px) { .fecha-conjuntos { grid-template-columns: 1fr 1fr; } }
+  .conj-cupo { display: grid; grid-template-columns: auto 1fr 76px; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; background: #fff; border: 2px solid var(--t); font-weight: 800; }
+  .conj-cupo input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--t); }
+  .conj-cupo input[type='number'] { min-height: 38px; padding: 4px 8px; border-radius: 10px; border: 1.5px solid var(--linea-fuerte); width: 100%; }
+  .fecha-ventana { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 760px) { .fecha-ventana { grid-template-columns: 1fr; } }
   .estado-feria.on { background: var(--austro-claro); border: 1px solid var(--austro); color: #A3155A; }
 </style>

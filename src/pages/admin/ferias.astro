@@ -1,0 +1,318 @@
+---
+// Panel del vecino: sus inscripciones a ferias (con stepper) y el formulario para inscribir
+// sus emprendimientos a las ferias con inscripciones abiertas. No elige conjunto: lo ubica el comité.
+// El envío lo procesa /api/panel/inscripciones (formulario HTML, funciona sin JavaScript).
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import PanelTopbar from '../../components/PanelTopbar.astro';
+import { iniciales } from '../../lib/constantes';
+import { inscripcionesDeVecino, listarDeVecino, listarFechas, listarTorres } from '../../lib/db';
+import { aceptaInscripciones, fechaLarga, rangoHoras } from '../../lib/fechas';
+import { ETIQUETA_INSCRIPCION, MENSAJE_RECIBIDA, PASOS_INSCRIPCION, pasoActual, pesos } from '../../lib/ferias';
+import { MENSAJES, linkWhatsApp } from '../../lib/sitio';
+
+const usuario = Astro.locals.usuario!;
+if (usuario.rol === 'admin') return Astro.redirect('/coordinacion');
+const db = Astro.locals.runtime.env.DB;
+
+const [fechas, torres, misEmps, misIns] = await Promise.all([listarFechas(db), listarTorres(db), listarDeVecino(db, usuario.email), inscripcionesDeVecino(db, usuario.email)]);
+const abiertas = fechas.filter((f) => aceptaInscripciones(f)).sort((a, b) => a.fecha.localeCompare(b.fecha));
+const feriaDe = (id: string) => fechas.find((f) => f.id === id);
+const nombreTorre = (id: string | null | undefined) => torres.find((t) => t.id === id)?.nombre ?? '';
+const listaConjuntos = (ids: string[] = []) => {
+  const n = ids.map(nombreTorre).filter(Boolean);
+  return n.length > 1 ? `${n.slice(0, -1).join(', ')} y ${n.at(-1)}` : (n[0] ?? '');
+};
+
+const q = Astro.url.searchParams;
+const recibidas = Number(q.get('recibida') ?? 0);
+const ERRORES: Record<string, string> = {
+  cerrada: 'Esa feria ya no recibe inscripciones.',
+  ninguno: 'Marque al menos un emprendimiento para inscribir.',
+  que_vende: 'Cuéntenos qué va a vender con cada emprendimiento que marcó.',
+  repetida: 'Ese emprendimiento ya estaba inscrito en esa feria.',
+  retirar: 'No se pudo retirar: puede que el comité ya la haya revisado.',
+  datos: 'No pudimos leer el formulario. Intente de nuevo.',
+};
+const fallo = ERRORES[q.get('error') ?? ''];
+const feriaPedida = q.get('feria');
+---
+
+<Layout title="Mis ferias · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel comite mis-ferias">
+  <PanelTopbar seccion="Mis ferias" nombre={usuario.nombre} detalle={`· ${nombreTorre(usuario.torre)}`} iniciales={iniciales(usuario.nombre)}>
+    <a class="top-btn" href="/admin">← Mi emprendimiento</a>
+  </PanelTopbar>
+
+  <main class="ferias-vecino">
+    <div class="page-head">
+      <div>
+        <h1>Mis <span class="serif">ferias</span></h1>
+        <p class="desc">Inscriba sus emprendimientos y siga aquí cada paso. El comité decide en qué conjunto vende cada quien y le avisa por WhatsApp.</p>
+      </div>
+    </div>
+
+    {
+      recibidas > 0 && (
+        <div class="estado ok" role="status">
+          <span class="ico" aria-hidden="true">✓</span>
+          <div>
+            <strong>{recibidas === 1 ? 'Solicitud recibida' : `${recibidas} solicitudes recibidas`}</strong>
+            {MENSAJE_RECIBIDA}
+          </div>
+        </div>
+      )
+    }
+    {
+      q.get('retirada') && (
+        <div class="estado ok" role="status">
+          <span class="ico" aria-hidden="true">✓</span>
+          <div>
+            <strong>Inscripción retirada</strong>Si cambia de opinión, puede inscribirse otra vez mientras sigan abiertas.
+          </div>
+        </div>
+      )
+    }
+    {
+      fallo && (
+        <div class="estado alerta" role="alert">
+          <span class="ico" aria-hidden="true">!</span>
+          <div>
+            <strong>No se pudo completar</strong>
+            {fallo}
+          </div>
+        </div>
+      )
+    }
+
+    {/* ═══ Mis inscripciones ═══ */}
+    <section aria-labelledby="tMisIns">
+      <h2 class="seccion" id="tMisIns">Mis inscripciones</h2>
+      {
+        misIns.length === 0 ? (
+          <div class="vacio">Aún no tiene inscripciones. {abiertas.length ? 'Inscríbase abajo.' : 'Cuando el comité abra una feria, podrá inscribirse aquí.'}</div>
+        ) : (
+          <div class="inscripciones">
+            {misIns.map((i) => {
+              const f = feriaDe(i.feria_id);
+              const actual = pasoActual(i.estado);
+              const ubicado = !!i.conjunto_asignado && i.estado !== 'pendiente' && i.estado !== 'rechazada';
+              return (
+                <article class="ins card" data-estado={i.estado}>
+                  <header class="ins-head">
+                    <div>
+                      <h3>{i.nombre}</h3>
+                      <p class="sub">{f ? `${f.titulo} · ${fechaLarga(f.fecha)} · ${rangoHoras(f)}` : 'Feria eliminada'}</p>
+                    </div>
+                    <span class={`pill-ins ${i.estado}`}>{ETIQUETA_INSCRIPCION[i.estado]}</span>
+                  </header>
+
+                  {i.estado === 'rechazada' ? (
+                    <p class="rechazo">
+                      El comité no aprobó esta inscripción{i.nota ? `: ${i.nota}` : '.'} Si tiene dudas, escríbale al comité.
+                    </p>
+                  ) : (
+                    <ol class="stepper" aria-label="Avance de la inscripción">
+                      {PASOS_INSCRIPCION.map((p, n) => (
+                        <li class={n < actual ? 'hecho' : n === actual ? 'hecho actual' : 'falta'} aria-current={n === actual ? 'step' : undefined}>
+                          <span class="punto" aria-hidden="true">{n <= actual ? '✓' : n + 1}</span>
+                          <span class="paso-texto">
+                            {p.label}
+                            <span class="sr">{n <= actual ? ' (listo)' : ' (pendiente)'}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+
+                  {ubicado && (
+                    <p class="lugar" data-conjunto={i.conjunto_asignado}>
+                      Le toca vender en <b>{nombreTorre(i.conjunto_asignado)}</b>
+                    </p>
+                  )}
+                  {i.estado === 'pendiente' && <p class="nota-espera">{MENSAJE_RECIBIDA}</p>}
+                  {i.estado === 'aprobado' && f && (f.valor ?? 0) > 0 && (
+                    <p class="nota-espera">
+                      Falta el pago de participación: <b>{pesos(f.valor ?? 0)}</b>. Coordínelo con el comité; cuando lo confirme verá "Pago aprobado".
+                    </p>
+                  )}
+
+                  <footer class="ins-pie">
+                    <span class="sub">Qué va a vender: {i.que_vende}</span>
+                    <div class="ins-acciones">
+                      {i.estado === 'aprobado' && (
+                        <a class="btn btn-sm btn-wsp" href={linkWhatsApp(`Hola comité 👋 Quiero pagar la participación de "${i.nombre}" en ${f?.titulo ?? 'la feria'}.`)} target="_blank" rel="noopener">
+                          Coordinar el pago
+                        </a>
+                      )}
+                      {i.estado === 'pendiente' && (
+                        <form method="post" action="/api/panel/inscripciones">
+                          <input type="hidden" name="accion" value="retirar" />
+                          <input type="hidden" name="id" value={i.id} />
+                          <button class="btn btn-sm btn-ghost" type="submit">
+                            Retirar inscripción
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </footer>
+                </article>
+              );
+            })}
+          </div>
+        )
+      }
+    </section>
+
+    {/* ═══ Ferias abiertas ═══ */}
+    <section aria-labelledby="tAbiertas">
+      <h2 class="seccion" id="tAbiertas">Ferias con inscripciones abiertas</h2>
+      {
+        abiertas.length === 0 ? (
+          <div class="vacio">Ahora no hay ferias recibiendo inscripciones. Le avisaremos cuando abra la próxima.</div>
+        ) : misEmps.length === 0 ? (
+          <div class="vacio">
+            Primero cree su emprendimiento. <a href="/admin">Ir a mi emprendimiento</a>
+          </div>
+        ) : (
+          abiertas.map((f) => {
+            const yaInscritos = new Set(misIns.filter((i) => i.feria_id === f.id).map((i) => i.slug));
+            const disponibles = misEmps.filter((e) => !yaInscritos.has(e.slug) && e.estado !== 'rejected');
+            return (
+              <form class="card feria-abierta" method="post" action="/api/panel/inscripciones" id={`feria-${f.id}`}>
+                <input type="hidden" name="feria" value={f.id} />
+                <div class="feria-head">
+                  <div>
+                    <h3>{f.titulo}</h3>
+                    <p class="sub">
+                      {fechaLarga(f.fecha)} · {rangoHoras(f)}
+                    </p>
+                  </div>
+                  <span class="valor">{pesos(f.valor ?? 0)}</span>
+                </div>
+                {f.conjuntos?.length ? <p class="donde">Se hace en {listaConjuntos(f.conjuntos)}. El comité decide en cuál vende usted.</p> : null}
+                {disponibles.length === 0 ? (
+                  <p class="vacio">Ya inscribió todos sus emprendimientos en esta feria.</p>
+                ) : (
+                  <>
+                    <fieldset class="elegir">
+                      <legend>¿Cuáles inscribe?</legend>
+                      {disponibles.map((e, n) => (
+                        <div class="emp-opcion">
+                          <label class="emp-check">
+                            <input type="checkbox" name="slug" value={e.slug} checked={disponibles.length === 1 || feriaPedida === f.id ? n === 0 : false} data-detalle={`det-${f.id}-${e.slug}`} />
+                            <span>
+                              <b>{e.nombre || 'Sin nombre todavía'}</b>
+                              {e.estado !== 'approved' && <span class="sub"> · aún no está publicado en el directorio</span>}
+                            </span>
+                          </label>
+                          <div class="detalle" id={`det-${f.id}-${e.slug}`}>
+                            <div class="field">
+                              <label for={`qv-${f.id}-${e.slug}`}>
+                                Qué va a vender <span class="req">●</span>
+                              </label>
+                              <textarea id={`qv-${f.id}-${e.slug}`} name={`que_vende_${e.slug}`} rows="2" maxlength="300" placeholder="Ej.: empanadas de pipián y ají casero"></textarea>
+                            </div>
+                            <div class="field">
+                              <label for={`nc-${f.id}-${e.slug}`}>
+                                Necesidades del puesto <span class="opt">Opcional</span>
+                              </label>
+                              <textarea id={`nc-${f.id}-${e.slug}`} name={`necesidades_${e.slug}`} rows="2" maxlength="300" placeholder="Ej.: toma de corriente, una mesa, sombra"></textarea>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </fieldset>
+                    <button class="btn btn-primary" type="submit">
+                      Enviar solicitud
+                    </button>
+                  </>
+                )}
+              </form>
+            );
+          })
+        )
+      }
+    </section>
+
+    <p class="ayuda">
+      ¿Dudas? <a href={linkWhatsApp(MENSAJES.ayudaPanel)} target="_blank" rel="noopener">Escríbale al comité por WhatsApp</a>
+    </p>
+  </main>
+</Layout>
+
+<script>
+  // Los campos "qué va a vender" solo se piden para los emprendimientos marcados.
+  document.querySelectorAll<HTMLInputElement>('.emp-check input[type="checkbox"]').forEach((chk) => {
+    const det = document.getElementById(chk.dataset.detalle ?? '');
+    const sync = () => {
+      if (!det) return;
+      det.hidden = !chk.checked;
+      det.querySelector<HTMLTextAreaElement>('textarea')!.required = chk.checked;
+    };
+    chk.addEventListener('change', sync);
+    sync();
+  });
+</script>
+
+<style>
+  .ferias-vecino { max-width: 920px; margin: 0 auto; padding: 28px 24px 60px; }
+  @media (max-width: 600px) { .ferias-vecino { padding: 20px 16px 48px; } }
+  .ferias-vecino .estado { margin-bottom: 18px; }
+  .seccion { font-size: 24px; margin: 30px 0 14px; }
+  .vacio { padding: 22px; border-radius: 16px; border: 2px dashed var(--linea-fuerte); background: #fff; font-weight: 700; color: var(--tinta-media); }
+  .vacio a { color: var(--tinta); text-decoration: underline; }
+  .sub { font-size: 13px; color: var(--tinta-suave); font-weight: 600; }
+
+  .inscripciones { display: grid; gap: 14px; }
+  .ins { margin: 0; border: 2px solid var(--tinta); }
+  .ins-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 18px; }
+  .ins h3 { font-size: 22px; overflow-wrap: anywhere; }
+  .pill-ins { display: inline-block; padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 800; }
+  .pill-ins.pendiente { background: #FFF4CC; color: #7A4F00; }
+  .pill-ins.aprobado { background: var(--mistral-claro); color: #0B5E53; }
+  .pill-ins.pago_aprobado { background: #D9F5E3; color: #146C36; }
+  .pill-ins.participando { background: var(--tinta); color: var(--papel); }
+  .pill-ins.rechazada { background: #FEE4E2; color: #B42318; }
+
+  .stepper { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0 0 14px; padding: 0; counter-reset: paso; }
+  .stepper li { position: relative; display: grid; justify-items: center; gap: 6px; text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
+  .stepper li::before { content: ''; position: absolute; top: 17px; left: calc(-50% + 20px); right: calc(50% + 20px); height: 4px; border-radius: 4px; background: var(--linea-fuerte); }
+  .stepper li:first-child::before { display: none; }
+  .stepper li.hecho::before, .stepper li.actual::before { background: var(--hierbabuena); }
+  .punto { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-letrero); font-size: 17px; background: #fff; border: 3px solid var(--linea-fuerte); color: var(--tinta-suave); }
+  .hecho .punto { background: var(--hierbabuena); border-color: var(--hierbabuena); color: #fff; }
+  .actual .punto { background: var(--mango); border-color: var(--tinta); color: var(--tinta); box-shadow: 0 0 0 5px var(--mango-claro); }
+  .stepper li.actual + li::before { background: var(--linea-fuerte); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .stepper .actual, .stepper .hecho { color: var(--tinta); }
+  @media (max-width: 560px) {
+    .stepper { grid-template-columns: 1fr; gap: 10px; }
+    .stepper li { grid-template-columns: 36px 1fr; justify-items: start; align-items: center; text-align: left; font-size: 14px; }
+    .stepper li::before { top: -12px; left: 16px; right: auto; width: 4px; height: 14px; }
+  }
+  .lugar { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px; background: color-mix(in srgb, var(--c) 16%, #fff); border: 2px solid var(--c); font-size: 16px; font-weight: 700; margin: 4px 0 10px; }
+  .lugar b { font-family: var(--f-letrero); font-weight: 400; font-size: 24px; }
+  .nota-espera { font-size: 14.5px; color: var(--tinta-media); background: var(--crema-alt); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; }
+  .rechazo { font-size: 14.5px; background: #FEF3F2; color: #7A271A; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; font-weight: 600; }
+  .ins-pie { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--linea); padding-top: 12px; }
+  .ins-acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .feria-abierta { border: 2px solid var(--tinta); display: grid; gap: 14px; }
+  .feria-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+  .feria-head h3 { font-size: 24px; }
+  .valor { font-family: var(--f-letrero); font-size: 22px; padding: 4px 14px; border-radius: 999px; background: var(--mango); }
+  .donde { font-weight: 700; color: var(--tinta-media); }
+  .elegir { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .elegir legend { font-weight: 800; margin-bottom: 8px; }
+  .emp-opcion { border: 2px solid var(--linea-fuerte); border-radius: 16px; padding: 12px 14px; background: #fff; }
+  .emp-opcion:has(input:checked) { border-color: var(--tinta); background: #FFFBEF; }
+  .emp-check { display: flex; gap: 12px; align-items: center; cursor: pointer; font-size: 16px; min-height: 32px; }
+  .emp-check input { width: 22px; height: 22px; accent-color: var(--tinta); flex: 0 0 auto; }
+  .detalle { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .detalle[hidden] { display: none; }
+  @media (max-width: 600px) { .detalle { grid-template-columns: 1fr; } }
+  .feria-abierta .btn { justify-self: start; }
+  @media (max-width: 600px) { .feria-abierta .btn { justify-self: stretch; } }
+  .ayuda { margin-top: 28px; text-align: center; font-weight: 700; }
+  .ayuda a { color: var(--tinta); text-decoration: underline; }
+</style>

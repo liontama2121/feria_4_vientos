@@ -1,5 +1,6 @@
 // Formato de fechas en español de Colombia, siempre en hora de Bogotá.
 import type { Fecha } from './db';
+import { ESTADOS_FERIA, FERIA_VISIBLE, type EstadoFeria } from './ferias';
 
 const ZONA = 'America/Bogota';
 const MESES_CORTOS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
@@ -15,9 +16,22 @@ export function proximas(fechas: Fecha[]) {
   return fechas.filter((f) => f.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
-/** ¿Hoy cae dentro de la ventana "Mostrar desde / hasta" de una feria activada? El comité usa la misma regla en comite.ts. */
+/** Estado de la feria. Fechas viejas sin `estado`: activa = inscripciones cerradas (sale), si no borrador. */
+export function estadoFeria(f: Fecha): EstadoFeria {
+  return f.estado && ESTADOS_FERIA.includes(f.estado) ? f.estado : f.activa ? 'cerrada' : 'borrador';
+}
+
+/**
+ * ¿Sale hoy en la landing? Estado visible (inscripciones abiertas o cerradas) y hoy dentro de la
+ * ventana "Mostrar desde / hasta". El comité y coordinación usan la misma regla.
+ */
 export function estaActiva(f: Fecha, hoy = hoyBogota()) {
-  return f.activa === true && (f.mostrar_desde || '') <= hoy && hoy <= (f.mostrar_hasta || f.fecha);
+  return FERIA_VISIBLE.includes(estadoFeria(f)) && (f.mostrar_desde || '') <= hoy && hoy <= (f.mostrar_hasta || f.fecha);
+}
+
+/** ¿Se puede inscribir hoy? Inscripciones abiertas y la feria no ha pasado. */
+export function aceptaInscripciones(f: Fecha, hoy = hoyBogota()) {
+  return estadoFeria(f) === 'inscripciones' && hoy <= f.fecha;
 }
 
 /** Ferias que se muestran hoy en la landing, en orden de fecha. Fuera de su ventana se ocultan solas. */
