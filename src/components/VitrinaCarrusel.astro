@@ -13,6 +13,9 @@ interface Props {
 }
 const { emprendedores, torres, proxima } = Astro.props;
 const torreDe = (id: string) => torres.find((t) => t.id === id) ?? torres[0];
+// Feria itinerante: se nombran sus conjuntos; las ferias del sistema anterior eran en el terminalito.
+const nombres = (proxima?.conjuntos ?? []).map((id) => torres.find((t) => t.id === id)?.nombre).filter(Boolean) as string[];
+const lugar = nombres.length === 4 ? 'En los cuatro conjuntos' : nombres.length ? `En ${nombres.length > 1 ? `${nombres.slice(0, -1).join(', ')} y ${nombres.at(-1)}` : nombres[0]}` : 'El terminalito';
 // Color del punto del carrusel = el color del conjunto (ver plaza.css)
 const STOCK_HEX: Record<string, string> = { mistral: '#1E9C8C', gregal: '#FF8A1F', austro: '#FF3F80', cierzo: '#7B3FE4' };
 
@@ -29,7 +32,7 @@ for (let i = 0; porTorre.some((l) => l[i]); i++) porTorre.forEach((l) => l[i] &&
         <h2 class="vitrina-titulo">{proxima ? `Feria · ${fechaLarga(proxima.fecha)}` : 'Lo que trae cada viento'}</h2>
         {proxima && (
           <p class="vitrina-sub">
-            {rangoHoras(proxima)} · El terminalito · {`${slides.length} ${slides.length === 1 ? 'emprendimiento te espera' : 'emprendimientos te esperan'}`}
+            {rangoHoras(proxima)} · {lugar} · {`${slides.length} ${slides.length === 1 ? 'emprendimiento te espera' : 'emprendimientos te esperan'}`}
           </p>
         )}
       </div>
