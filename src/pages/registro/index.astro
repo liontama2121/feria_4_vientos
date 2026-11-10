@@ -6,7 +6,7 @@ import Layout from '../../layouts/Layout.astro';
 import Molinete from '../../components/Molinete.astro';
 import { listarFechas, listarTorres } from '../../lib/db';
 import { LIMITES } from '../../lib/constantes';
-import { aceptaInscripciones, fechaLarga } from '../../lib/fechas';
+import { aceptaInscripciones, diaMes, fechaLarga, rangoHoras } from '../../lib/fechas';
 
 const db = Astro.locals.runtime.env.DB;
 const [torres, fechas] = await Promise.all([listarTorres(db), listarFechas(db)]);
@@ -30,9 +30,24 @@ const fallo = ERRORES[Astro.url.searchParams.get('error') ?? ''];
       <h1>Súmate a la <span class="serif">feria</span></h1>
       {
         feria ? (
-          <p>
-            Te estás inscribiendo a <strong>{feria.titulo}</strong> del {fechaLarga(feria.fecha)}. Crea tu cuenta y cuéntanos de tu emprendimiento; el comité aprueba tu cuenta y te ubica en un conjunto.
-          </p>
+          <>
+            <div class="feria-cinta">
+              <span class="cinta-dia" aria-hidden="true">
+                <b>{diaMes(feria.fecha).dd}</b>
+                {diaMes(feria.fecha).mm}
+              </span>
+              <span>
+                <b class="cinta-nombre">{feria.titulo}</b>
+                <span>
+                  {fechaLarga(feria.fecha)} · {rangoHoras(feria)}
+                </span>
+              </span>
+            </div>
+            <p>Crea tu cuenta y cuéntanos de tu emprendimiento. El comité aprueba tu cuenta y te ubica en un conjunto.</p>
+            <a class="volver-arriba" href={`/participar?feria=${encodeURIComponent(feria.id)}`}>
+              ← ¿Ya tienes cuenta? Inscríbete desde tu panel
+            </a>
+          </>
         ) : (
           <p>Crea tu cuenta para registrar tu emprendimiento. El comité la activa en menos de 24 horas y te avisa por WhatsApp.</p>
         )
@@ -160,6 +175,12 @@ const fallo = ERRORES[Astro.url.searchParams.get('error') ?? ''];
   .registro .btn { margin-top: 6px; width: 100%; }
   .registro .pie { font-size: 13.5px; margin: 0; }
   .registro .pie a { color: var(--cierzo); font-weight: 800; }
+  .feria-cinta { display: flex; gap: 14px; align-items: center; padding: 12px 14px; border-radius: 16px; background: var(--mango); border: 3px solid var(--tinta); text-align: left; }
+  .cinta-dia { flex: 0 0 auto; width: 62px; height: 62px; border-radius: 12px; display: grid; place-content: center; text-align: center; background: var(--tinta); color: var(--mango); font-family: var(--f-letrero); font-size: 14px; line-height: 1; }
+  .cinta-dia b { font-weight: 400; font-size: 28px; color: var(--papel); }
+  .feria-cinta > span:last-child { display: grid; font-weight: 700; font-size: 14.5px; }
+  .cinta-nombre { font-family: var(--f-letrero); font-weight: 400; font-size: 21px; line-height: 1.1; }
+  .volver-arriba { text-align: center; font-size: 13.5px; font-weight: 800; color: var(--tinta); text-decoration: underline; }
   .tu-emp { border: 2px solid var(--tinta); border-radius: 18px; padding: 16px; background: var(--crema-alt); margin: 0; }
   .tu-emp legend { font-family: var(--f-letrero); font-size: 22px; padding: 0 8px; }
   .nota-conjunto { font-size: 13.5px; font-weight: 700; color: var(--tinta-media); margin-top: 12px; }

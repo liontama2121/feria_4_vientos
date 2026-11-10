@@ -34,7 +34,7 @@ const { torres, feria } = Astro.props;
       feria && (
         <div class="nav-conjuntos">
           {torres.map((t) => (
-            <a href={`#${t.id}`} class="nav-conjunto" data-conjunto={t.id}>
+            <a href={`/#${t.id}`} class="nav-conjunto" data-conjunto={t.id}>
               {t.nombre}
             </a>
           ))}
@@ -42,8 +42,8 @@ const { torres, feria } = Astro.props;
       )
     }
     <div class="nav-acciones">
-      <a href="#muro" class="nav-link">Puestos</a>
-      <a href="#participar" class="nav-link nav-ocultable">Participar</a>
+      <a href="/#muro" class="nav-link">Puestos</a>
+      <a href="/participar" class="nav-link nav-ocultable">Participar</a>
       <a href="/admin" class="boton nav-panel">Panel</a>
     </div>
   </div>
