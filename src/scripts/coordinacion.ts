@@ -432,7 +432,10 @@ export function iniciarCoordinacion() {
             h('h3', { text: i.nombre }),
             h('div', { class: 'sub', text: `${i.emprendedor || 'Sin nombre'} · ${cat.label}${celularCO(i.whatsapp) ? ` · +57 ${i.whatsapp}` : ''}` }),
             t ? h('span', { class: 'origen', text: `Vive en ${t.nombre}`, style: `--c:${t.color_hex}` }) : null,
-            i.cuenta_estado === 'pending_activation' ? h('div', { class: 'sub', text: 'Cuenta por activar' }) : null,
+            i.cuenta_estado === 'pending_activation' ? h('div', { class: 'aviso-fila', text: 'Cuenta por activar' }) : null,
+            i.estado_emprendimiento && i.estado_emprendimiento !== 'approved' && i.estado !== 'rechazada'
+              ? h('div', { class: 'aviso-fila', text: esAdmin ? 'No sale en la página: apruebe su emprendimiento en Comité' : 'No sale en la página hasta que el comité apruebe su emprendimiento' })
+              : null,
           ),
         ),
       ),
