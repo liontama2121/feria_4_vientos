@@ -1240,6 +1240,8 @@ export function iniciarComite() {
       valor: inp(String(base.valor ?? 0), { type: 'number', min: '0', step: '1000', inputmode: 'numeric' }),
       desde: inp(base.mostrar_desde ?? '', { type: 'date' }),
       hasta: inp(hasta(base), { type: 'date' }),
+      insDesde: inp(base.inscripciones_desde ?? (fe ? '' : hoy), { type: 'date' }),
+      insHasta: inp(base.inscripciones_hasta ?? '', { type: 'date' }),
     };
     f.estado.value = estadoFeria(base);
     // Conjuntos donde se hace + cupos por conjunto (0 = sin límite).
@@ -1271,6 +1273,8 @@ export function iniciarComite() {
       h(
         'div',
         { class: 'fecha-ventana' },
+        campo('Inscripciones desde', f.insDesde),
+        campo('Inscripciones hasta (se cierran solas; vacío = día de la feria)', f.insHasta),
         campo('Valor de participación (pesos, 0 = gratis)', f.valor),
         campo('Mostrar en la landing desde', f.desde),
         campo('Mostrar hasta (incluido)', f.hasta),
@@ -1328,6 +1332,8 @@ export function iniciarComite() {
                       conjuntos: conj.filter((c) => c.chk.checked).map((c) => c.t.id),
                       cupos: Object.fromEntries(conj.map((c) => [c.t.id, Number(c.cupo.value) || 0])),
                       valor: Number(f.valor.value) || 0,
+                      inscripciones_desde: f.insDesde.value,
+                      inscripciones_hasta: f.insHasta.value,
                       mostrar_desde: f.desde.value,
                       mostrar_hasta: f.hasta.value,
                     },

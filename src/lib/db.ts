@@ -65,6 +65,9 @@ export interface Fecha {
   estado?: EstadoFeria;
   /** Valor de participación en pesos (0 = gratis). */
   valor?: number;
+  /** Ventana de inscripción (YYYY-MM-DD, ambos incluidos). Sin "hasta" = hasta el día de la feria. */
+  inscripciones_desde?: string;
+  inscripciones_hasta?: string;
 }
 
 /** El estado de moderación, más `oculto` (aprobado pero con "Publicar en la landing" apagado). */

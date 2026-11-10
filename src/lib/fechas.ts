@@ -29,9 +29,23 @@ export function estaActiva(f: Fecha, hoy = hoyBogota()) {
   return FERIA_VISIBLE.includes(estadoFeria(f)) && (f.mostrar_desde || '') <= hoy && hoy <= (f.mostrar_hasta || f.fecha);
 }
 
-/** ¿Se puede inscribir hoy? Inscripciones abiertas y la feria no ha pasado. */
+/** Último día para inscribirse: "inscripciones hasta", o el día de la feria. */
+export function cierreInscripciones(f: Fecha) {
+  return f.inscripciones_hasta && f.inscripciones_hasta < f.fecha ? f.inscripciones_hasta : f.fecha;
+}
+
+/**
+ * ¿Se puede inscribir hoy? Estado "inscripciones" Y hoy dentro de la ventana
+ * inscripciones_desde…inscripciones_hasta (ambos incluidos). Al pasar la fecha límite se cierra
+ * sola; coordinación o el admin pueden cerrarla antes pasando el estado a "cerrada".
+ */
 export function aceptaInscripciones(f: Fecha, hoy = hoyBogota()) {
-  return estadoFeria(f) === 'inscripciones' && hoy <= f.fecha;
+  return estadoFeria(f) === 'inscripciones' && (f.inscripciones_desde || '') <= hoy && hoy <= cierreInscripciones(f);
+}
+
+/** Inscripciones programadas que aún no abren (estado "inscripciones" pero antes de "desde"). */
+export function inscripcionesPorAbrir(f: Fecha, hoy = hoyBogota()) {
+  return estadoFeria(f) === 'inscripciones' && !!f.inscripciones_desde && hoy < f.inscripciones_desde;
 }
 
 /** Ferias que se muestran hoy en la landing, en orden de fecha. Fuera de su ventana se ocultan solas. */

@@ -2,7 +2,7 @@
 // /api/coordinacion/* (que valida el rol) y actualiza solo lo que cambió.
 import type { Cuenta, Fecha, Notificacion, Torre } from '../lib/db';
 import { categoria, type Categoria, type TorreId } from '../lib/constantes';
-import { fechaLarga, rangoHoras } from '../lib/fechas';
+import { aceptaInscripciones, cierreInscripciones, fechaLarga, inscripcionesPorAbrir, rangoHoras } from '../lib/fechas';
 import {
   ESTADOS_INSCRIPCION,
   ETIQUETA_FERIA,
@@ -152,14 +152,53 @@ export function iniciarCoordinacion() {
     const ins = deFeria();
     const ubicados = ins.filter((i) => UBICADOS.includes(i.estado) && i.conjunto_asignado).length;
     const porAvisar = ins.filter(avisable).filter((i) => !i.notificado_at || i.notificado_conjunto !== i.conjunto_asignado).length;
+    // Estado real de las inscripciones: abiertas (con fecha límite), por abrir, cerradas a mano o vencidas.
+    const cierre = cierreInscripciones(f);
+    const textoIns = aceptaInscripciones(f, hoy)
+      ? `Inscripciones abiertas hasta el ${fechaLarga(cierre).toLowerCase()}`
+      : inscripcionesPorAbrir(f, hoy)
+        ? `Inscripciones abren el ${fechaLarga(f.inscripciones_desde!).toLowerCase()}`
+        : f.estado === 'inscripciones'
+          ? 'Inscripciones cerradas: se cumplió la fecha límite'
+          : ETIQUETA_FERIA[f.estado];
+    const puedeCerrar = f.estado === 'inscripciones';
+    const puedeAbrir = f.estado === 'cerrada' && hoy <= cierre;
+    const btnEstado =
+      puedeCerrar || puedeAbrir
+        ? h('button', {
+            type: 'button',
+            class: `btn btn-sm ${puedeCerrar ? 'btn-rechazar' : 'btn-aprobar'}`,
+            text: puedeCerrar ? 'Cerrar inscripciones' : 'Reabrir inscripciones',
+            on: { click: () => cambiarInscripciones(f, puedeCerrar ? 'cerrar' : 'abrir') },
+          })
+        : null;
     $('resumenFeria').replaceChildren(
       h('b', { text: f.titulo }),
       h('span', { text: `${fechaLarga(f.fecha)} · ${rangoHoras(f)}` }),
-      h('span', { text: ETIQUETA_FERIA[f.estado] }),
+      h('span', { class: `estado-ins${aceptaInscripciones(f, hoy) ? ' abiertas' : ''}`, text: textoIns }),
       h('span', { text: `Valor: ${pesos(f.valor ?? 0)}` }),
       h('span', { text: `${ins.length} inscritos · ${ubicados} aprobados y ubicados · ${porAvisar} por avisar` }),
+      ...(btnEstado ? [btnEstado] : []),
     );
     ($('btnExcel') as HTMLAnchorElement).href = `/api/coordinacion/excel?feria=${encodeURIComponent(f.id)}`;
+  }
+
+  async function cambiarInscripciones(f: Datos['ferias'][number], accion: 'cerrar' | 'abrir') {
+    const ok = await confirmar(
+      accion === 'cerrar'
+        ? `Nadie más podrá inscribirse a "${f.titulo}". En la página solo quedará el título de la feria. Puede reabrirlas mientras no pase la fecha límite.`
+        : `"${f.titulo}" vuelve a recibir inscripciones y el botón "Inscribe tu emprendimiento" vuelve a la página.`,
+      accion === 'cerrar' ? 'Sí, cerrar' : 'Sí, reabrir',
+    );
+    if (!ok) return;
+    try {
+      const r = await api<{ feria: Fecha }>('/api/coordinacion/feria', 'PATCH', { feria: f.id, accion });
+      D.ferias = D.ferias.map((x) => (x.id === f.id ? { ...r.feria, estado: r.feria.estado ?? x.estado } as Datos['ferias'][number] : x));
+      toast(accion === 'cerrar' ? 'Inscripciones cerradas ✓' : 'Inscripciones abiertas de nuevo ✓', 'ok');
+      pintarFeria();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
   }
 
   function ocupados() {

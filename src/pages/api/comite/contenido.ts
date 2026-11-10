@@ -105,6 +105,11 @@ export const PUT: APIRoute = async ({ locals, request }) => {
     const cuposIn = (i.cupos && typeof i.cupos === 'object' ? i.cupos : {}) as Record<string, unknown>;
     const cupos = Object.fromEntries(conjuntos.map((t) => [t, Math.max(0, Math.min(999, Math.round(Number(cuposIn[t]) || 0)))]));
     const valor = Math.max(0, Math.min(10_000_000, Math.round(Number(i.valor) || 0)));
+    const insDesde = texto(i.inscripciones_desde, 10);
+    const insHasta = texto(i.inscripciones_hasta, 10);
+    for (const d of [insDesde, insHasta]) if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) return error('Fecha de inscripciones inválida.');
+    if (insDesde && insHasta && insDesde > insHasta) return error('Las inscripciones no pueden cerrar antes de abrir.');
+    if (insHasta && insHasta > fecha) return error('Las inscripciones deben cerrar a más tardar el día de la feria.');
     const f: Fecha = {
       id: texto(i.id, 60) || `${fecha}-${crypto.randomUUID().slice(0, 8)}`,
       titulo: texto(i.titulo, 80) || 'Feria 4 Vientos',
@@ -120,6 +125,8 @@ export const PUT: APIRoute = async ({ locals, request }) => {
       conjuntos,
       cupos,
       valor,
+      inscripciones_desde: insDesde,
+      inscripciones_hasta: insHasta,
     };
     await guardarFecha(db, f);
     return json(f);
