@@ -10,8 +10,9 @@ import PanelTopbar from '../../components/PanelTopbar.astro';
 import PanelSinAcceso from '../../components/PanelSinAcceso.astro';
 import { puedeEditar, registroPermitido } from '../../lib/api';
 import { ICONOS, LIMITES, iniciales } from '../../lib/constantes';
-import { crearEmprendimiento, estadoVisible, listarDeVecino, listarFechas, listarSolicitudes, listarTorres, obtenerRegistro, resumenPanel, visitasDe } from '../../lib/db';
+import { crearEmprendimiento, estadoVisible, inscripcionesDeVecino, listarDeVecino, listarFechas, listarSolicitudes, listarTorres, obtenerRegistro, resumenPanel, visitasDe } from '../../lib/db';
 import { aceptaInscripciones } from '../../lib/fechas';
+import { ETIQUETA_INSCRIPCION } from '../../lib/ferias';
 import { MENSAJES, SITIO, linkWhatsApp } from '../../lib/sitio';
 
 const usuario = Astro.locals.usuario!;
@@ -64,6 +65,8 @@ const ESTADO_CORTO: Record<string, string> = {
 
 const [torres, fechas] = await Promise.all([listarTorres(db), listarFechas(db)]);
 const feriaAbierta = fechas.filter((f) => aceptaInscripciones(f)).sort((a, b) => a.fecha.localeCompare(b.fecha))[0];
+// Sus solicitudes a ferias (las 3 más recientes), con color por estado en el sidebar.
+const misInscripciones = esAdmin ? [] : (await inscripcionesDeVecino(db, usuario.email)).slice(0, 3);
 const resumen = registro ? resumenPanel(registro) : null;
 const d = resumen?.borrador;
 const torreActual = torres.find((t) => t.id === d?.torre) ?? torres[0];
@@ -111,9 +114,13 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
           iniciales={iniciales(d.nombre_vecino || '?')}
         >
           {
-            esAdmin && (
+            esAdmin ? (
               <a class="top-btn" href="/admin/comite">
                 ← Comité
+              </a>
+            ) : (
+              <a class="top-btn top-btn-ferias" href="/admin/ferias">
+                Mis ferias
               </a>
             )
           }
@@ -141,9 +148,23 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
             {
               !esAdmin && (
                 <a class="sidebar-card mis-ferias-link" href="/admin/ferias">
-                  <span class="sidebar-title">MIS FERIAS</span>
-                  <span class="mfl-texto">{feriaAbierta ? `Inscripciones abiertas: ${feriaAbierta.titulo}` : 'Vea sus inscripciones y su estado'}</span>
-                  <span class="mfl-ir">{feriaAbierta ? 'Inscribirme →' : 'Ver mis ferias →'}</span>
+                  <span class="mfl-cabeza">
+                    <span class="mfl-titulo">Mis ferias</span>
+                    {feriaAbierta && <span class="mfl-abiertas">¡Abiertas!</span>}
+                  </span>
+                  {misInscripciones.length > 0 ? (
+                    <span class="mfl-solicitudes">
+                      {misInscripciones.map((i) => (
+                        <span class={`mfl-sol ${i.estado}`}>
+                          <b>{i.nombre}</b>
+                          <span>{ETIQUETA_INSCRIPCION[i.estado]}</span>
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span class="mfl-texto">{feriaAbierta ? `Inscripciones abiertas: ${feriaAbierta.titulo}` : 'Aquí verá sus solicitudes a las ferias.'}</span>
+                  )}
+                  <span class="mfl-ir">{misInscripciones.length ? 'Ver mis solicitudes →' : feriaAbierta ? 'Inscribirme →' : 'Ver mis ferias →'}</span>
                 </a>
               )
             }

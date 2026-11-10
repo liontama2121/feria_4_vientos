@@ -476,8 +476,29 @@ button.photo-slot:hover, .photo-slot.drop { border-color: var(--torre); backgrou
 .mi-link-acciones { display: flex; gap: 6px; margin-top: 8px; }
 .mi-link-visitas { font-size: 12px; font-weight: 700; color: var(--tinta-suave); margin: 8px 0 0; }
 
-/* Panel del vecino: acceso a "Mis ferias" (inscripciones y su estado) */
-.mis-ferias-link { display: grid; gap: 4px; text-decoration: none; color: var(--tinta); background: var(--mango); border: 2px solid var(--tinta); transition: transform .15s ease; }
-.mis-ferias-link:hover { transform: translateY(-2px); }
+/* Panel del vecino: "Mis ferias" en amarillo (se nota que se puede volver ahí) con sus
+   solicitudes y un color por estado. Selector con body.plaza para ganarle a .sidebar-card. */
+body.plaza .sidebar-card.mis-ferias-link {
+  display: grid; gap: 10px; text-decoration: none; color: var(--tinta);
+  background: var(--mango); border: 3px solid var(--tinta); box-shadow: 0 4px 0 var(--tinta);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+body.plaza .sidebar-card.mis-ferias-link:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--tinta); }
+body.plaza .sidebar-card.mis-ferias-link:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--tinta); }
+.mis-ferias-link .mfl-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mis-ferias-link .mfl-titulo { font-family: var(--display); font-size: 24px; line-height: 1; }
+.mis-ferias-link .mfl-abiertas { font-family: var(--serif); font-size: 18px; line-height: 1; padding: 4px 10px; border-radius: 999px; background: var(--pitahaya); color: #fff; transform: rotate(3deg); white-space: nowrap; }
 .mis-ferias-link .mfl-texto { font-weight: 700; font-size: 14px; }
 .mis-ferias-link .mfl-ir { font-family: var(--display); font-size: 17px; }
+.mis-ferias-link .mfl-solicitudes { display: grid; gap: 6px; }
+.mis-ferias-link .mfl-sol { display: grid; gap: 1px; padding: 7px 10px; border-radius: 10px; background: color-mix(in srgb, var(--sol, var(--tinta)) 16%, var(--papel)); border: 2px solid var(--sol, var(--tinta)); }
+.mis-ferias-link .mfl-sol b { font-size: 13.5px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mis-ferias-link .mfl-sol span { font-size: 12px; font-weight: 800; color: var(--sol-texto, var(--tinta-suave)); }
+.mis-ferias-link .mfl-sol.pendiente { --sol: #F5B400; --sol-texto: #7A4F00; }
+.mis-ferias-link .mfl-sol.aprobado { --sol: var(--hierbabuena); --sol-texto: #0B5E53; }
+.mis-ferias-link .mfl-sol.pago_aprobado { --sol: var(--pedir); --sol-texto: #146C36; }
+.mis-ferias-link .mfl-sol.participando { --sol: var(--mora); --sol-texto: var(--mora); }
+.mis-ferias-link .mfl-sol.rechazada { --sol: #D92D20; --sol-texto: #B42318; }
+/* Botón de la barra superior */
+body.plaza .top-btn.top-btn-ferias { background: var(--mango); border-color: var(--mango); color: var(--tinta); }
+body.plaza .top-btn.top-btn-ferias:hover { background: var(--papel); border-color: var(--papel); }
