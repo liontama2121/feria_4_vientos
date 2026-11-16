@@ -19,7 +19,6 @@ import DetalleModal from './DetalleModal.astro';
 import Directorio from './Directorio.astro';
 import CartelFeria from './CartelFeria.astro';
 import RepartoConjuntos from './RepartoConjuntos.astro';
-import VideoBienvenida from './VideoBienvenida.astro';
 import { listarFechas, listarPatrocinadores, listarPublicos, listarTorres, ocupacion, repartoPublico, resumenCalificaciones, type EmprendedorPublico } from '../lib/db';
 import { aceptaInscripciones, feriasActivas } from '../lib/fechas';
 import { categoria } from '../lib/constantes';
@@ -107,6 +106,4 @@ Astro.response.headers.set('Cache-Control', 'no-store');
   </main>
   <Footer torres={torres} feria={hayFeria} />
   <DetalleModal emprendedores={emprendedores} torres={torres} abrir={abrir} />
-  {/* El link /e/<slug> abre directo la ficha: ahí no se tapa con el video. */}
-  {!abrir && <VideoBienvenida />}
 </Layout>

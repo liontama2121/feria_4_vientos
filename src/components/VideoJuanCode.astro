@@ -1,0 +1,101 @@
+---
+// Publicidad de JuanCode al costado de la ficha de cada emprendimiento (dentro de DetalleModal).
+// El video arranca solo y sin sonido cuando se abre la ficha, y se pausa al cerrarla.
+// Botones a la página y al WhatsApp de JuanCode (src/lib/sitio.ts; vacíos = no salen).
+import { SITIO, linkWhatsApp } from '../lib/sitio';
+
+const wa = SITIO.juancodeWhatsapp
+  ? linkWhatsApp('Hola JuanCode 👋 Vi su video en la Feria 4 Vientos y quiero cotizar una página web.', SITIO.juancodeWhatsapp)
+  : '';
+---
+
+<aside class="vj" aria-label="Publicidad: JuanCode">
+  <p class="vj-quien">Sitio web hecho por</p>
+  <p class="vj-nombre">JuanCode</p>
+  <div class="vj-marco">
+    <video class="vj-video" src="/video/hecho-por-juancode-9x16.mp4" muted playsinline loop preload="none"></video>
+    <button type="button" class="vj-sonido" aria-pressed="false" aria-label="Activar sonido">🔇</button>
+  </div>
+  <div class="vj-cta">
+    {
+      wa && (
+        <a class="vj-boton vj-wa" href={wa} target="_blank" rel="noopener">
+          WhatsApp
+        </a>
+      )
+    }
+    {
+      SITIO.juancodeUrl && (
+        <a class="vj-boton vj-web" href={SITIO.juancodeUrl} target="_blank" rel="noopener">
+          Quiero mi página
+        </a>
+      )
+    }
+  </div>
+</aside>
+
+<script>
+  const dialog = document.getElementById('detalle') as HTMLDialogElement | null;
+  const video = dialog?.querySelector<HTMLVideoElement>('.vj-video');
+  const sonido = dialog?.querySelector<HTMLButtonElement>('.vj-sonido');
+
+  if (dialog && video && sonido) {
+    // Play al abrir la ficha, pausa al cerrarla (el <dialog> cambia el atributo `open`).
+    new MutationObserver(() => {
+      if (dialog.open) {
+        video.preload = 'auto';
+        video.play().catch(() => { video.controls = true; });
+      } else {
+        video.pause();
+      }
+    }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
+
+    sonido.addEventListener('click', () => {
+      video.muted = !video.muted;
+      video.play().catch(() => {});
+      sonido.setAttribute('aria-pressed', String(!video.muted));
+      sonido.setAttribute('aria-label', video.muted ? 'Activar sonido' : 'Silenciar');
+      sonido.textContent = video.muted ? '🔇' : '🔊';
+    });
+  }
+</script>
+
+<style>
+  .vj {
+    display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+    padding: 70px 18px 22px; background: var(--mora); color: #fff;
+    border-left: 4px dashed var(--c, var(--tinta));
+  }
+  .vj-quien { font-family: var(--f-mano); font-size: 20px; color: var(--mango); line-height: 1; }
+  .vj-nombre { font-family: var(--f-letrero); font-size: 30px; line-height: 1; margin-bottom: 4px; }
+  .vj-marco { position: relative; }
+  .vj-video {
+    display: block; width: 100%; aspect-ratio: 9 / 16; object-fit: cover;
+    border-radius: 14px; border: 3px solid var(--mango); background: #000;
+  }
+  .vj-sonido {
+    position: absolute; top: 8px; left: 8px;
+    width: 38px; height: 38px; border-radius: 999px;
+    border: 2px solid #fff; background: rgba(0, 0, 0, .5); color: #fff; font-size: 16px; cursor: pointer;
+  }
+  .vj-cta { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .vj-boton {
+    display: block; text-align: center; text-decoration: none;
+    padding: 10px 12px; border-radius: 999px; border: 3px solid var(--tinta);
+    font-weight: 800; font-size: 15px; box-shadow: 0 4px 0 var(--tinta);
+  }
+  .vj-boton:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--tinta); }
+  .vj-wa { background: var(--pedir); color: #fff; }
+  .vj-web { background: var(--mango); color: var(--tinta); }
+
+  /* Celular: tarjeta horizontal debajo de la ficha (video chico a la izquierda). */
+  @media (max-width: 760px) {
+    .vj {
+      display: grid; grid-template-columns: 110px 1fr; grid-template-rows: auto auto 1fr; column-gap: 14px;
+      padding: 18px 16px; border-left: 0; border-top: 4px dashed var(--c, var(--tinta));
+    }
+    .vj-marco { grid-column: 1; grid-row: 1 / 4; }
+    .vj-quien, .vj-nombre, .vj-cta { grid-column: 2; }
+    .vj-cta { align-self: end; }
+  }
+</style>

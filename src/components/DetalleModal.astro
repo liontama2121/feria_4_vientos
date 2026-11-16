@@ -4,6 +4,7 @@
 // baja directo a las estrellas.
 import { categoria, dominioWeb, enlacesRedes, iniciales, ICONOS, LIMITES, MOTIVOS_REPORTE } from '../lib/constantes';
 import type { EmprendedorPublico, Torre } from '../lib/db';
+import VideoJuanCode from './VideoJuanCode.astro';
 
 interface Props {
   emprendedores: EmprendedorPublico[];
@@ -74,6 +75,7 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
       <span id="detalle-compartir-msg" class="msg" role="status" aria-live="polite"></span>
     </div>
   </div>
+  <VideoJuanCode />
 
   <section class="opiniones" id="detalle-opiniones" aria-labelledby="opiniones-titulo">
     <div class="opiniones-head">
@@ -468,14 +470,16 @@ const json = JSON.stringify({ datos, iconos: ICONOS }).replace(/</g, '\\u003c');
 <style>
   /* La ficha: el puesto de cerca. La foto grande y a color a la izquierda, el letrero a la derecha. */
   .detalle {
-    width: min(1000px, calc(100vw - 24px)); max-height: calc(100dvh - 32px);
+    width: min(1220px, calc(100vw - 24px)); max-height: calc(100dvh - 32px);
     margin: auto; padding: 0; border: 4px solid var(--c, var(--tinta)); overflow: auto;
     border-radius: var(--r-puesto);
     background: var(--papel); color: var(--tinta);
     box-shadow: 0 30px 60px -20px rgba(32, 24, 58, .7);
     overscroll-behavior: contain;
   }
-  .detalle[open] { display: grid; grid-template-columns: 1.1fr 1fr; }
+  /* Foto · letrero · publicidad de JuanCode (VideoJuanCode) */
+  .detalle[open] { display: grid; grid-template-columns: 1.1fr 1fr 230px; }
+  @media (max-width: 1000px) { .detalle[open] { grid-template-columns: 1fr 1fr 200px; } }
   .detalle::backdrop { background: rgba(32, 24, 58, .6); }
   @media (max-width: 760px) { .detalle[open] { grid-template-columns: 1fr; } }
   @media (prefers-reduced-motion: no-preference) {
