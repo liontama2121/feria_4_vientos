@@ -1,74 +1,87 @@
 ---
-// Pop-up con el video de JuanCode al entrar a la landing. Sale una vez por sesión del navegador
-// (sessionStorage) y se cierra con ✕, "Entrar a la feria", Esc, clic afuera o al terminar el video.
-// Arranca sin sonido (los navegadores bloquean el autoplay con audio); el botón 🔊 lo activa.
-import { SITIO } from '../lib/sitio';
+// Pop-up con el video de JuanCode (publicidad del sitio) en CADA visita a la landing.
+// Arranca solo y sin sonido (los navegadores bloquean el autoplay con audio; 🔊 lo activa).
+// No se puede cerrar durante los primeros SEGUNDOS_MINIMOS; después: ✕, "Entrar a la feria", Esc o clic afuera.
+// Botones fijos a WhatsApp y a la página de JuanCode (de src/lib/sitio.ts; vacíos = no salen).
+import { SITIO, linkWhatsApp } from '../lib/sitio';
+
+const SEGUNDOS_MINIMOS = 4;
+const wa = SITIO.juancodeWhatsapp ? linkWhatsApp('Hola JuanCode 👋 Vi su video en la Feria 4 Vientos y quiero cotizar una página web.', SITIO.juancodeWhatsapp) : '';
 ---
 
-<div class="vb" id="videoBienvenida" role="dialog" aria-modal="true" aria-label="Video de bienvenida" hidden>
+<div class="vb" id="videoBienvenida" role="dialog" aria-modal="true" aria-label="Video de JuanCode" data-segundos={SEGUNDOS_MINIMOS} hidden>
   <div class="vb-caja">
-    <button type="button" class="vb-cerrar" data-vb-cerrar aria-label="Cerrar video">✕</button>
-    <video
-      class="vb-video"
-      src="/video/hecho-por-juancode-9x16.mp4"
-      muted
-      playsinline
-      preload="none"
-    ></video>
-    <div class="vb-acciones">
-      <button type="button" class="vb-sonido" data-vb-sonido aria-pressed="false">🔇 Activar sonido</button>
-      <button type="button" class="boton vb-entrar" data-vb-cerrar>Entrar a la feria</button>
-    </div>
+    <button type="button" class="vb-cerrar" data-vb-cerrar aria-label="Cerrar video" disabled>✕</button>
+    <video class="vb-video" src="/video/hecho-por-juancode-9x16.mp4" autoplay muted playsinline loop preload="auto"></video>
+    <button type="button" class="vb-sonido" data-vb-sonido aria-pressed="false">🔇 Activar sonido</button>
     {
-      SITIO.juancodeUrl && (
-        <a class="vb-link" href={SITIO.juancodeUrl} target="_blank" rel="noopener">
-          Sitio web hecho por JuanCode · Cotice el suyo
-        </a>
+      (wa || SITIO.juancodeUrl) && (
+        <div class="vb-cta">
+          {wa && (
+            <a class="vb-boton vb-wa" href={wa} target="_blank" rel="noopener">
+              Escríbale a JuanCode por WhatsApp
+            </a>
+          )}
+          {SITIO.juancodeUrl && (
+            <a class="vb-boton vb-web" href={SITIO.juancodeUrl} target="_blank" rel="noopener">
+              Conozca a JuanCode
+            </a>
+          )}
+        </div>
       )
     }
+    <button type="button" class="vb-entrar" data-vb-cerrar disabled>Entrar a la feria en {SEGUNDOS_MINIMOS}…</button>
   </div>
 </div>
 
 <script>
-  const CLAVE = 'f4v_video_visto';
   const caja = document.getElementById('videoBienvenida');
   const video = caja?.querySelector('video');
 
-  function yaVisto() {
-    try { return sessionStorage.getItem(CLAVE) === '1'; } catch { return false; }
-  }
-
-  if (caja && video && !yaVisto()) {
+  if (caja && video) {
     const sonido = caja.querySelector<HTMLButtonElement>('[data-vb-sonido]')!;
-    const anterior = document.activeElement as HTMLElement | null;
+    const entrar = caja.querySelector<HTMLButtonElement>('.vb-entrar')!;
+    const botonesCerrar = caja.querySelectorAll<HTMLButtonElement>('[data-vb-cerrar]');
+    let listo = false;
 
     const cerrar = () => {
-      if (caja.hidden) return;
+      if (!listo || caja.hidden) return;
       video.pause();
       caja.hidden = true;
       document.documentElement.classList.remove('vb-abierto');
       document.removeEventListener('keydown', alTeclear);
-      try { sessionStorage.setItem(CLAVE, '1'); } catch { /* modo privado: no pasa nada */ }
-      anterior?.focus?.();
     };
     const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape') cerrar(); };
 
-    caja.querySelectorAll('[data-vb-cerrar]').forEach((b) => b.addEventListener('click', cerrar));
+    botonesCerrar.forEach((b) => b.addEventListener('click', cerrar));
     caja.addEventListener('click', (e) => { if (e.target === caja) cerrar(); });
-    video.addEventListener('ended', cerrar);
+    document.addEventListener('keydown', alTeclear);
     sonido.addEventListener('click', () => {
       video.muted = !video.muted;
-      if (!video.muted) video.play().catch(() => {});
+      video.play().catch(() => {});
       sonido.setAttribute('aria-pressed', String(!video.muted));
       sonido.textContent = video.muted ? '🔇 Activar sonido' : '🔊 Sonido activado';
     });
 
+    // Cuenta regresiva antes de poder cerrar.
+    let quedan = Number(caja.dataset.segundos) || 4;
+    const tic = setInterval(() => {
+      quedan -= 1;
+      if (quedan > 0) {
+        entrar.textContent = `Entrar a la feria en ${quedan}…`;
+        return;
+      }
+      clearInterval(tic);
+      listo = true;
+      botonesCerrar.forEach((b) => (b.disabled = false));
+      entrar.textContent = 'Entrar a la feria';
+    }, 1000);
+
+    // Sale oculto en el HTML: sin JS no queda una pantalla imposible de cerrar.
     caja.hidden = false;
     document.documentElement.classList.add('vb-abierto');
-    document.addEventListener('keydown', alTeclear);
-    video.preload = 'auto';
+    // Si el navegador igual bloquea el autoplay (ahorro de datos), se muestran los controles.
     video.play().catch(() => { video.controls = true; });
-    caja.querySelector<HTMLButtonElement>('.vb-cerrar')?.focus();
   }
 </script>
 
@@ -77,16 +90,18 @@ import { SITIO } from '../lib/sitio';
   .vb {
     position: fixed; inset: 0; z-index: 1000;
     display: grid; place-items: center; padding: 16px;
-    background: rgba(32, 24, 58, 0.82);
+    background: rgba(32, 24, 58, 0.85);
     backdrop-filter: blur(4px);
     animation: vb-entra 0.25s ease-out;
+    overflow-y: auto;
   }
   .vb[hidden] { display: none; }
   .vb-caja {
     position: relative;
-    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
     /* 9:16 que quepa en pantalla con los botones debajo */
-    width: min(380px, calc((100dvh - 150px) * 9 / 16), 100%);
+    width: min(360px, calc((100dvh - 230px) * 9 / 16), 100%);
+    min-width: 200px;
   }
   .vb-video {
     width: 100%; aspect-ratio: 9 / 16; object-fit: cover;
@@ -99,13 +114,27 @@ import { SITIO } from '../lib/sitio';
     border: 3px solid var(--tinta); background: var(--mango); color: var(--tinta);
     font-size: 20px; font-weight: 800; line-height: 1; cursor: pointer;
   }
+  .vb-cerrar:disabled { opacity: 0; pointer-events: none; }
   .vb-cerrar:active { transform: translateY(2px); }
-  .vb-acciones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   .vb-sonido {
-    border: 2px solid #fff; background: transparent; color: #fff;
-    border-radius: 999px; padding: 10px 16px; font: inherit; font-weight: 700; cursor: pointer;
+    position: absolute; top: 12px; left: 12px;
+    border: 2px solid #fff; background: rgba(0, 0, 0, 0.45); color: #fff;
+    border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
   }
-  .vb-link { color: #fff; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+  .vb-cta { display: flex; flex-direction: column; gap: 8px; width: min(360px, 92vw); }
+  .vb-boton {
+    display: block; text-align: center; text-decoration: none;
+    padding: 12px 16px; border-radius: 999px; border: 3px solid var(--tinta);
+    font-weight: 800; font-size: 16px; box-shadow: 0 4px 0 var(--tinta);
+  }
+  .vb-boton:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--tinta); }
+  .vb-wa { background: var(--pedir); color: #fff; }
+  .vb-web { background: var(--mango); color: var(--tinta); }
+  .vb-entrar {
+    border: 0; background: transparent; color: #fff; font: inherit; font-weight: 700;
+    text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 6px;
+  }
+  .vb-entrar:disabled { opacity: 0.6; cursor: wait; text-decoration: none; }
   @keyframes vb-entra { from { opacity: 0; } to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .vb { animation: none; } }
 </style>
