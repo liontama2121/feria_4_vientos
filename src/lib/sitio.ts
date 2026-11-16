@@ -11,6 +11,8 @@ export const SITIO = {
   instagram: 'feria4vientos',
   /** Enlace del botón "Cotiza tu página web con JuanCode" (sección JuanCode y footer). Si queda vacío, no se muestra. */
   juancodeUrl: 'https://el-libro-juancode-python-desde-0.pages.dev/web/',
+  /** WhatsApp de JuanCode (57 + celular, sin "+") para el botón del video de bienvenida. Vacío = no se muestra. */
+  juancodeWhatsapp: '',
 } as const;
 
 export function linkWhatsApp(mensaje: string, numero: string = SITIO.comiteWhatsapp) {
