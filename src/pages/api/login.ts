@@ -2,7 +2,9 @@
 // vecino activa (correo + contraseña) y deja la cookie firmada.
 import type { APIRoute } from 'astro';
 import {
+  CLAVE_TEMPORAL,
   COOKIE_SESION,
+  COOKIE_TEMPORAL,
   coordinadoraValida,
   credencialesValidas,
   crearSesion,
@@ -34,6 +36,7 @@ export const POST: APIRoute = async ({ request, locals, cookies, redirect, url }
 
   let sujeto: Sujeto | null = null;
   let rol: Rol = 'vecino';
+  let temporal = false;
   const coord = usuario.includes('@') ? null : await coordinadoraValida(env, usuario, clave);
   if (await credencialesValidas(env, usuario, clave)) {
     sujeto = { tipo: 'comite' };
@@ -49,6 +52,7 @@ export const POST: APIRoute = async ({ request, locals, cookies, redirect, url }
       if (cuenta.estado !== 'active') return volver('inactiva');
       sujeto = { tipo: 'cuenta', email };
       rol = rolDeEmail(env, email);
+      temporal = clave === CLAVE_TEMPORAL;
     }
   }
 
@@ -59,5 +63,11 @@ export const POST: APIRoute = async ({ request, locals, cookies, redirect, url }
   }
 
   cookies.set(COOKIE_SESION, await crearSesion(env, sujeto), opcionesCookie(url));
+  // Entró con la clave temporal del reset: primero tiene que poner una suya.
+  if (temporal) {
+    cookies.set(COOKIE_TEMPORAL, '1', opcionesCookie(url));
+    return redirect('/admin/clave?temporal=1', 303);
+  }
+  cookies.delete(COOKIE_TEMPORAL, { path: '/' });
   return redirect(destinoSeguro(next, rol), 303);
 };

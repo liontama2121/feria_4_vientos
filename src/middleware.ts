@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { COOKIE_SESION, borrarSesion, coordinadoraDeSesion, leerSesion, usuarioComite, usuarioCoordinadora, usuarioDeCuenta } from './lib/auth';
+import { COOKIE_SESION, COOKIE_TEMPORAL, borrarSesion, coordinadoraDeSesion, leerSesion, usuarioComite, usuarioCoordinadora, usuarioDeCuenta } from './lib/auth';
 import { asegurarDb, esPreviewSobreProduccion, listarCategorias, obtenerCuenta } from './lib/db';
 import { CATEGORIAS_BASE } from './lib/constantes';
 import { error } from './lib/api';
@@ -57,6 +57,11 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   if (COORDINACION.test(pathname) && u.rol === 'vecino') {
     if (api) return error('Solo coordinación y el comité pueden hacer esto.', 403);
     return ctx.redirect('/admin');
+  }
+  // Entró con la clave temporal del reset: solo puede ir a ponerse una nueva.
+  if (u.rol !== 'coordinadora' && ctx.cookies.get(COOKIE_TEMPORAL)?.value === '1' && !/^\/(admin\/clave|api\/panel\/clave)(\/|$)/.test(pathname)) {
+    if (api) return error('Primero cambie la contraseña temporal.', 403);
+    return ctx.redirect('/admin/clave?temporal=1');
   }
   // La coordinadora no tiene emprendimientos ni panel de vecino.
   if (u.rol === 'coordinadora' && !COORDINACION.test(pathname)) {

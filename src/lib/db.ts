@@ -873,6 +873,12 @@ export async function usarLinkClave(db: D1Database, tokenHash: string, claveHash
   return email;
 }
 
+/** Pone la contraseña (ya en hash) de una cuenta: reset del comité o cambio desde el panel. */
+export async function ponerClave(db: D1Database, email: string, claveHash: string) {
+  const r = await db.prepare(`UPDATE cuentas SET clave = ? WHERE email = ?`).bind(claveHash, email).run();
+  return r.meta.changes > 0;
+}
+
 // ───────────────────────── Notificaciones (bandeja manual) ─────────────────────────
 // Aún no hay envío automático por WhatsApp: cada aviso queda aquí con su texto listo y el
 // comité lo manda con un clic (wa.me) desde /admin/comite#notificaciones.

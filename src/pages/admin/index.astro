@@ -119,9 +119,14 @@ const numFotos = d ? [d.foto_principal, ...d.galeria].filter(Boolean).length : 0
                 ← Comité
               </a>
             ) : (
-              <a class="top-btn top-btn-ferias" href="/admin/ferias">
-                Mis ferias
-              </a>
+              <>
+                <a class="top-btn top-btn-ferias" href="/admin/ferias">
+                  Mis ferias
+                </a>
+                <a class="top-btn" href="/admin/clave">
+                  🔑 Contraseña
+                </a>
+              </>
             )
           }
         </PanelTopbar>

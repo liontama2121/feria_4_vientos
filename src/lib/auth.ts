@@ -96,6 +96,13 @@ export async function verificarClave(clave: string, guardado: string) {
   return iguales(await derivar(clave, deB64url(sal), Number(it)), hash);
 }
 
+// ───────────────────────── Contraseña temporal (reset del comité) ─────────────────────────
+// El comité puede dejar cualquier cuenta con esta clave. Al entrar con ella, el vecino queda
+// obligado a poner una nueva en /admin/clave (cookie COOKIE_TEMPORAL; el middleware lo manda ahí).
+
+export const CLAVE_TEMPORAL = 'Temporal123';
+export const COOKIE_TEMPORAL = 'f4v_temporal';
+
 // ───────────────────────── Link para cambiar la contraseña ─────────────────────────
 // El token viaja solo en el link; en D1 queda su SHA-256.
 
