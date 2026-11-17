@@ -541,6 +541,19 @@ export function iniciarComite() {
     }
   }
 
+  async function resetClave(c: Cuenta) {
+    const texto = `La contraseña de ${c.nombre} (${c.email}) quedará como "Temporal123" y la actual deja de servir. Al entrar con la temporal, el sistema le pedirá poner una nueva.`;
+    if (!(await confirmar(texto, 'Sí, resetear'))) return;
+    try {
+      const r = await api<{ cambiosClave: CambioClave[]; temporal: string }>('/api/comite/cuentas', 'PATCH', { email: c.email, accion: 'reset' });
+      D.cambiosClave = r.cambiosClave;
+      toast(`Listo: ${c.nombre} entra con ${c.email} y "${r.temporal}"`, 'ok');
+      renderClaves();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  }
+
   async function negarClave(email: string) {
     if (!(await confirmar(`No se autorizará el cambio de contraseña de ${email}.`, 'Sí, no autorizar'))) return;
     try {
@@ -633,6 +646,7 @@ export function iniciarComite() {
                   ? h('button', { type: 'button', class: 'btn btn-sm btn-peligro', text: c.estado === 'active' ? 'Desactivar' : '✕ Rechazar', on: { click: () => revisarCuenta(c, false) } })
                   : null,
                 c.estado === 'active' ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: '🔑 Cambiar contraseña', on: { click: () => linkClave(c, false) } }) : null,
+                c.estado === 'active' ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', text: '🔁 Reset a Temporal123', on: { click: () => resetClave(c) } }) : null,
                 h('a', { class: 'btn btn-ghost btn-sm', href: `https://wa.me/57${c.whatsapp}`, target: '_blank', rel: 'noopener', text: 'WhatsApp' }),
               ),
             );

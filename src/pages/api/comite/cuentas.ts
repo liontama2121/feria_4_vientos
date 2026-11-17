@@ -1,14 +1,14 @@
 // Cuentas de vecinos creadas en /registro: el comité las activa o rechaza, y autoriza cambios de contraseña.
 import type { APIRoute } from 'astro';
 import { error, json, leerJson } from '../../../lib/api';
-import { HORAS_LINK_CLAVE, nuevoTokenClave } from '../../../lib/auth';
+import { CLAVE_TEMPORAL, HORAS_LINK_CLAVE, hashClave, nuevoTokenClave } from '../../../lib/auth';
 import { avisoCuenta, avisoLinkClave } from '../../../lib/avisos';
-import { autorizarCambioClave, listarCambiosClave, listarCuentas, negarCambioClave, obtenerCuenta, revisarCuenta } from '../../../lib/db';
+import { autorizarCambioClave, listarCambiosClave, listarCuentas, negarCambioClave, obtenerCuenta, ponerClave, revisarCuenta } from '../../../lib/db';
 import { texto } from '../../../lib/validacion';
 
 export const GET: APIRoute = async ({ locals }) => json(await listarCuentas(locals.runtime.env.DB));
 
-const ACCIONES = ['activar', 'rechazar', 'clave', 'clave_no'] as const;
+const ACCIONES = ['activar', 'rechazar', 'clave', 'clave_no', 'reset'] as const;
 type Accion = (typeof ACCIONES)[number];
 
 export const PATCH: APIRoute = async ({ locals, request, url }) => {
@@ -21,6 +21,13 @@ export const PATCH: APIRoute = async ({ locals, request, url }) => {
   if (!cuenta) return error('No encontramos la cuenta.', 404);
   const revisor = locals.usuario!.email;
 
+  if (body.accion === 'reset') {
+    // Deja la cuenta con la clave temporal; al entrar con ella debe poner una nueva.
+    await ponerClave(db, email, await hashClave(CLAVE_TEMPORAL));
+    // Las solicitudes de cambio pendientes ya no hacen falta.
+    await negarCambioClave(db, email, revisor);
+    return json({ cuenta, notificacion: null, cambiosClave: await listarCambiosClave(db), temporal: CLAVE_TEMPORAL });
+  }
   if (body.accion === 'clave_no') {
     await negarCambioClave(db, email, revisor);
     return json({ cuenta, notificacion: null, cambiosClave: await listarCambiosClave(db) });

@@ -1,0 +1,90 @@
+---
+// Cambiar la contraseña desde el panel. Si el vecino entró con la clave temporal del reset
+// del comité, el middleware lo trae aquí y no lo deja salir hasta poner una nueva.
+import '../../styles/panel.css';
+import Layout from '../../layouts/Layout.astro';
+import Molinete from '../../components/Molinete.astro';
+import PanelTopbar from '../../components/PanelTopbar.astro';
+import { COOKIE_TEMPORAL } from '../../lib/auth';
+import { iniciales } from '../../lib/constantes';
+import { obtenerCuenta } from '../../lib/db';
+
+const usuario = Astro.locals.usuario!;
+const temporal = Astro.cookies.get(COOKIE_TEMPORAL)?.value === '1';
+// El usuario maestro del comité no tiene cuenta: su clave vive en ADMIN_PASSWORD.
+const tieneCuenta = !!(await obtenerCuenta(Astro.locals.runtime.env.DB, usuario.email));
+const error = Astro.url.searchParams.get('error');
+const ERRORES: Record<string, string> = {
+  corta: 'La contraseña nueva debe tener al menos 8 letras o números.',
+  distintas: 'Las dos contraseñas nuevas no son iguales. Escríbalas otra vez.',
+  temporal: 'La contraseña nueva no puede ser la temporal. Ponga una suya.',
+  actual: 'La contraseña actual no es correcta.',
+  ya_cambiada: 'Su contraseña ya no es la temporal. Cierre sesión y entre con la que tiene ahora.',
+  sin_cuenta: 'Este usuario no tiene cuenta de vecino.',
+};
+---
+
+<Layout title="Contraseña · Feria 4 Vientos" whatsapp={false} noindex bodyClass="panel comite">
+  <PanelTopbar seccion="Contraseña" nombre={usuario.nombre} detalle={`· ${usuario.email}`} iniciales={iniciales(usuario.nombre)}>
+    {!temporal && <a class="top-btn" href={usuario.rol === 'admin' ? '/admin/comite' : '/admin'}>← Volver</a>}
+  </PanelTopbar>
+
+  <div class="sin-acceso">
+    {
+      tieneCuenta ? (
+        <form class="card login" method="post" action="/api/panel/clave">
+          <Molinete size={72} />
+          <h1>
+            {temporal ? 'Ponga su contraseña ' : 'Cambiar '}
+            <span class="serif">{temporal ? 'nueva' : 'contraseña'}</span>
+          </h1>
+          <p>
+            {temporal
+              ? 'Entró con la contraseña temporal que le dio el comité. Antes de seguir, ponga una suya de al menos 8 letras o números.'
+              : 'Use una que recuerde y que tenga al menos 8 letras o números.'}
+          </p>
+          {error && ERRORES[error] && (
+            <div class="estado alerta" role="alert">
+              <span class="ico">🔑</span>
+              <div>{ERRORES[error]}</div>
+            </div>
+          )}
+          <input type="text" name="usuario" value={usuario.email} autocomplete="username" hidden />
+          {!temporal && (
+            <div class="field">
+              <label for="actual">Contraseña actual</label>
+              <input id="actual" name="actual" type="password" autocomplete="current-password" maxlength="200" required autofocus />
+            </div>
+          )}
+          <div class="field">
+            <label for="clave">Contraseña nueva</label>
+            <input id="clave" name="clave" type="password" autocomplete="new-password" minlength="8" maxlength="200" required autofocus={temporal} />
+          </div>
+          <div class="field">
+            <label for="clave2">Repítala</label>
+            <input id="clave2" name="clave2" type="password" autocomplete="new-password" minlength="8" maxlength="200" required />
+          </div>
+          <button class="btn btn-primary" type="submit">Guardar contraseña</button>
+          {temporal && <a class="volver" href="/api/logout">Cerrar sesión</a>}
+        </form>
+      ) : (
+        <div class="card login">
+          <Molinete size={72} />
+          <h1>Usuario del comité</h1>
+          <p>Este usuario no tiene cuenta de vecino. Su contraseña se cambia en Cloudflare (ADMIN_PASSWORD).</p>
+          <a class="btn btn-primary" href="/admin/comite">← Volver al comité</a>
+        </div>
+      )
+    }
+  </div>
+</Layout>
+
+<style>
+  .login { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; text-align: left; }
+  .login :global(.molinete) { margin: 0 auto 4px; }
+  .login h1 { text-align: center; margin-bottom: 0; }
+  .login > p { text-align: center; margin-bottom: 6px; overflow-wrap: anywhere; }
+  .login .estado { margin-bottom: 0; }
+  .login .btn { margin-top: 6px; width: 100%; }
+  .volver { text-align: center; font-size: 13px; font-weight: 700; color: var(--tinta-suave); }
+</style>
