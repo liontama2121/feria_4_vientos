@@ -94,8 +94,11 @@ export const FORMATOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const ESTADOS = ['draft', 'pending_review', 'approved', 'rejected', 'changes_requested'] as const;
 export type EstadoEmprendimiento = (typeof ESTADOS)[number];
 
-/** Estados en los que el vecino puede editar su formulario (y corre el auto-save). */
-export const ESTADOS_EDITABLES: readonly EstadoEmprendimiento[] = ['draft', 'changes_requested'];
+/**
+ * Estados en los que el vecino puede editar su formulario (y corre el auto-save).
+ * En revisión también: el vecino completa fotos/datos mientras espera y el comité aprueba lo último guardado.
+ */
+export const ESTADOS_EDITABLES: readonly EstadoEmprendimiento[] = ['draft', 'changes_requested', 'pending_review'];
 
 export const ETIQUETA_ESTADO: Record<EstadoEmprendimiento, string> = {
   draft: 'Borrador',
