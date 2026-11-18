@@ -1,5 +1,5 @@
-// "Enviar a revisión" (vecino): valida, guarda y pasa a pending_review. Desde ahí el
-// formulario queda bloqueado hasta que el comité apruebe, rechace o pida cambios.
+// "Enviar a revisión" (vecino): valida, guarda y pasa a pending_review. En revisión puede
+// seguir editando y "Actualizar envío" (vuelve a pasar por aquí) hasta que el comité decida.
 import type { APIRoute } from 'astro';
 import { ERROR_NO_EDITABLE, error, json, leerJson, registroPermitido } from '../../../lib/api';
 import { avisoEnvio } from '../../../lib/avisos';

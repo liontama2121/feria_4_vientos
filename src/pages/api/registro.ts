@@ -4,7 +4,7 @@ import type { APIRoute } from 'astro';
 import { avisoCuentaNueva, avisoInscripcion } from '../../lib/avisos';
 import { hashClave } from '../../lib/auth';
 import { LIMITES } from '../../lib/constantes';
-import { completarBorrador, crearCuenta, crearEmprendimiento, crearInscripcion, enviarARevision, listarCategorias, listarFechas, obtenerRegistro } from '../../lib/db';
+import { completarBorrador, crearCuenta, crearEmprendimiento, crearInscripcion, listarCategorias, listarFechas } from '../../lib/db';
 import { aceptaInscripciones } from '../../lib/fechas';
 import { celularCO } from '../../lib/ferias';
 import { celular, esCategoria, esEmail, esTorre, texto } from '../../lib/validacion';
@@ -51,8 +51,8 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     // El emoji de su categoría permite publicarlo aunque aún no tenga foto.
     const emoji = (await listarCategorias(db)).find((c) => c.id === cat)?.emoji ?? '✨';
     await completarBorrador(db, slug, { categoria: cat, descripcion_corta: emp.corta || emp.queVende.slice(0, LIMITES.descripcionCorta), emoji_placeholder: emoji });
-    // Ya llenó su emprendimiento: va directo a revisión del comité (si no, nunca saldría en la página).
-    await enviarARevision(db, slug, { ...(await obtenerRegistro(db, slug))!.borrador });
+    // Queda en borrador: cuando el comité active la cuenta, el vecino completa fotos y datos
+    // y lo manda él a revisión (antes se mandaba solo y el formulario quedaba bloqueado).
     await crearInscripcion(db, { feria_id: feria.id, slug, email, que_vende: emp.queVende, necesidades: emp.necesidades, conjunto_asignado: null });
     await avisoInscripcion(db, { nombre: emp.nombre, emprendedor: nombre, slug }, feria);
     return redirect('/registro/gracias?feria=1', 303);

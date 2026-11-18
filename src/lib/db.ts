@@ -653,7 +653,7 @@ export async function enviarARevision(db: D1Database, slug: string, datos: Datos
     .prepare(
       `UPDATE emprendedores
           SET borrador = ?, borrador_at = ?, enviado_at = ?, estado = 'pending_review'
-        WHERE slug = ? AND estado IN ('draft', 'changes_requested')`,
+        WHERE slug = ? AND estado IN ('draft', 'changes_requested', 'pending_review')`,
     )
     .bind(JSON.stringify(datos), t, t, slug)
     .run();

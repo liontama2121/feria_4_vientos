@@ -102,7 +102,7 @@ src/
 | Estado | Formulario del vecino | Botón principal | Banner | Auto-save | Landing |
 |---|---|---|---|---|---|
 | `draft` | Editable | "Enviar a revisión" | — | Sí | No |
-| `pending_review` | Solo lectura | "En revisión · No editable" (gris) | Amarillo + "Avisar al comité" | No | No |
+| `pending_review` | Editable (desde 2026-11-18) | "Actualizar envío" | Amarillo + "Avisar al comité" | Sí | No |
 | `approved` | Solo lectura | "Aprobado y publicado" (verde) | Verde + WhatsApp del comité | No | **Sí** (si `publicado.publicado`) |
 | `rejected` | Solo lectura | "Rechazado" (rojo) | Rojo con `motivo_rechazo` + WhatsApp | No | No |
 | `changes_requested` | Editable | "Reenviar a revisión" | Naranja con `nota_cambios` | Sí | No |
@@ -114,7 +114,7 @@ El bloqueo se hace en el servidor (`puedeEditar` → 409 en borrador/fotos, `env
 | Acción | Vecino | Admin |
 |---|---|---|
 | Registrarse en `/registro` | ✓ (queda `pending_activation`) | — |
-| Ver/editar su emprendimiento | Solo el suyo, solo en draft / changes_requested | Cualquiera, en cualquier estado |
+| Ver/editar su emprendimiento | Solo el suyo, en draft / changes_requested / pending_review | Cualquiera, en cualquier estado |
 | Enviar a revisión (`/api/panel/enviar`) | ✓ | — |
 | Publicar directo (`/api/panel/publicar`) | ✗ 403 | ✓ (= aprobar) |
 | Aprobar / rechazar / pedir cambios | ✗ | ✓ |
@@ -151,7 +151,7 @@ Campos de un emprendimiento (`DatosEmprendimiento` en `constantes.ts`): nombre_e
 - **Inscripción** = tabla `inscripciones(id, feria_id, slug, email, estado, conjunto_asignado, que_vende, necesidades, nota, revisado_*, pago_*, asignado_*, notificado_at/por/conjunto)`, UNIQUE(feria_id, slug). Estados: `pendiente` ("En espera de aprobación y ubicación") → `aprobado` ("Aprobado y ubicado"; exige conjunto) → `pago_aprobado` (solo admin; si `valor` 0 se salta al aprobar) → `participando` (solo admin) | `rechazada` (admin puede "Volver a revisar"). El vecino NUNCA elige conjunto.
 - **Vecino con cuenta**: solo marca su(s) emprendimiento(s); no escribe qué vende (coordinación ve la descripción corta). Si marca varios = **solicitud en bloque** (columna `grupo`): un solo aviso al comité, y ubicar/aprobar/rechazar/pago/participa/aviso se aplican a todo el bloque en el servidor; deben quedar en el mismo conjunto (el Excel también lo valida); retirar retira el bloque entero.
 - Cupos: ocupan las ubicadas no rechazadas. `ubicarInscripciones()` hace UPDATE condicional por fila dentro de un batch (no se pasa del cupo ni con dos personas a la vez).
-- Vecino: CTA "Inscribe tu emprendimiento" → `/participar?feria=` → ya tiene cuenta: `/admin/ferias` (elige emprendimientos + qué vende + necesidades, form HTML a `/api/panel/inscripciones`; stepper y conjunto asignado); nuevo: `/registro?feria=` crea cuenta + borrador del emprendimiento + inscripción. Mensaje fijo `MENSAJE_RECIBIDA`.
+- Vecino: CTA "Inscribe tu emprendimiento" → `/participar?feria=` → ya tiene cuenta: `/admin/ferias` (elige emprendimientos + qué vende + necesidades, form HTML a `/api/panel/inscripciones`; stepper y conjunto asignado); nuevo: `/registro?feria=` crea cuenta + borrador del emprendimiento (queda en `draft`, el vecino lo completa y lo envía) + inscripción. Mensaje fijo `MENSAJE_RECIBIDA`.
 - Coordinación: `/coordinacion` (`src/scripts/coordinacion.ts`), APIs `/api/coordinacion/{inscripciones,cuentas,excel}`. Excel: GET descarga `.xlsx` (columna amarilla "Conjunto asignado"); POST lee el Excel diligenciado y devuelve vista previa (no guarda); se aplica con `PATCH inscripciones {accion:'ubicar', cambios}`. `.xlsx` propio sin dependencias en `src/lib/xlsx.ts` (lee sharedStrings + deflate con `DecompressionStream('deflate-raw')`; probado con Excel real). Avisos WhatsApp: cola uno por uno (`wa.me` prellenado con `mensajeSeleccion`), registra `notificado_at` y el conjunto avisado; si luego cambia el conjunto, se marca para reavisar.
 - WhatsApp colombiano: `celularCO()` (10 dígitos, empieza por 3; acepta +57/57/0057). Registro lo exige; el `wa.me` nunca se arma con un número inválido.
 - Landing: `CartelFeria.astro` arriba del todo (fecha, conjuntos, puestos libres, cuenta regresiva, CTA; más ferias debajo) y `RepartoConjuntos.astro` "¿Quién está en cada conjunto?" (pestañas, solo `aprobado | pago_aprobado | participando` con conjunto y emprendimiento publicado: `repartoPublico()`). Con feria itinerante no salen `IndiceTorres`/`TorreSection`; "en la feria" = está en el reparto.
@@ -194,7 +194,7 @@ Se administran en `/admin/comite#categorias` (crear, renombrar, emoji, orden, oc
 - Al elegir torre, `aplicarTorre()` pone `body[data-torre]` y las variables `--torre/--torre-claro/--torre-medio`.
 - Solo lectura: `body.solo-lectura` + `disabled` en inputs/chips/toggles/fotos (opacity .6, cursor not-allowed).
 - Fotos: hasta 3 (principal + 2, `LIMITES.galeria`), JPG/PNG/WEBP. Registros viejos con más fotos: la landing y el editor solo usan las 3 primeras. El navegador acepta originales de hasta 25 MB, los reduce a 1200 px y re-codifica a WEBP (calidad 0.8; si aún pesa, baja calidad y tamaño hasta 800 px). El servidor rechaza todo lo que pase de **800 KB** (`LIMITES.fotoBytes`); logos de patrocinadores hasta 1 MB (`LIMITES.logoBytes`). Reorden con drag & drop o ← → ★.
-- **Auto-save cada 30 s** solo como borrador y solo en draft / changes_requested.
+- **Auto-save cada 30 s** solo como borrador y solo en draft / changes_requested / pending_review.
 
 ## Cola de moderación (`/admin/comite`)
 

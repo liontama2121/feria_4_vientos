@@ -175,7 +175,7 @@ export function iniciarPanel() {
       '2': !!(estado.nombre_emprendimiento && estado.descripcion_corta && estado.categoria),
       '3': !!estado.foto_principal,
       '4': estado.whatsapp.length === 10,
-      '5': esAdmin ? resumen.estado === 'approved' && !sucio : !ESTADOS_EDITABLES.includes(resumen.estado),
+      '5': esAdmin ? resumen.estado === 'approved' && !sucio : resumen.estado !== 'draft' && resumen.estado !== 'changes_requested',
     };
     $$('section[data-paso]').forEach((s) => {
       const listo = listos[s.dataset.paso!];
@@ -210,7 +210,7 @@ export function iniciarPanel() {
           cls: 'revision',
           ico: '⏳',
           titulo: 'En revisión',
-          texto: 'Tu emprendimiento está en revisión. Te avisaremos por WhatsApp cuando esté aprobado.',
+          texto: 'Tu emprendimiento está en revisión. Mientras tanto puedes seguir completando datos y fotos: el comité ve lo último guardado. Te avisaremos por WhatsApp cuando esté aprobado.',
           wsp: `Hola comité 👋 Acabo de enviar "${nombre}" a revisión en la Feria 4 Vientos.`,
         };
       case 'approved':
@@ -333,7 +333,7 @@ export function iniciarPanel() {
     const conf: Record<ResumenPanel['estado'], [string, string]> = {
       draft: ['Enviar a revisión', ''],
       changes_requested: ['Reenviar a revisión', ''],
-      pending_review: ['En revisión · No editable', 'gris'],
+      pending_review: ['Actualizar envío', ''],
       approved: ['Aprobado y publicado', 'verde'],
       rejected: ['Rechazado', 'rojo'],
     };
@@ -786,9 +786,9 @@ export function iniciarPanel() {
         const aviso = notificacion?.whatsapp ? { href: linkWsp(`57${notificacion.whatsapp}`, notificacion.mensaje), texto: 'Avisar al vecino por WhatsApp' } : undefined;
         toast(resumen.estado_visible === 'oculto' ? 'Guardado. Está oculto de la landing.' : `¡Publicado! Ya aparece en la sección ${t} 🎉`, 'ok', aviso);
       } else {
-        editable = false;
+        editable = ESTADOS_EDITABLES.includes(resumen.estado);
         aplicarEditable();
-        toast('¡Enviado! El comité lo revisa y te avisa por WhatsApp.', 'ok');
+        toast('¡Enviado! El comité lo revisa y te avisa por WhatsApp. Puedes seguir ajustando mientras tanto.', 'ok');
       }
       renderEstado();
     } catch (e) {
