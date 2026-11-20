@@ -456,8 +456,10 @@ button.photo-slot:hover, .photo-slot.drop { border-color: var(--torre); backgrou
 .panel .btn-estado.rojo { background: #D92D20; color: #fff; border-color: #D92D20; }
 
 /* Formulario en solo lectura (pending_review, approved, rejected) */
-.solo-lectura main .card :is(input, textarea, select, .chip, .torre-opt, .toggle, .photo-slot) { opacity: .6; cursor: not-allowed; }
-.solo-lectura .photo-slot .del, .solo-lectura .photo-slot .acciones { display: none; }
+.solo-lectura main .card :is(input, textarea, select, .chip, .torre-opt, .toggle) { opacity: .6; cursor: not-allowed; }
+/* Aprobado: el vecino sí puede cambiar sus fotos (salen directo; ver panel.ts) → body.fotos-libres */
+.solo-lectura:not(.fotos-libres) main .card .photo-slot { opacity: .6; cursor: not-allowed; }
+.solo-lectura:not(.fotos-libres) .photo-slot .del, .solo-lectura:not(.fotos-libres) .photo-slot .acciones { display: none; }
 
 /* Mis emprendimientos (vecino con más de uno) + solicitud de otro al comité */
 .mis-emps .sidebar-nav a { display: flex; align-items: center; gap: 8px; }

@@ -40,6 +40,20 @@ export function avisoEnvio(db: D1Database, r: Registro) {
   });
 }
 
+/** El vecino cambió las fotos de un emprendimiento ya publicado (salen sin revisión): que el comité les eche un ojo. */
+export function avisoFotos(db: D1Database, r: Registro) {
+  const d = r.borrador;
+  return avisar(db, {
+    para: 'admin',
+    tipo: 'fotos',
+    titulo: 'Cambiaron fotos de un emprendimiento publicado',
+    mensaje: `${d.nombre_emprendimiento} · ${donde(d.torre, d.apartamento)} cambió sus fotos (ya salen en la página). Revíselas: /admin?slug=${r.slug}#fotos`,
+    whatsapp: '',
+    email: '',
+    slug: r.slug,
+  });
+}
+
 export function avisoAprobado(db: D1Database, r: Registro, origen: string) {
   const d = r.borrador;
   return avisar(db, {

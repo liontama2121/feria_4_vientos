@@ -40,5 +40,13 @@ export function puedeEditar(locals: App.Locals, r: Registro) {
   return locals.usuario?.rol === 'admin' || ESTADOS_EDITABLES.includes(r.estado);
 }
 
+/**
+ * Fotos: además de lo anterior, el vecino con el emprendimiento ya aprobado puede cambiarlas
+ * y salen directo, sin revisión (decisión del comité 2026-11-20). El resto sigue bloqueado.
+ */
+export function puedeEditarFotos(locals: App.Locals, r: Registro) {
+  return puedeEditar(locals, r) || r.estado === 'approved';
+}
+
 export const ERROR_NO_EDITABLE =
   'Tu emprendimiento ya se envió al comité y no se puede editar. Si necesitas un cambio, escríbele al comité por WhatsApp.';
