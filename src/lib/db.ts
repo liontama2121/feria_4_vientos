@@ -119,7 +119,7 @@ export interface Notificacion {
   creado_at: string;
   /** A quién va: el comité (admin) o el vecino. */
   para: Rol;
-  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte' | 'solicitud' | 'solicitud_aprobada' | 'solicitud_rechazada' | 'vinculado' | 'clave_pedida' | 'clave_link' | 'inscripcion' | 'inscripcion_aprobada' | 'inscripcion_rechazada';
+  tipo: 'envio' | 'aprobado' | 'rechazado' | 'cambios' | 'cuenta_nueva' | 'cuenta_activada' | 'cuenta_rechazada' | 'reporte' | 'solicitud' | 'solicitud_aprobada' | 'solicitud_rechazada' | 'vinculado' | 'clave_pedida' | 'clave_link' | 'inscripcion' | 'inscripcion_aprobada' | 'inscripcion_rechazada' | 'fotos';
   titulo: string;
   mensaje: string;
   /** Celular de 10 dígitos (sin +57) al que hay que mandar el mensaje, si aplica. */
@@ -641,6 +641,22 @@ export async function guardarBorrador(db: D1Database, slug: string, datos: Datos
   const t = ahora();
   await db.prepare(`UPDATE emprendedores SET borrador = ?, borrador_at = ? WHERE slug = ?`).bind(JSON.stringify(datos), t, slug).run();
   return t;
+}
+
+/** Vecino con el emprendimiento aprobado cambia sus fotos: van al borrador y a la versión pública a la vez. */
+export async function cambiarFotosPublicadas(db: D1Database, slug: string, foto_principal: string, galeria: string[]) {
+  const g = JSON.stringify(galeria);
+  const r = await db
+    .prepare(
+      `UPDATE emprendedores
+          SET borrador = json_set(borrador, '$.foto_principal', ?, '$.galeria', json(?)),
+              publicado = json_set(publicado, '$.foto_principal', ?, '$.galeria', json(?)),
+              borrador_at = ?
+        WHERE slug = ? AND estado = 'approved' AND publicado IS NOT NULL`,
+    )
+    .bind(foto_principal, g, foto_principal, g, ahora(), slug)
+    .run();
+  return r.meta.changes > 0;
 }
 
 /**

@@ -60,6 +60,9 @@ export function iniciarPanel() {
   let resumen = D.resumen;
   const esAdmin = D.rol === 'admin';
   let editable = D.editable;
+  // Aprobado: el vecino solo puede cambiar sus fotos y salen directo (PUT /api/panel/fotos).
+  const fotosDirectas = () => !editable && !esAdmin && resumen.estado === 'approved';
+  const fotosEditables = () => editable || fotosDirectas();
   const estado: DatosEmprendimiento = structuredClone(resumen.borrador);
   // Registros de antes del límite de 3 fotos: se quedan con las primeras.
   estado.galeria = estado.galeria.slice(0, D.limites.galeria);
@@ -218,7 +221,7 @@ export function iniciarPanel() {
           cls: 'ok',
           ico: '✓',
           titulo: `Aprobado y publicado en ${location.host}`,
-          texto: 'Si necesitas cambios, contacta al comité.',
+          texto: 'Tus fotos sí las puedes cambiar cuando quieras en “Fotos”: salen en la página al instante. Para cualquier otro cambio, contacta al comité.',
           landing: true,
           wsp: `Hola comité 👋 Necesito un cambio en "${nombre}" de la Feria 4 Vientos.`,
         };
@@ -351,7 +354,8 @@ export function iniciarPanel() {
     $$<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>('#panelMain .card :is(input, textarea, select, button)').forEach((el) => {
       el.disabled = !editable;
     });
-    $<HTMLInputElement>('fileInput').disabled = !editable;
+    $<HTMLInputElement>('fileInput').disabled = !fotosEditables();
+    document.body.classList.toggle('fotos-libres', fotosDirectas());
     $('btnBorrador').hidden = !editable;
     $('btnGuardarHead').hidden = !editable;
     renderFotos();
@@ -501,6 +505,7 @@ export function iniciarPanel() {
     limpiarError('foto_principal');
     marcarSucio();
     renderFotos();
+    if (fotosDirectas()) guardarFotos();
   }
 
   function mover(desde: number, hasta: number) {
@@ -532,8 +537,8 @@ export function iniciarPanel() {
     b.setAttribute('aria-label', principal ? 'Subir foto principal' : 'Añadir foto');
     b.innerHTML = `<div class="placeholder"><div class="plus">+</div><span></span></div>`;
     b.querySelector('span')!.textContent = texto;
-    b.disabled = !editable;
-    b.addEventListener('click', () => editable && fileInput.click());
+    b.disabled = !fotosEditables();
+    b.addEventListener('click', () => fotosEditables() && fileInput.click());
     return b;
   }
 
@@ -547,7 +552,7 @@ export function iniciarPanel() {
       if (src) {
         const slot = document.createElement('div');
         slot.className = `photo-slot filled${principal ? ' photo-main' : ''}`;
-        slot.draggable = editable;
+        slot.draggable = fotosEditables();
         slot.dataset.idx = String(i);
         slot.tabIndex = 0;
         slot.setAttribute('aria-label', principal ? 'Foto principal' : `Foto ${i + 1}`);
@@ -570,7 +575,7 @@ export function iniciarPanel() {
         del.addEventListener('click', (ev) => {
           ev.stopPropagation();
           setFotos(lista.filter((_, j) => j !== i));
-          toast('Foto quitada. Guarda o publica para confirmar.');
+          if (!fotosDirectas()) toast('Foto quitada. Guarda o publica para confirmar.');
         });
         slot.append(del);
         const acciones = document.createElement('div');
@@ -636,7 +641,7 @@ export function iniciarPanel() {
   });
   grid.addEventListener('drop', (ev) => {
     ev.preventDefault();
-    if (!editable) return;
+    if (!fotosEditables()) return;
     $$('.photo-slot', grid).forEach((s) => s.classList.remove('drop'));
     if (ev.dataTransfer?.files.length) {
       subir(ev.dataTransfer.files);
@@ -654,7 +659,7 @@ export function iniciarPanel() {
   });
 
   async function subir(archivos: FileList | File[]) {
-    if (!editable) return;
+    if (!fotosEditables()) return;
     const libres = maxFotos - fotos().length - subiendo;
     const lista = Array.from(archivos);
     if (libres <= 0) {
@@ -694,7 +699,34 @@ export function iniciarPanel() {
         toast((e as Error).message, 'error');
       }
     }
-    if (subidas) toast(subidas === 1 ? 'Foto lista. Se guarda con el borrador.' : `${subidas} fotos listas. Se guardan con el borrador.`, 'ok');
+    if (subidas && !fotosDirectas()) toast(subidas === 1 ? 'Foto lista. Se guarda con el borrador.' : `${subidas} fotos listas. Se guardan con el borrador.`, 'ok');
+  }
+
+  // En fila: si cambian varias cosas seguidas, se guardan en orden y gana la última.
+  let colaFotos: Promise<void> = Promise.resolve();
+  function guardarFotos() {
+    const lista = fotos();
+    colaFotos = colaFotos.then(async () => {
+      try {
+        const res = await fetch('/api/panel/fotos', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, fotos: lista }),
+        });
+        const j = await res.json().catch(() => ({ error: 'Respuesta inválida del servidor.' }));
+        if (!res.ok) throw new Error(j.error || 'No se pudieron guardar las fotos.');
+        resumen = j as ResumenPanel;
+        ultimoGuardado = new Date();
+        toast('Fotos guardadas. Ya salen en la página ✓', 'ok');
+      } catch (e) {
+        // Vuelve a lo que quedó guardado para no mostrar algo que no está en la página.
+        estado.foto_principal = resumen.borrador.foto_principal;
+        estado.galeria = resumen.borrador.galeria.slice(0, LIM.galeria);
+        renderFotos();
+        toast((e as Error).message, 'error');
+      }
+      renderStatus();
+    });
   }
 
   // ───────────────────────── Guardar y publicar ─────────────────────────

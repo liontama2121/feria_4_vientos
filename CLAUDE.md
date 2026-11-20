@@ -103,7 +103,7 @@ src/
 |---|---|---|---|---|---|
 | `draft` | Editable | "Enviar a revisión" | — | Sí | No |
 | `pending_review` | Editable (desde 2026-11-18) | "Actualizar envío" | Amarillo + "Avisar al comité" | Sí | No |
-| `approved` | Solo lectura | "Aprobado y publicado" (verde) | Verde + WhatsApp del comité | No | **Sí** (si `publicado.publicado`) |
+| `approved` | Solo lectura, menos las fotos (desde 2026-11-20) | "Aprobado y publicado" (verde) | Verde + WhatsApp del comité | No | **Sí** (si `publicado.publicado`) |
 | `rejected` | Solo lectura | "Rechazado" (rojo) | Rojo con `motivo_rechazo` + WhatsApp | No | No |
 | `changes_requested` | Editable | "Reenviar a revisión" | Naranja con `nota_cambios` | Sí | No |
 
@@ -193,6 +193,7 @@ Se administran en `/admin/comite#categorias` (crear, renombrar, emoji, orden, oc
 - 5 vistas en el sidebar (hash en la URL): Mi emprendimiento (5 cards), Fotos, Redes sociales, Publicación, Configuración. Los toggles "Publicar en la landing", "Está en la feria 🎪" y "Destacar" solo los ve el admin.
 - Al elegir torre, `aplicarTorre()` pone `body[data-torre]` y las variables `--torre/--torre-claro/--torre-medio`.
 - Solo lectura: `body.solo-lectura` + `disabled` en inputs/chips/toggles/fotos (opacity .6, cursor not-allowed).
+- **Fotos en approved** (2026-11-20, decisión del cliente): el vecino con su emprendimiento aprobado puede subir/quitar/reordenar SUS fotos y salen directo, sin revisión (`puedeEditarFotos` en `api.ts`, `PUT /api/panel/fotos` → `cambiarFotosPublicadas` toca borrador y publicado; solo acepta fotos de su carpeta o que ya tenía). `body.fotos-libres` reactiva la grilla. El comité recibe UN aviso tipo `fotos` (no se repite mientras haya uno sin marcar como enviado).
 - Fotos: hasta 3 (principal + 2, `LIMITES.galeria`), JPG/PNG/WEBP. Registros viejos con más fotos: la landing y el editor solo usan las 3 primeras. El navegador acepta originales de hasta 25 MB, los reduce a 1200 px y re-codifica a WEBP (calidad 0.8; si aún pesa, baja calidad y tamaño hasta 800 px). El servidor rechaza todo lo que pase de **800 KB** (`LIMITES.fotoBytes`); logos de patrocinadores hasta 1 MB (`LIMITES.logoBytes`). Reorden con drag & drop o ← → ★.
 - **Auto-save cada 30 s** solo como borrador y solo en draft / changes_requested / pending_review.
 
