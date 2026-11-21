@@ -73,7 +73,9 @@ const GIROS = [-4, 3, -2, 5];
           return (
             <button type="button" class="producto abrir" data-detalle={e.slug} data-conjunto={t.id} style={`--g:${GIROS[i % 4]}deg;--i:${i + 1}`}>
               {e.foto_principal ? (
-                <img src={e.foto_principal} alt={`Foto de ${e.nombre_emprendimiento}`} loading={i < 2 ? 'eager' : 'lazy'} decoding="async" />
+                <span class="producto-foto">
+                  <img src={e.foto_principal} alt={`Foto de ${e.nombre_emprendimiento}`} loading={i < 2 ? 'eager' : 'lazy'} decoding="async" />
+                </span>
               ) : (
                 <span class="producto-iniciales" aria-hidden="true">
                   {iniciales(e.nombre_emprendimiento || e.nombre_vecino)}
@@ -158,7 +160,10 @@ const GIROS = [-4, 3, -2, 5];
   }
   .producto:nth-child(2), .producto:nth-child(4) { margin-top: 26px; }
   .producto:hover { transform: rotate(0) translateY(-4px) scale(1.02); z-index: 2; }
-  .producto img, .producto-iniciales { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; }
+  .producto-foto, .producto-iniciales { display: block; position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; border-radius: 10px; }
+  .producto-foto img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* Celulares viejos sin aspect-ratio: la foto vertical no debe alargar el cuadro */
+  @supports not (aspect-ratio: 1 / 1) { .producto-foto::before { content: ''; display: block; padding-top: 100%; } }
   .producto-iniciales { display: grid; place-items: center; background: var(--c); color: #fff; font-family: var(--f-letrero); font-size: 64px; }
   .producto-nombre { position: relative; top: -14px; margin: 0 auto -8px; font-size: 20px; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; }
   .conteo { grid-column: 1 / -1; text-align: center; font-family: var(--f-mano); font-size: 26px; line-height: 1.1; }
